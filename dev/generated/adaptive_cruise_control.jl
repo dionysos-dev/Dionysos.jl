@@ -98,14 +98,19 @@ band(v_c; ε = 0.5, margin = 5.0, gap_high = z_upp) = LazySets.Hyperrectangle(;
 target = UT.set_union([band(v_desired), band(v_lead; gap_high = 45.0)])
 
 acc = Model(Dionysos.Optimizer)
-@variable(acc, z_low <= za <= z_upp, start = 90.0)
-@variable(acc, v_low <= va <= v_upp, start = 13.0)
+@variable(acc, z_low <= za <= z_upp)
+@variable(acc, v_low <= va <= v_upp)
 @variable(acc, -a_max <= aa <= a_max)
 
 @constraint(acc, ∂(za) == v_lead - va)
 @constraint(acc, ∂(va) == aa - (f0 + f1 * va + f2 * va^2) / m)
+
+far_behind =
+    LazySets.Hyperrectangle(; low = SVector(89.0, 12.8), high = SVector(91.0, 13.2))
+
+@constraint(acc, [za, va] in Start(far_behind))
 @constraint(acc, [za, va] in Always(safe))
-@constraint(acc, [za, va] in EventuallyAlways(target))
+@constraint(acc, [za, va] in EventuallyAlways(target; stay_on_first_entry = true))
 
 for (k, val) in (
     ("state_grid", MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 0.2))),
@@ -122,7 +127,11 @@ optimize!(acc);
 
 termination_status(acc)
 
-trajectory = Dionysos.simulate(acc, SVector(90.0, 13.0); nsteps = 160);
+winning_set = get_attribute(acc, "winning_set")
+acc_mapping = DI.Symbolic.get_state_mapping(get_attribute(acc, "abstract_system"));
+
+trajectory =
+    Dionysos.simulate(acc, SVector(90.0, 13.0); nsteps = 160, stopping = _ -> false);
 
 let xs = collect(ST.states(trajectory))
     (gap_start = xs[1][1], gap_end = xs[end][1], top_speed = maximum(x[2] for x in xs))
@@ -130,6 +139,13 @@ end
 
 fig = plot(; xlabel = "gap [m]", ylabel = "ego speed [m/s]", legend = :bottomright)
 plot!(fig, get_attribute(acc, "concrete_problem"))
+plot!(
+    fig,
+    (winning_set, acc_mapping);
+    color = :yellow,
+    linecolor = :yellow,
+    label = "Winning set",
+)
 plot!(fig, trajectory; ms = 2.0, color = :blue)
 
 include(
@@ -147,12 +163,11 @@ anim = Dionysos.animate_trajectory_dashboard(
     xdims = (1, 2),
     udims = (1,),
     Δt = 0.5,
-    frame_step = 2,
     xlabel_state = "gap [m]",
     ylabel_state = "ego speed [m/s]",
     xlabel_input = "time [s]",
     ylabel_input = "acceleration [m/s²]",
 );
-gif(anim; fps = 10)
+gif(anim; fps = 4)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
