@@ -114,6 +114,40 @@ const PCLF = UT.PathCompleteFramework
         MOI.get(cosafe_optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     @test concrete_controller !== nothing
     @test controllable_set !== nothing
+
+    # `success` must answer whether the problem's own initial set is controllable, not whether
+    # the whole domain is. Under `early_stop = false` the controller is built over every
+    # state, so forwarding the sub-solver's flag reported failure as soon as any single state
+    # could not satisfy the specification -- whatever was asked about.
+    @test cosafe_optimizer.success
+
+    q0 = [q.id for q in values(bisimulation.states) if x0 in q.set]
+    @test !isempty(q0)
+    @test all(q -> q in controllable_set, q0)
+
+    # ... and it must not depend on `early_stop`, which only changes how much of the domain
+    # the controller is constructed over.
+    early_stop_optimizer =
+        MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
+    MOI.set(
+        early_stop_optimizer,
+        MOI.RawOptimizerAttribute("concrete_problem"),
+        cosafe_problem,
+    )
+    MOI.set(
+        early_stop_optimizer,
+        MOI.RawOptimizerAttribute("bisimulation_quotient"),
+        bisimulation,
+    )
+    MOI.set(
+        early_stop_optimizer,
+        MOI.RawOptimizerAttribute("ap_to_obs"),
+        Dict(:D => -1, :R1 => 1),
+    )
+    MOI.set(early_stop_optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
+    MOI.set(early_stop_optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
+    MOI.optimize!(early_stop_optimizer)
+    @test early_stop_optimizer.success == cosafe_optimizer.success
 end
 
 end # module TestMain

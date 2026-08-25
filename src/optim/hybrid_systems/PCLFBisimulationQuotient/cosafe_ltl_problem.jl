@@ -187,7 +187,8 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     optimizer.value_fun_tab =
         from_autom_to_bis_value_function(Q, abstract_optimizer.value_fun_tab)
 
-    optimizer.success = abstract_optimizer.success
+    optimizer.success = success(abstract_optimizer, abstract_problem.initial_set)
+    optimizer.print_level >= 1 && println("Initial set controllable: ", optimizer.success)
     optimizer.solve_time_sec = time() - t0
 
     return
@@ -217,8 +218,21 @@ end
 # Success condition
 # ============================================================
 
-function success(abstract_optimizer, concrete_initial_set)
-    return true
+"""
+    success(abstract_optimizer, abstract_initial_set) -> Bool
+
+Whether every abstract state the problem starts from ended up controllable.
+
+The sub-solver reports success against the states it was *constructed* from, and under
+`early_stop = false` those are every state of the quotient: the controller is deliberately
+built over the whole domain so that the controllable set can be inspected. Its flag
+therefore answers whether the entire domain is controllable, which a single state violating
+the specification outright makes false, and says nothing about the problem posed. This asks
+the question the caller means instead — is the initial set covered?
+"""
+function success(abstract_optimizer, abstract_initial_set)
+    controllable = Set(abstract_optimizer.controllable_set)
+    return OPDS.covers_initial_set(q -> q in controllable, abstract_initial_set)
 end
 
 # ============================================================
