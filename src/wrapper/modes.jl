@@ -281,10 +281,15 @@ guards and resets never get mixed up.
 A transition needs at least a guard; an always-enabled switch is written with a guard covering
 the whole state set.
 
-Only `HybridSystems.AutonomousSwitching` is supported: the switch is taken because the state
-entered the guard, not because a controller chose it. `ControlledSwitching` is rejected — see
-[`add_transition!`](@ref)'s error — because the abstraction treats a switch as a state-driven
-event, not as an input the synthesis may pick.
+**A switch is an input the synthesis chooses.** The guard says *where* the switch is available,
+not *that* it is taken: from a state inside the guard the abstraction offers both the switch and
+the mode's own dynamics, and the controller picks. So a guard is a permission, and "stay put"
+remains available everywhere.
+
+Environment-forced switching — a fault, an impact, a threshold the physics obliges — is therefore
+**not** expressible today: a controller synthesized here assumes it may decline any switch. Only
+`HybridSystems.AutonomousSwitching()` is accepted, as the default placeholder value; that name is
+`HybridSystems`' and does not describe the semantics implemented here.
 """
 function add_transition!(
     f::Function,
@@ -292,14 +297,15 @@ function add_transition!(
     pair::Pair{Mode, Mode};
     switching = HybridSystems.AutonomousSwitching(),
 )
-    # Anything else would be handed to `HybridSystems` and then quietly ignored by the
-    # abstraction, which builds switch transitions from the guard alone.
+    # The value is carried into `HybridSystems` and never read again: the abstraction gives every
+    # switch its own input symbol, so what it builds is a controller-chosen switch whatever this
+    # says. Refusing the other value keeps the model from claiming a semantics nothing enforces.
     switching isa HybridSystems.AutonomousSwitching || error(
-        "`switching = $(typeof(switching))` is not supported; only " *
-        "`HybridSystems.AutonomousSwitching()` is. The hybrid abstraction takes a switch " *
-        "whenever the state is in the guard, so a controlled switch would silently behave " *
-        "as an autonomous one. Model a controller-chosen switch by writing the choice into " *
-        "the guard instead.",
+        "`switching = $(typeof(switching))` is not supported; pass " *
+        "`HybridSystems.AutonomousSwitching()` (the default) or omit it. Note that the name is " *
+        "`HybridSystems`': the abstraction gives each switch its own input symbol, so the " *
+        "switch is one the synthesis *chooses* from inside the guard. Environment-forced " *
+        "switching is not implemented.",
     )
     source, target = pair
     id = _next_scope_id!(model, :_dionysos_transitions)

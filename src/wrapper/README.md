@@ -317,10 +317,14 @@ affine or set-valued; a *nonlinear* guard is rejected.
 On a **clocked** model a guard must be a plain box: a non-box guard would have to be extruded
 across the time axis, and the discretisation cannot enumerate that product.
 
-Only `HybridSystems.AutonomousSwitching` (the default) is supported — the switch is taken
-because the state entered the guard. `ControlledSwitching` is rejected rather than accepted and
-ignored, since the abstraction builds switch transitions from the guard alone. Model a
-controller-chosen switch by writing the choice into the guard.
+**A switch is an input the synthesis chooses.** The abstraction gives each transition its own
+input symbol, and a state inside a guard keeps its mode's ordinary successors too — so the guard
+says *where* a switch is available, and the controller decides whether to take it. Environment-
+forced switching (a fault, an impact, a threshold the physics obliges) is **not** expressible:
+the synthesized controller assumes it may decline any switch.
+
+Only `HybridSystems.AutonomousSwitching()` (the default) is accepted. The name is
+`HybridSystems`' and does not describe the semantics above; it rides along as a placeholder.
 
 Solver options are set **per mode**, since each mode is abstracted by its own sub-solver:
 
@@ -333,6 +337,18 @@ end
 ```
 
 Options set on the model itself apply to every mode unless a mode overrides them.
+
+Abstracting the modes dominates a hybrid build, and the modes are independent, so they can be
+built on separate threads. That option belongs to the hybrid solver rather than to a mode, and
+the solver is normally only chosen once the model is lowered — so name it first:
+
+```julia
+set_attribute(model, "solver", AB.HybridSystemAbstraction.Optimizer)
+set_attribute(model, "parallel_modes", true)
+```
+
+Leave it off if a mode's own abstraction already uses one of the threaded build backends;
+nesting the two oversubscribes rather than going faster.
 
 ### Clocks and timed specifications
 
@@ -353,6 +369,19 @@ A time window on a target is then a reach constraint on the clock:
 ```
 
 Specifications written on a mode apply in that mode only; with a clock they become time-windowed.
+
+A mode with no `Final` set is simply not a goal. A mode with no `Always` set is **unconstrained**,
+not forbidden — its own state set stands in, so writing one `Always` does not outlaw every mode
+you left it off.
+
+`Final`, `Always` and `EventuallyAlways` all work on a hybrid model, giving a reach(-avoid),
+safety or reach-and-stay problem exactly as they do on a flat one. `Final` and `EventuallyAlways`
+together are rejected: `◇□ T` already reaches `T`.
+
+**A clock is a deadline.** The time axis is discretized over the clock variable's declared bounds
+and has no transition out of its last step, so reaching the end of the clock's range is a
+deadlock. A timed safety specification therefore means "stay safe *and* do not run out of clock".
+Give the clock a range that covers the horizon you mean.
 
 ---
 

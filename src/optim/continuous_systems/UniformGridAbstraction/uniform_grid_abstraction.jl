@@ -11,6 +11,15 @@ const SY = Dionysos.Symbolic
 const OP = Dionysos.Optim
 const OPDS = OP.DiscreteSystems
 
+# The lifted-control template lives in `Optim`, shared with the hybrid family. Importing the
+# hooks by name means the methods below read as ordinary definitions.
+import Dionysos.Optim:
+    AbstractLiftedControlOptimizer,
+    build_abstract_problem,
+    abstract_optimizer_type,
+    configure_abstract_optimizer!,
+    extract_results!
+
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems as MS
 import HybridSystems
@@ -23,7 +32,6 @@ import Distributed
 export Optimizer
 
 include("alternating_simulation_problem.jl")
-include("lifted_control_optimizer.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 include("reach_and_stay_problem.jl")

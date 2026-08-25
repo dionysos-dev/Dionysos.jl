@@ -324,22 +324,68 @@ function _mode_time_window(ir::ModelIR, m::ModeIR, kind::SpecKind, clock::Int)
     return lo, hi
 end
 
-function _hybrid_spec(ir::ModelIR, kind::SpecKind, x_idx::Vector{Int})
+# One mode's entry in a `HybridSpec`: the set, wrapped in the mode's time window when the model
+# has a clock.
+function _mode_spec(ir::ModelIR, m::ModeIR, kind::SpecKind, set, clock)
+    spec = PR.StateSpec(set)
+    clock === nothing && return spec
+    lo, hi = _mode_time_window(ir, m, kind, clock)
+    return PR.TimedSpec(spec, lo, hi)
+end
+
+# What a mode that carries no set of this kind means. For `FINAL` it is simply not a goal, so it
+# is left out of the spec. For `ALWAYS` leaving it out would say "this mode is forbidden
+# entirely" — writing one `Always` would silently outlaw every mode it was not written on — so
+# the neutral reading is the mode's own state set.
+_absent_mode_is_whole(kind::SpecKind) = kind === ALWAYS
+
+function _hybrid_spec(
+    ir::ModelIR,
+    kind::SpecKind,
+    x_idx::Vector{Int};
+    default_all::Bool = false,
+)
     clock = clock_index(ir)
+    explicit = Dict{Int, Any}()
+    for k in mode_ids(ir)
+        set = _mode_spec_set(ir, ir.modes[k], kind, x_idx)
+        set === nothing || (explicit[k] = set)
+    end
+    isempty(explicit) && !default_all && return nothing
+
+    fill_absent = default_all || _absent_mode_is_whole(kind)
     pairs = Pair{Int, PR.AbstractSpecification}[]
     for k in mode_ids(ir)
         m = ir.modes[k]
-        set = _mode_spec_set(ir, m, kind, x_idx)
-        set === nothing && continue
-        spec = PR.StateSpec(set)
-        if clock !== nothing
-            lo, hi = _mode_time_window(ir, m, kind, clock)
-            spec = PR.TimedSpec(spec, lo, hi)
+        set = get(explicit, k, nothing)
+        if set === nothing
+            fill_absent || continue
+            set = _mode_box(ir, m, x_idx)
         end
-        push!(pairs, k => spec)
+        push!(pairs, k => _mode_spec(ir, m, kind, set, clock))
     end
-    isempty(pairs) && return nothing
     return PR.HybridSpec(Dict(pairs))
+end
+
+# The whole state space, mode by mode: the safe set of a reach-and-stay model that constrains
+# only where it must end up, not where it may pass through. Every mode defaulted is exactly what
+# `default_all` means, so this is `_hybrid_spec` with nothing written anywhere.
+_whole_state_spec(ir::ModelIR, x_idx::Vector{Int}) =
+    _hybrid_spec(ir, ALWAYS, x_idx; default_all = true)
+
+# `_hybrid_spec` hands back the sets, so the `EventuallyAlways` option is read separately. The
+# flag is written per mode; requiring agreement is better than letting one mode's reading win.
+function _hybrid_stay_on_first_entry(ir::ModelIR)
+    flags = Bool[]
+    for k in mode_ids(ir), e in ir.modes[k].specs
+        e.kind === EVENTUALLY_ALWAYS && push!(flags, e.stay_on_first_entry)
+    end
+    isempty(flags) && return false
+    allequal(flags) || error(
+        "The modes disagree on `stay_on_first_entry`: it is part of what `◇□` means, so every " *
+        "`EventuallyAlways` in one model must use the same reading.",
+    )
+    return first(flags)
 end
 
 # Where the clock starts: its declared `start`, otherwise the beginning of its domain — a timer
@@ -350,23 +396,52 @@ function _clock_start(ir::ModelIR, clock::Int)
     return v.lower
 end
 
-# The augmented initial state — `(x, mode)`, or `(x, t, mode)` with a clock. The continuous
-# part is the centre of the declared initial box, since a hybrid problem starts from a point
-# rather than a region, and the mode is the one carrying a `start` constraint, defaulting to
-# the first.
-function _hybrid_initial_state(ir::ModelIR, x_idx::Vector{Int})
-    box = _coordinate_box(ir, x_idx, :start)
-    x0 = SVector{length(x_idx)}(LazySets.center(box)...)
-
-    starting = [k for k in mode_ids(ir) if any(e -> e.kind === START, ir.modes[k].specs)]
-    length(starting) <= 1 || error(
-        "Several modes carry a `start` constraint ($(starting)); the model can only begin in one.",
-    )
-    mode = isempty(starting) ? first(mode_ids(ir)) : starting[]
-
+# Where the model starts, as a mode-indexed set. It used to be the *centre* of the declared box,
+# so `Start(S)` meant "start at the middle of `S`" and a model reported `OPTIMAL` for one point
+# while the states around it — inside the set the user declared — went unsynthesized.
+#
+# `OUTER` because a controller has to handle every state the initial set touches, including the
+# cells it only clips. That is the reading the flat path uses too (`get_states_from_set(…,
+# MP.OUTER)`), and it is what keeps a `start = v` point, whose box is degenerate, from
+# discretizing to nothing.
+#
+# More than one mode may carry a `start`: with a set-valued initial condition, beginning in
+# either of two modes is a meaningful thing to ask for.
+function _hybrid_initial_spec(ir::ModelIR, x_idx::Vector{Int})
     clock = clock_index(ir)
-    clock === nothing && return (x0, mode)
-    return (x0, _clock_start(ir, clock), mode)
+    starting = [k for k in mode_ids(ir) if any(e -> e.kind === START, ir.modes[k].specs)]
+    isempty(starting) && (starting = [first(mode_ids(ir))])
+
+    pairs = map(starting) do k
+        m = ir.modes[k]
+        set = _mode_spec_set(ir, m, START, x_idx)
+        set === nothing && (set = _coordinate_box(ir, x_idx, :start))
+        spec = PR.StateSpec(set, UT.OUTER)
+        if clock !== nothing
+            t0 = _clock_start(ir, clock)
+            spec = PR.TimedSpec(spec, t0, t0)
+        end
+        return k => spec
+    end
+    return PR.HybridSpec(Dict(pairs))
+end
+
+# Every specification kind the hybrid lowering consumes. A kind absent from this list would be
+# parsed onto a mode and then silently dropped on the way to the problem — which is exactly how
+# `EventuallyAlways` came to be accepted and ignored. Adding a `SpecKind` should fail here until
+# the lowering handles it, rather than producing a controller for a different specification.
+const _HYBRID_SPEC_KINDS = (START, FINAL, ALWAYS, EVENTUALLY_ALWAYS)
+
+function _reject_unhandled_specs(ir::ModelIR)
+    for k in mode_ids(ir), e in ir.modes[k].specs
+        e.kind in _HYBRID_SPEC_KINDS && continue
+        error(
+            "Mode $k carries a `$(e.kind)` specification, which the hybrid lowering does not " *
+            "handle. It would otherwise be dropped and the controller synthesized for the " *
+            "rest of the model.",
+        )
+    end
+    return
 end
 
 """
@@ -376,14 +451,34 @@ Assemble the hybrid control problem: a `HybridSystem`, an augmented initial stat
 and a mode-indexed specification.
 """
 function build_hybrid_problem(ir::ModelIR, backend; time_step = nothing)
+    _reject_unhandled_specs(ir)
     x_idx = state_indices(ir)
     system = build_hybrid_system(ir, backend)
-    initial_state = _hybrid_initial_state(ir, x_idx)
+    initial_state = _hybrid_initial_spec(ir, x_idx)
 
     target = _hybrid_spec(ir, FINAL, x_idx)
+    stay = _hybrid_spec(ir, EVENTUALLY_ALWAYS, x_idx)
     safe = _hybrid_spec(ir, ALWAYS, x_idx)
 
-    if target !== nothing
+    target === nothing ||
+        stay === nothing ||
+        error(
+            "The model asks both to reach a set (`Final`) and to reach-and-stay in one " *
+            "(`EventuallyAlways`). Keep one: `◇□ T` already reaches `T`.",
+        )
+
+    if stay !== nothing
+        # `ReachAndStayProblem` always carries a safe set, so a model that says only where to
+        # settle is safe everywhere on the way.
+        return PR.ReachAndStayProblem(
+            system,
+            initial_state,
+            stay,
+            safe === nothing ? _whole_state_spec(ir, x_idx) : safe,
+            _horizon(ir, true, time_step);
+            stay_on_first_entry = _hybrid_stay_on_first_entry(ir),
+        )
+    elseif target !== nothing
         # With both markers this is reach-avoid: before `safe_set` existed the `Always` set was
         # dropped here, since the hybrid path has no state space to fold it into.
         return PR.OptimalControlProblem(
@@ -399,7 +494,7 @@ function build_hybrid_problem(ir::ModelIR, backend; time_step = nothing)
         return PR.SafetyProblem(system, initial_state, safe, _horizon(ir, true, time_step))
     end
     return error(
-        "A hybrid model needs a specification on at least one mode: add a `Final` or `Always` " *
-        "set, or a `final(x[i]) in …` constraint, to the mode you care about.",
+        "A hybrid model needs a specification on at least one mode: add a `Final`, `Always` or " *
+        "`EventuallyAlways` set, or a `final(x[i]) in …` constraint, to the mode you care about.",
     )
 end

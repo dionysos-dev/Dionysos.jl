@@ -87,17 +87,22 @@ const HSA = OP.Abstraction.HybridSystemAbstraction
 
 # A hybrid closed loop steps the augmented state `(x[, t], mode)` and needs the abstraction
 # step of each mode, so it runs on its own engine.
+# The hybrid counterpart of `_stopping_for`, over augmented `(x[, t], mode)` states. Same
+# dispatch shape, because the rule is a property of the specification and not of an `if` chain:
+# a reach run stops on arrival, a safety run on leaving the safe set.
+#
+# For `◇□` stopping on arrival hides the staying, which is the half worth watching — pass
+# `stopping = _ -> false` to simulate through it.
+function _hybrid_stopping_for(p::Union{PR.OptimalControlProblem, PR.ReachAndStayProblem})
+    p.safe_set === nothing && return aug -> HSA.reached(p, aug)
+    return aug -> HSA.reached(p, aug) || !PR.satisfies(p.safe_set, aug...)
+end
+_hybrid_stopping_for(p::PR.SafetyProblem) = aug -> !HSA.safe(p, aug)
+_hybrid_stopping_for(::Any) = _ -> false
+
 function _simulate_hybrid(model::Optimizer, controller, aug0, nsteps, stopping)
     problem = model.problem
-    stop = if stopping !== nothing
-        stopping
-    elseif problem isa PR.SafetyProblem
-        aug -> !HSA.safe(problem, aug)
-    elseif problem isa PR.OptimalControlProblem && problem.safe_set !== nothing
-        aug -> HSA.reached(problem, aug) || !PR.satisfies(problem.safe_set, aug...)
-    else
-        aug -> HSA.reached(problem, aug)
-    end
+    stop = stopping === nothing ? _hybrid_stopping_for(problem) : stopping
 
     tsteps = [_mode_time_step(model, k) for k in mode_ids(model.ir)]
     aug_traj, u_traj = HSA.get_closed_loop_trajectory(

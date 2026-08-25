@@ -8,6 +8,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     # Per-mode `nothing` (build) or the index of an earlier mode whose abstraction
     # this mode reuses — see `build_mode_symbolic_models`.
     shared_abstraction::Union{Nothing, AbstractVector}
+    # Abstract the distinct modes on separate threads. Opt-in: nesting this inside a mode's own
+    # threaded build backend oversubscribes rather than accelerates.
+    parallel_modes::Bool
 
     max_iterations::Union{Nothing, Int}
     print_level::Int
@@ -17,8 +20,18 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     abstraction_construction_time_sec::T
 
     function OptimizerAlternatingSimulationProblem{T}() where {T}
-        optimizer =
-            new{T}(nothing, nothing, nothing, nothing, nothing, 1000, 1, nothing, 0.0)
+        optimizer = new{T}(
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            false,
+            1000,
+            1,
+            nothing,
+            0.0,
+        )
         return optimizer
     end
 end
@@ -49,6 +62,24 @@ function _validate_model(
     end
 end
 
+# Losing part of a switch is legitimate — the guard cells at the edge of the target mode's
+# domain have nowhere to land — but it is the kind of thing that explains an unexpectedly small
+# winning set an hour later, so it is summarised rather than left in the log.
+function _print_build_report(report::SY.HybridBuildReport)
+    isempty(report) && return
+    for (id, (dropped, total)) in sort!(collect(report.dropped_resets))
+        println("  transition $id: $dropped of $total guard cells reset out of domain")
+    end
+    for (id, offset) in sort!(collect(report.inexact_resets))
+        println(
+            "  transition $id: reset is not lattice-exact (offset ",
+            round(offset; sigdigits = 3),
+            ") — the abstraction may be unsound",
+        )
+    end
+    return
+end
+
 function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     t_ref = time()
     # Ensure necessary parameters are set
@@ -63,12 +94,15 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
         optimizer.optimizer_list,
         optimizer.optimizer_kwargs_dict;
         shared_abstraction = optimizer.shared_abstraction,
+        parallel_modes = optimizer.parallel_modes,
     )
 
     optimizer.print_level >= 1 && println(
         "Construct the Hybrid System Abstraction: terminated with success: ",
         "$(HybridSystems.ntransitions(SY.get_automaton(optimizer.abstract_system))) transitions created",
     )
+    optimizer.print_level >= 1 &&
+        _print_build_report(SY.get_build_report(optimizer.abstract_system))
 
     optimizer.abstraction_construction_time_sec = time() - t_ref
     return

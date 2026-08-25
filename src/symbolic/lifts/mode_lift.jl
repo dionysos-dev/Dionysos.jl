@@ -21,8 +21,8 @@ Compose the per-mode `mode_models` (each plain or clock-lifted) into a hybrid
 symbolic model, assembling the intra-mode and guarded inter-mode transitions.
 """
 function lift(l::ModeLift, mode_models::AbstractVector)
-    transition_list = build_all_transitions(l.hs, mode_models, l.input_mapping)
+    transition_list, report = build_all_transitions(l.hs, mode_models, l.input_mapping)
     flat, automaton =
         build_symbolic_automaton(transition_list, mode_models, l.input_mapping)
-    return HybridSymbolicModel(mode_models, flat, automaton, l.input_mapping)
+    return HybridSymbolicModel(mode_models, flat, automaton, l.input_mapping, report)
 end

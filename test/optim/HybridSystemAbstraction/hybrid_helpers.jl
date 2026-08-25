@@ -71,10 +71,14 @@ end
 
     ocp = PR.OptimalControlProblem(sys, XI, XT, nothing, (a, u) -> 1.0, PR.Infinity())
     safety = PR.SafetyProblem(sys, XI, XS, PR.Infinity())
-    unsupported = PR.ReachAndStayProblem(sys, XI, XT, XS, PR.Infinity())
+    ras = PR.ReachAndStayProblem(sys, XI, XT, XS, PR.Infinity())
+    unsupported = PR.AlternatingSimulationProblem(sys, nothing)
 
     @test HSA.control_solver_for(ocp) isa HSA.OptimizerOptimalControlProblem
     @test HSA.control_solver_for(safety) isa HSA.OptimizerSafetyProblem
+    @test HSA.control_solver_for(ras) isa HSA.OptimizerReachAndStayProblem
+    # An abstraction-only problem is not a *control* problem: it is routed by
+    # `set_concrete_problem!` before this dispatch is ever reached.
     @test_throws ErrorException HSA.control_solver_for(unsupported)
 end
 

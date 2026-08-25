@@ -3,20 +3,21 @@
 # ================================================================
 
 """
-    build_all_transitions(hs, mode_models, input_mapping) -> Vector{HybridTransition}
+    build_all_transitions(hs, mode_models, input_mapping) -> (transitions, report)
 
 Assemble every hybrid transition: intra-mode (each mode model's own transitions,
 which already encode any time advance) followed by inter-mode (guarded switches
-between modes).
+between modes). The [`HybridBuildReport`](@ref) records what the switch wiring
+had to discard.
 """
 function build_all_transitions(hs::HybridSystem, mode_models, input_mapping::GlobalInputMap)
     transition_list = Vector{HybridTransition}()
     sizehint!(transition_list, sum(get_n_transitions(m) for m in mode_models))
 
     add_intra_mode_transitions!(transition_list, mode_models, input_mapping)
-    add_inter_mode_transitions!(transition_list, hs, mode_models, input_mapping)
+    report = add_inter_mode_transitions!(transition_list, hs, mode_models, input_mapping)
 
-    return transition_list
+    return transition_list, report
 end
 
 "Embed each mode model's own transitions into the global list, relabelling inputs."
@@ -41,7 +42,16 @@ function add_intra_mode_transitions!(
     end
 end
 
-"Add the guarded mode-switch transitions using each transition's guard and reset map."
+"""
+    add_inter_mode_transitions!(transition_list, hs, mode_models, input_mapping) -> HybridBuildReport
+
+Add the guarded mode-switch transitions using each transition's guard and reset map.
+
+A transition that ends up contributing **no** switch is an error, not a warning: the model
+declared a switch, the abstraction silently has none, and synthesis then answers for a
+disconnected system while reporting success. A *partial* loss is legitimate and is recorded in
+the returned report instead.
+"""
 function add_inter_mode_transitions!(
     transition_list,
     hs::HybridSystem,
@@ -49,14 +59,14 @@ function add_inter_mode_transitions!(
     input_mapping::GlobalInputMap,
 )
     transitions = collect(HybridSystems.transitions(hs.automaton))
+    report = HybridBuildReport()
 
     for (transition_id, transition) in enumerate(transitions)
         global_input_id = get_switching_global_id(input_mapping, transition_id)
-
-        if global_input_id <= 0
-            @warn "Invalid global input ID for transition $transition_id, skipping"
-            continue
-        end
+        global_input_id > 0 || error(
+            "Transition $transition_id has no switching input in the global alphabet. The " *
+            "input map and the automaton disagree about how many transitions there are.",
+        )
 
         source_mode = HybridSystems.source(hs.automaton, transition)
         target_mode = HybridSystems.target(hs.automaton, transition)
@@ -67,10 +77,10 @@ function add_inter_mode_transitions!(
         reset_map = HybridSystems.resetmap(hs, transition)
         guard = HybridSystems.guard(hs, transition)
 
-        if isnothing(guard)
-            @warn "No guard found for transition $transition_id, skipping"
-            continue
-        end
+        isnothing(guard) && error(
+            "Transition $transition_id (mode $source_mode → mode $target_mode) has no guard, " *
+            "so nothing says when the switch may be taken.",
+        )
 
         source_model = mode_models[source_mode]
         target_model = mode_models[target_mode]
@@ -78,10 +88,13 @@ function add_inter_mode_transitions!(
         # Source states intersecting the guard (a box over the mode's `[x; t]` coord).
         source_locals = get_states_from_set(source_model, guard, MP.INNER)
 
-        if isempty(source_locals)
-            @warn "Empty guard intersection for transition $transition_id, skipping"
-            continue
-        end
+        isempty(source_locals) && error(
+            "Transition $transition_id (mode $source_mode → mode $target_mode) has a guard no " *
+            "cell lies inside, so the switch can never be taken and the modes would be " *
+            "disconnected. `INNER` inclusion needs a cell to sit *entirely* within the guard, " *
+            "so a guard thinner than one cell — an equality, say — discretizes to nothing. " *
+            "Widen the guard into a band, or refine mode $source_mode's `state_grid`.",
+        )
 
         n_dropped = 0
         max_offset = 0.0
@@ -108,14 +121,19 @@ function add_inter_mode_transitions!(
             )
         end
 
-        _warn_reset_not_lattice_exact(transition_id, max_offset)
+        if _warn_reset_not_lattice_exact(transition_id, max_offset)
+            report.inexact_resets[transition_id] = max_offset
+        end
 
-        if n_dropped == length(source_locals)
-            @warn(
-                "Transition $transition_id: the reset image of every guard cell falls " *
-                "outside the target mode's domain, so the switch can never be taken.",
-            )
-        elseif n_dropped > 0
+        n_dropped == length(source_locals) && error(
+            "Transition $transition_id (mode $source_mode → mode $target_mode): the reset " *
+            "image of every one of its $(n_dropped) guard cells falls outside mode " *
+            "$target_mode's domain, so the switch can never be taken and the modes would be " *
+            "disconnected. Check that the reset lands inside the target mode's bounds.",
+        )
+
+        if n_dropped > 0
+            report.dropped_resets[transition_id] = (n_dropped, length(source_locals))
             @warn(
                 "Transition $transition_id: $n_dropped of $(length(source_locals)) guard " *
                 "cells reset outside the target mode's domain; those switches are dropped.",
@@ -123,6 +141,8 @@ function add_inter_mode_transitions!(
             )
         end
     end
+
+    return report
 end
 
 # The reset is applied to the source cell *centre* and the image is quantized to
@@ -141,9 +161,10 @@ end
 # is not a soundness signal there.
 _reset_quantization_offset(::ClockLiftedSymbolicModel, ::Int, _) = nothing
 
+# Warn if the reset was snapped off-lattice, returning whether it was.
 function _warn_reset_not_lattice_exact(transition_id, max_offset; rtol = 1e-9)
-    max_offset <= rtol && return
-    return @warn(
+    max_offset <= rtol && return false
+    @warn(
         "Transition $transition_id: the reset map is not lattice-exact (relative " *
         "offset $(round(max_offset; sigdigits = 3)) between a reset image and the cell " *
         "centre it was quantized to). The switch is applied to cell centres and " *
@@ -152,6 +173,7 @@ function _warn_reset_not_lattice_exact(transition_id, max_offset; rtol = 1e-9)
         "integer lattice shift), or refine the grid.",
         maxlog = 1,
     )
+    return true
 end
 
 """
@@ -166,8 +188,15 @@ function build_symbolic_automaton(
     mode_models,
     input_mapping::GlobalInputMap,
 )
-    @assert !isempty(transition_list) "Transition list cannot be empty"
     @assert !isempty(mode_models) "Mode models cannot be empty"
+    # An assertion here reports only that a vector is empty. The cause is always upstream — every
+    # mode discretized to nothing, or every guard and every mode transition was dropped — and a
+    # model that gets this far deserves to be told which.
+    isempty(transition_list) && error(
+        "The abstraction has no transitions at all: no mode produced a successor and no switch " *
+        "survived its guard. Check that each mode's `state_grid` and `time_step` give the " *
+        "dynamics room to move a cell, and that the guards intersect their source mode.",
+    )
 
     estimated_states = sum(get_n_state(m) for m in mode_models)
 

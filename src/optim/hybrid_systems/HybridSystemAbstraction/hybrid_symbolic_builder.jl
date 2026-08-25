@@ -60,12 +60,21 @@ the dominant cost, so a mode may **reuse** another's abstraction:
   configuration, in which case its abstraction is reused automatically.
 
 Only the abstraction is shared: each mode still gets its own clock lift.
+
+`parallel_modes` abstracts the modes that must actually be built on separate
+threads. Abstracting a mode dominates the wall clock of a hybrid build — the
+composition and the synthesis that follow are comparatively free — and the modes
+are independent, so this is close to a linear speed-up in the number of distinct
+modes. It is **opt-in**: a mode's own optimizer may itself use one of the
+threaded build backends in `Symbolic`, and nesting the two oversubscribes the
+machine rather than going faster.
 """
 function build_mode_symbolic_models(
     hs::HybridSystem,
     optimizer_list::AbstractVector{Function},
     optimizer_kwargs_dict::AbstractVector{<:Dict};
     shared_abstraction = nothing,
+    parallel_modes::Bool = false,
 )
     mode_ids = collect(HybridSystems.states(hs.automaton))
     n_modes = length(mode_ids)
@@ -81,22 +90,42 @@ function build_mode_symbolic_models(
     bases = Vector{Any}(undef, n_modes)
     models = Vector{Any}(undef, n_modes)
 
+    # Split what used to be one loop into three passes, because only the middle one is
+    # expensive and only the middle one is independent per mode. `_abstraction_source` compares
+    # a mode against every earlier one, so every `physicals` entry has to exist before any
+    # source is resolved.
     for (i, mode_id) in enumerate(mode_ids)
-        mode_system = HybridSystems.mode(hs, mode_id)
-        physicals[i], clocks[i] =
-            _mode_physical_and_clock(mode_system, optimizer_kwargs_dict[i])
+        physicals[i], clocks[i] = _mode_physical_and_clock(
+            HybridSystems.mode(hs, mode_id),
+            optimizer_kwargs_dict[i],
+            mode_id,
+        )
+    end
 
-        source = _abstraction_source(shared, physicals, optimizer_kwargs_dict, i)
-        bases[i] = if source === nothing
-            build_dynamical_symbolic_model(
-                physicals[i];
-                optimizer_factory = optimizer_list[i],
-                optimizer_kwargs = optimizer_kwargs_dict[i],
-            )
-        else
-            bases[source]
+    sources = [
+        _abstraction_source(shared, physicals, optimizer_kwargs_dict, i) for i in 1:n_modes
+    ]
+    to_build = findall(isnothing, sources)
+
+    _build_base(i) = build_dynamical_symbolic_model(
+        physicals[i];
+        optimizer_factory = optimizer_list[i],
+        optimizer_kwargs = optimizer_kwargs_dict[i],
+    )
+
+    if parallel_modes && Threads.nthreads() > 1 && length(to_build) > 1
+        Threads.@threads for i in to_build
+            bases[i] = _build_base(i)
         end
+    else
+        for i in to_build
+            bases[i] = _build_base(i)
+        end
+    end
 
+    # `sources[i] < i` always, so a chain of reuses resolves in one ascending pass.
+    for i in 1:n_modes
+        sources[i] === nothing || (bases[i] = bases[sources[i]])
         # Time-free mode (plain physical system) → no clock lift → (x, mode) states.
         models[i] =
             clocks[i] === nothing ? bases[i] : SY.lift(SY.ClockLift(clocks[i]), bases[i])
@@ -144,13 +173,57 @@ function _validate_shared_abstraction(physicals, kwargs, i, j)
     return
 end
 
+# An empty abstract set is not infeasibility: it means the set fell between the cells, and
+# reporting it as `LOCALLY_INFEASIBLE` sends the user looking for a control problem that is not
+# there. `INNER` inclusion needs a cell to sit *entirely* inside the set, so a region thinner than
+# one cell discretizes to nothing however reachable it is.
+function _check_nonempty(states, what::AbstractString, why::AbstractString)
+    isempty(states) && error("The $what set contains no abstract state: $why")
+    return
+end
+
+# `INNER`: a cell must sit *entirely* inside the set, so a region thinner than one cell
+# discretizes to nothing however reachable it is.
+_check_nonempty(states, what::AbstractString) = _check_nonempty(
+    states,
+    what,
+    "every cell of the abstraction lies at least partly outside it. Widen the set or refine " *
+    "the grid — this is a discretization gap, not an infeasible problem.",
+)
+
+# The abstract states a problem may start from. The JuMP front-end gives a mode-indexed
+# `PR.HybridSpec`, so the initial condition is a *set*. A hand-built problem may instead give the
+# augmented point `(x[, t], mode)` — that is what `PR.satisfies` and the closed loop take, and it
+# is the natural thing to write by hand — so both are accepted.
+_abstract_initial_states(abstract_system, initial::PR.AbstractSpecification) =
+    SY.states_satisfying(abstract_system, initial)
+
+function _abstract_initial_states(abstract_system, initial::Tuple)
+    q0 = SY.get_abstract_state(abstract_system, initial)
+    return q0 > 0 ? [q0] : Int[]
+end
+
+# The initial set is discretized `OUTER`, so an empty result means something different: not that
+# the set fell between cells, but that it lies outside the abstraction's domain altogether.
+_check_initial_nonempty(states) = _check_nonempty(
+    states,
+    "initial",
+    "no cell of any mode meets it, so it lies outside the abstraction's domain. Check the " *
+    "`start` values against the mode's bounds, and which mode the model begins in.",
+)
+
 # A mode is either a plain physical system (time-free) or a `VectorContinuousSystem`
 # pairing physical dynamics `systems[1]` with a clock subsystem `systems[2]`.
-function _mode_physical_and_clock(mode_system, kwargs)
+function _mode_physical_and_clock(mode_system, kwargs, mode_id = 0)
     if mode_system isa ST.VectorContinuousSystem
-        clock =
-            SY.ClockAbstraction(mode_system.systems[2], get(kwargs, "time_step", nothing))
-        return mode_system.systems[1], clock
+        tstep = get(kwargs, "time_step", nothing)
+        # Without this the `nothing` reaches `ClockAbstraction(::…, ::Float64)` and raises a
+        # `MethodError` naming neither the mode nor the option.
+        tstep isa Float64 || error(
+            "Mode $mode_id carries a clock but no `time_step`, which is what discretizes its " *
+            "time axis. Set it on the mode, or on the model for every mode.",
+        )
+        return mode_system.systems[1], SY.ClockAbstraction(mode_system.systems[2], tstep)
     else
         return mode_system, nothing
     end
@@ -167,6 +240,7 @@ function build_timed_hybrid_symbolic_model(
     optimizer_list::AbstractVector{Function},
     optimizer_kwargs_dict::AbstractVector{<:Dict};
     shared_abstraction = nothing,
+    parallel_modes::Bool = false,
 )
     n_modes = length(HybridSystems.states(hs.automaton))
     @assert length(optimizer_list) == n_modes "Number of optimizers ($(length(optimizer_list))) must match number of modes ($n_modes)"
@@ -177,6 +251,7 @@ function build_timed_hybrid_symbolic_model(
         optimizer_list,
         optimizer_kwargs_dict;
         shared_abstraction = shared_abstraction,
+        parallel_modes = parallel_modes,
     )
     input_mapping = SY.GlobalInputMap(mode_models, hs)
 

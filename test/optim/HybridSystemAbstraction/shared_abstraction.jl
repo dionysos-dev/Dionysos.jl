@@ -58,13 +58,19 @@ const KWARGS = Dict(
     "print_level" => 0,
 )
 
-function _build(hs; shared_abstraction = nothing, kwargs = [copy(KWARGS), copy(KWARGS)])
+function _build(
+    hs;
+    shared_abstraction = nothing,
+    kwargs = [copy(KWARGS), copy(KWARGS)],
+    parallel_modes = false,
+)
     factory, calls = counting_factory()
     models = HSA.build_mode_symbolic_models(
         hs,
         Function[factory, factory],
         kwargs;
         shared_abstraction = shared_abstraction,
+        parallel_modes = parallel_modes,
     )
     return models, calls[]
 end
@@ -127,6 +133,28 @@ end
     _, calls = _build(hs)
     @test calls == 2
     @test_throws ErrorException _build(hs; shared_abstraction = [nothing, 1])
+end
+
+@testset "abstracting the modes in parallel changes nothing but the wall clock" begin
+    # Abstracting a mode dominates a hybrid build, and the modes are independent — but the
+    # sharing mechanism is not, so the parallel path must reproduce the sequential one exactly,
+    # reuse included. Asserted on the abstraction, not on a timing.
+    hs = _two_mode_system(_mode(F_PLAIN), _mode(F_EQUIVALENT))
+
+    sequential, seq_calls = _build(hs)
+    parallel, par_calls = _build(hs; parallel_modes = true)
+
+    @test par_calls == seq_calls == 2
+    for (a, b) in zip(sequential, parallel)
+        @test SY.get_n_state(a) == SY.get_n_state(b)
+        @test SY.get_n_input(a) == SY.get_n_input(b)
+        @test sort(collect(SY.enum_transitions(SY.get_automaton(a)))) ==
+              sort(collect(SY.enum_transitions(SY.get_automaton(b))))
+    end
+
+    # Reuse still happens under the parallel path: only one mode is actually built.
+    _, shared_calls = _build(hs; shared_abstraction = [nothing, 1], parallel_modes = true)
+    @test shared_calls == 1
 end
 
 end # module
