@@ -46,14 +46,6 @@ function transitions_by_mode(T::PCBisimulationQuotient)
     return sort(collect(d); by = first) |> Dict
 end
 
-function outgoing_degree_by_state(T::PCBisimulationQuotient)
-    d = Dict{Int, Int}()
-    for (qid, q) in T.states
-        d[qid] = length(q.next)
-    end
-    return d
-end
-
 function outgoing_degree_stats(T::PCBisimulationQuotient)
     degs = [length(q.next) for q in values(T.states)]
     isempty(degs) && return Dict(:min => 0, :max => 0, :mean => 0.0, :median => 0.0)
@@ -77,28 +69,6 @@ removed; `git` has them if a use appears.
 """
 function state_ids_in_node(T::PCBisimulationQuotient, node; state_ids = keys(T.states))
     return [qid for qid in state_ids if haskey(T.states, qid) && T.states[qid].node == node]
-end
-
-function transitions_from_mode(T::PCBisimulationQuotient, mode::Int)
-    out = Vector{Tuple{Int, Int}}()
-    for (qid, q) in T.states
-        for (m, dst) in q.next
-            if m == mode
-                push!(out, (qid, dst))
-            end
-        end
-    end
-    return out
-end
-
-function reachable_target_states(T::PCBisimulationQuotient)
-    targets = Set{Int}()
-    for q in values(T.states)
-        for (_, dst) in q.next
-            push!(targets, dst)
-        end
-    end
-    return targets
 end
 
 function deadend_states(T::PCBisimulationQuotient)
@@ -149,8 +119,20 @@ function cell_complexities(T::PCBisimulationQuotient)
     return n_parts, n_faces
 end
 
+"""
+    bisimulation_stats(quotient) -> Dict{Symbol, Any}
+
+Everything [`print_bisimulation_stats`](@ref) reports, as data.
+
+The printed report is rendered from this, so the two cannot drift: adding a figure here adds it
+there. `:deadend_states` is the set itself, `:num_deadend_states` its size, since callers want
+one or the other and recomputing is not free.
+"""
 function bisimulation_stats(T::PCBisimulationQuotient)
-    return Dict(
+    deadends = deadend_states(T)
+    return Dict{Symbol, Any}(
+        :num_nodes => num_nodes(T),
+        :num_slices => num_slices(T),
         :num_states => num_states(T),
         :num_transitions => num_transitions(T),
         :states_by_obs => states_by_obs(T),
@@ -158,27 +140,38 @@ function bisimulation_stats(T::PCBisimulationQuotient)
         :states_by_node => states_by_node(T),
         :transitions_by_mode => transitions_by_mode(T),
         :outgoing_degree_stats => outgoing_degree_stats(T),
-        :deadend_states => deadend_states(T),
-        :num_deadend_states => length(deadend_states(T)),
+        :deadend_states => deadends,
+        :num_deadend_states => length(deadends),
         :self_loop_count => self_loop_count(T),
     )
 end
 
+"""
+    print_bisimulation_stats(quotient)
+
+Print the quotient's shape: how many states and transitions, how they distribute over
+observations, shells and nodes, and whether anything is stranded.
+
+Rendered from [`bisimulation_stats`](@ref) so the two report the same figures.
+"""
 function print_bisimulation_stats(T::PCBisimulationQuotient)
+    st = bisimulation_stats(T)
+    byfirst(d) = sort(collect(d); by = first)
+
     println("Bisimulation quotient statistics")
     println("--------------------------------")
-    println("Number of nodes        : ", num_nodes(T))
-    println("Number of slices       : ", num_slices(T))
-    println("Number of states       : ", num_states(T))
-    println("Number of transitions  : ", num_transitions(T))
+    println("Number of nodes        : ", st[:num_nodes])
+    println("Number of slices       : ", st[:num_slices])
+    println("Number of states       : ", st[:num_states])
+    println("Number of transitions  : ", st[:num_transitions])
 
-    println("States by observation  : ", sort(collect(states_by_obs(T)); by = first))
-    println("States by slice        : ", sort(collect(states_by_slice(T)); by = first))
-    println("States by node         : ", sort(collect(states_by_node(T)); by = first))
-    println("Transitions by mode    : ", sort(collect(transitions_by_mode(T)); by = first))
+    println("States by observation  : ", byfirst(st[:states_by_obs]))
+    println("States by slice        : ", byfirst(st[:states_by_slice]))
+    println("States by node         : ", byfirst(st[:states_by_node]))
+    println("Transitions by mode    : ", byfirst(st[:transitions_by_mode]))
 
-    println("Outgoing degree stats  : ", outgoing_degree_stats(T))
-    println("Deadend states         : ", length(deadend_states(T)))
-    println("Self-loops             : ", self_loop_count(T))
+    println("Outgoing degree stats  : ", st[:outgoing_degree_stats])
+    println("Deadend states         : ", st[:num_deadend_states])
+    println("Self-loops             : ", st[:self_loop_count])
     return nothing
 end
