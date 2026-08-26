@@ -164,16 +164,9 @@ function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
     return minimum(vals)
 end
 
-# Compute max_{x ∈ X} |g' x| for a hyperrectangle `X`.
-"""
-    _support_abs_row(g, X)
-
-The largest `|g ⋅ x|` over `X`.
-
-A box answers in closed form, any other polytope costs two support evaluations, and the
-caller should not have to know which: the two are methods of one function so that widening
-a caller to accept a box picks up the cheap one for free.
-"""
+# The largest |g ⋅ x| over `X`. A box answers in closed form, any other polytope costs two
+# support evaluations, and the caller should not have to know which: the two are methods of
+# one function so that widening a caller to accept a box picks up the cheap one for free.
 function _support_abs_row(g::AbstractVector, X::LazySets.Hyperrectangle)
     c = LazySets.center(X)
     r = LazySets.radius_hyperrectangle(X)

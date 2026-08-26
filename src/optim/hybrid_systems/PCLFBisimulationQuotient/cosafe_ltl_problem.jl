@@ -96,6 +96,23 @@ end
 # Optimizer
 # ============================================================
 
+"""
+    OptimizerCoSafeLTLOnQuotient{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+
+Co-safe LTL synthesis on a bisimulation quotient built by [`OptimizerBisimulationQuotient`](@ref).
+
+Set `concrete_problem` (a `PR.CoSafeLTLProblem`), `bisimulation_quotient`, and `ap_to_obs`
+mapping each atomic proposition to the observation label the quotient carries for it. The
+quotient's sparse state ids are packed into a dense automaton, the product with the
+specification is solved by `OPDS.OptimizerCoSafeLTLProblem`, and the winning states come back
+as `controllable_set`.
+
+`early_stop` decides what synthesis is asked for, and so what `success` means: `true` restricts
+the product's initial states to those meeting the problem's initial set, so `success` reports
+whether *that* set is controllable; `false` seeds the product with the whole domain, so
+`success` reports whether *every* state is. A run that reaches its own initial set but not the
+whole domain therefore ends `success = false` with a perfectly usable controller.
+"""
 mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
@@ -403,6 +420,15 @@ function build_concrete_controller(
     return ST.DiscreteDynamicController(x0_abs, X_memx, g_conc, h_conc, false)
 end
 
+"""
+    solve_concrete_problem(optimizer) -> ST.DiscreteDynamicController
+
+The concrete controller for a solved [`OptimizerCoSafeLTLOnQuotient`](@ref).
+
+This is the entry point callers want after `MOI.optimize!`: it unpacks the quotient automaton
+and the controller synthesised on it and hands both to [`build_concrete_controller`](@ref).
+Errors if the optimizer has not been run.
+"""
 function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
     Q = opt.quotient_automaton
     Cabs = opt.abstract_controller
