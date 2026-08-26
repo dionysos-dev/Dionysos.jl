@@ -252,6 +252,18 @@ end
 # Concretize the controller
 # ============================================================
 
+# Locating the quotient state a concrete point sits in, cheapest first.
+#
+# The closed loop asks this at every step, and the three are tried in order: the successors of
+# the current state, then the rest of its node, then the whole quotient. The first tier answers
+# almost always -- it is the transition structure doing its job -- and each fallback is both
+# wider and more expensive, the last being linear in the number of states.
+#
+# The fallbacks are not defensive padding. The partition does not quite cover the domain: every
+# cut insets by `atol`, so thin gaps run along the shell boundaries (see
+# `OptimizerBisimulationQuotient`). A trajectory that lands in one belongs to no state at all,
+# and a trajectory that drifts across a boundary lands in a state that is not among the
+# predicted successors. The wider searches are what keep simulation going in both cases.
 function _find_qid_in_node(T::PCBisimulationQuotient, node, x)
     for qid in get(T.part_ids, node, Int[])
         q = T.states[qid]
