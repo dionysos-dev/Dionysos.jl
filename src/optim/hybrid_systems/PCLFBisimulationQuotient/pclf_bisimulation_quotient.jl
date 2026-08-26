@@ -425,7 +425,11 @@ function refine_state_by_observation!(
             touched = true
             push!(inside_parts, I)
 
-            D = UT.set_difference_decompose(Q, R; atol = atol) # maybe something to change here??
+            # The inset costs coverage here as everywhere (see `OptimizerBisimulationQuotient`),
+            # and observation refinement runs once per region over every state, so it is one of
+            # the places the loss accumulates. It cannot simply be dropped: an exact cut leaves
+            # degenerate pieces that pass the emptiness test and stall the construction.
+            D = UT.set_difference_decompose(Q, R; atol = atol)
             if !isempty(D)
                 append!(outside_parts, D)
             end
