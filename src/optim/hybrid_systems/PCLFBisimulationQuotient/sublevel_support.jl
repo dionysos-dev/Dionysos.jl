@@ -127,8 +127,7 @@ function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.HPolytope)
         wi > 0 || error("Expected strictly positive weight w[$i], got $wi.")
 
         gi = vec(Float64.(G[i, :]))
-        #worst = _support_abs_row_on_hyperrectangle(gi, X)
-        worst = _support_abs_row_on_hpolytope(gi, X)
+        worst = _support_abs_row(gi, X)
         push!(vals, worst / wi)
     end
 
@@ -157,18 +156,23 @@ function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
 end
 
 # Compute max_{x ∈ X} |g' x| for a hyperrectangle `X`.
-function _support_abs_row_on_hyperrectangle(g::AbstractVector, X::LazySets.Hyperrectangle)
+"""
+    _support_abs_row(g, X)
+
+The largest `|g ⋅ x|` over `X`.
+
+A box answers in closed form, any other polytope costs two support evaluations, and the
+caller should not have to know which: the two are methods of one function so that widening
+a caller to accept a box picks up the cheap one for free.
+"""
+function _support_abs_row(g::AbstractVector, X::LazySets.Hyperrectangle)
     c = LazySets.center(X)
-    r = radius_hyperrectangle(X)
+    r = LazySets.radius_hyperrectangle(X)
     return abs(LA.dot(g, c)) + sum(abs.(g) .* r)
 end
 
-function _support_abs_row_on_hpolytope(g::AbstractVector, X::LazySets.HPolytope)
+function _support_abs_row(g::AbstractVector, X::LazySets.HPolytope)
     return max(LazySets.ρ(g, X), LazySets.ρ(-g, X))
-end
-
-function radius_hyperrectangle(X::LazySets.Hyperrectangle)
-    return LazySets.radius_hyperrectangle(X)
 end
 
 # ============================================================
