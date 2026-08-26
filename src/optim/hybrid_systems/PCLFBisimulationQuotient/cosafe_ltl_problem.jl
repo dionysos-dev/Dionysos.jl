@@ -264,6 +264,14 @@ end
 # `OptimizerBisimulationQuotient`). A trajectory that lands in one belongs to no state at all,
 # and a trajectory that drifts across a boundary lands in a state that is not among the
 # predicted successors. The wider searches are what keep simulation going in both cases.
+#
+# How far the search is allowed to go depends on what is being asked, and the asymmetry is
+# deliberate. Tracking where the state went may fall all the way back to a global search, since a
+# wrong guess only costs accuracy. Emitting a control, and deciding whether one exists, stops at
+# the current node: the control was synthesised for a particular state, and handing back the one
+# belonging to some unrelated cell that happens to contain the point would not be sound. A point
+# reachable only by the global search is therefore trackable but not controllable, which is the
+# honest answer rather than a gap.
 function _find_qid_in_node(T::PCBisimulationQuotient, node, x)
     for qid in get(T.part_ids, node, Int[])
         q = T.states[qid]
