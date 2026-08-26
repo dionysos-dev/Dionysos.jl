@@ -24,6 +24,8 @@ import RecipesBase: @recipe, @series
 const Poly = LazySets.HPolytope
 
 include("bisimulation_quotient.jl")
+include("quotient_stats.jl")
+include("quotient_recipes.jl")
 include("sublevel_support.jl")
 
 include("cosafe_ltl_problem.jl")
