@@ -146,7 +146,7 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
         println("Computed terminal set D = ", D)
     end
 
-    T = bisimulation_pclf(
+    quotient = bisimulation_pclf(
         system,
         opt.pclf,
         opt.Γ,
@@ -156,7 +156,7 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
         max_slices = opt.max_slices,
     )
 
-    opt.bisimulation_quotient = T
+    opt.bisimulation_quotient = quotient
     opt.construction_time_sec = time() - t_ref
     return
 end
@@ -165,8 +165,68 @@ end
 # Main PCLF bisimulation algorithm
 # ============================================================
 
+"""
+    refine_sources!(quotient, source_nodes, target_qid, pre_parts, mode, dest_node, slice; atol)
+
+Split every state of `source_nodes` that partly reaches `target_qid` under `mode`, and return
+how many were split.
+
+Sources are read from the quotient inside the loop rather than collected up front: splitting a
+state removes it and puts its pieces back, and a piece may still have to be split against a
+later target. A source that already reaches `dest_node` under `mode` is left alone -- it has
+been split for that destination already, and splitting it again would only fragment the
+partition without adding transitions.
+"""
+function refine_sources!(
+    quotient::PCBisimulationQuotient,
+    source_nodes,
+    target_qid::Int,
+    pre_parts::AbstractVector,
+    mode::Int,
+    dest_node,
+    slice::Int;
+    atol::Float64 = 1e-6,
+)
+    refined = 0
+    for s in source_nodes
+        source_ids = [
+            pid for pid in get(quotient.part_ids, s, Int[]) if
+            haskey(quotient.states, pid) && quotient.states[pid].slice > slice
+        ]
+        for pid in source_ids
+            haskey(quotient.states, pid) || continue
+            any(
+                t -> t[1] == mode && quotient.states[t[2]].node == dest_node,
+                quotient.states[pid].next,
+            ) && continue
+            refine_one_state!(quotient, pid, pre_parts, mode, target_qid; atol = atol) &&
+                (refined += 1)
+        end
+    end
+    return refined
+end
+
+"""
+    bisimulation_pclf(system, pclf, Γ, regions; verbose, atol, max_slices)
+
+Build the path-complete-Lyapunov bisimulation quotient of a discrete switched `system`.
+
+The construction works inward from the level sets of `pclf`. Each Lyapunov piece is cut at
+every level of `Γ` and the nested sublevel sets are turned into disjoint shells, one
+abstract state per shell; the innermost shell is the terminal set. States are then split
+so that no one of them straddles an observation region, and finally refined slice by slice:
+a source state is split against the preimage of a target so that the part that reaches the
+target -- and only that part -- carries the transition. Working outward one slice at a time
+is what makes the result a bisimulation rather than an over-approximation, since a state is
+only ever split against targets whose own refinement is already settled.
+
+`atol` is the inset applied whenever one polytope is cut out of another; see
+[`OptimizerBisimulationQuotient`](@ref) for what it costs. It must be strictly positive --
+cutting exactly leaves degenerate pieces that survive the emptiness test and make the
+refinement diverge.
+"""
 function bisimulation_pclf(
-    f::HybridSystems.HybridSystem,
+    system::HybridSystems.HybridSystem,
     pclf::PCLF.PCLF,
     Γ::AbstractVector{<:Real},
     regions;
@@ -174,72 +234,62 @@ function bisimulation_pclf(
     atol::Float64 = 0.0,
     max_slices::Union{Nothing, Int} = nothing,
 )
-    A = ST.mode_matrices(f)
+    A = ST.mode_matrices(system)
 
     sublevels = build_sublevel_sequence(pclf, Γ)
     slices = build_slice_sequence(sublevels; atol = atol)
 
     U = typeof(first(pclf.graph.verts))
     SL = UT.SemiLinearSet
-    T = PCBisimulationQuotient{SL, U}(slices)
+    quotient = PCBisimulationQuotient{SL, U}(slices)
 
-    initialize_partitions!(T; neutral_obs = 0, terminal_obs = -1)
-    refine_partitions_by_observations!(T, regions; terminal_obs = -1, atol = atol)
-    initialize_terminal_transitions!(T, pclf)
+    initialize_partitions!(quotient; neutral_obs = 0, terminal_obs = -1)
+    refine_partitions_by_observations!(quotient, regions; terminal_obs = -1, atol = atol)
+    initialize_terminal_transitions!(quotient, pclf)
 
-    incoming_by_dm = group_edges_by_dest_mode(pclf.graph.edges, U)
+    sources_by_dest_mode = group_edges_by_dest_mode(pclf.graph.edges, U)
 
     N = length(Γ)
     refine_count = 0
     for i in 1:min(max_slices, N)
         verbose && println("Current slice = $i")
 
-        for ((d, m), source_nodes) in incoming_by_dm
+        for ((d, m), source_nodes) in sources_by_dest_mode
             verbose && println("  destination/mode = ($d, $m)")
 
             target_ids = [
-                qid for qid in get(T.part_ids, d, Int[]) if
-                haskey(T.states, qid) && T.states[qid].slice == i
+                qid for qid in get(quotient.part_ids, d, Int[]) if
+                haskey(quotient.states, qid) && quotient.states[qid].slice == i
             ]
 
             isempty(target_ids) && continue
 
             for qid in target_ids
-                haskey(T.states, qid) || continue
-                q = T.states[qid]
+                haskey(quotient.states, qid) || continue
 
-                pre_parts = UT.preimage_linear_parts(q.set, A[m])
+                pre_parts = UT.preimage_linear_parts(quotient.states[qid].set, A[m])
                 isempty(pre_parts) && continue
 
-                for s in source_nodes
-                    source_ids = [
-                        pid for pid in get(T.part_ids, s, Int[]) if
-                        haskey(T.states, pid) && T.states[pid].slice > i
-                    ]
-
-                    for pid in source_ids
-                        haskey(T.states, pid) || continue
-                        qsrc = T.states[pid]
-
-                        # check if transition already exists to avoid unnecessary refinement
-                        if any(t -> t[1] == m && T.states[t[2]].node == d, qsrc.next)
-                            continue
-                        end
-
-                        refined = refine_one_state!(T, pid, pre_parts, m, qid; atol = atol)
-                        refined && (refine_count += 1)
-
-                        verbose &&
-                            refined &&
-                            refine_count % 50 == 0 &&
-                            println("    refinement: $refine_count")
-                    end
-                end
+                before = refine_count
+                refine_count += refine_sources!(
+                    quotient,
+                    source_nodes,
+                    qid,
+                    pre_parts,
+                    m,
+                    d,
+                    i;
+                    atol = atol,
+                )
+                verbose &&
+                    refine_count > before &&
+                    div(before, 50) != div(refine_count, 50) &&
+                    println("    refinement: $refine_count")
             end
         end
     end
 
-    return T
+    return quotient
 end
 
 # ============================================================
@@ -250,6 +300,14 @@ end
 # Slice generation
 # ============================================================
 
+"""
+    build_sublevel_sequence(pclf, Γ)
+
+The sublevel sets of every Lyapunov piece, one per level of `Γ`, keyed by graph node.
+
+A piece may be a single polytope or a union of them, so the values are heterogeneous; the
+caller turns them into shells.
+"""
 function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     U = typeof(first(pclf.graph.verts))
     sublevels = Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}}()
@@ -260,6 +318,16 @@ function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     return sublevels
 end
 
+"""
+    build_slice_sequence(sublevels; atol)
+
+Turn each node's nested sublevel sets into the disjoint shells the abstract states are built
+from: the innermost sublevel set, then the difference of each level with the one inside it.
+
+The shells of a node cover its outermost sublevel set up to the `atol` inset each cut leaves
+behind, and they are pairwise disjoint -- which is what lets a volume over the quotient be a
+plain sum within a node.
+"""
 function build_slice_sequence(
     sublevels::Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}};
     atol::Float64 = 1e-6,
@@ -289,32 +357,51 @@ end
 # Initialize partitions and transitions
 # ============================================================
 
+"""
+    initialize_partitions!(quotient; neutral_obs, terminal_obs)
+
+Seed one abstract state per non-empty shell.
+
+The innermost shell of every node is the terminal set and is marked `terminal_obs`; everything
+else starts unobserved and is given its real observation by
+[`refine_partitions_by_observations!`](@ref).
+"""
 function initialize_partitions!(
-    T::PCBisimulationQuotient{UT.SemiLinearSet, U};
+    quotient::PCBisimulationQuotient{UT.SemiLinearSet, U};
     neutral_obs::Int = 0,
     terminal_obs::Int = -1,
 ) where {U}
-    for (s, slice_list) in T.slices
+    for (s, slice_list) in quotient.slices
         for (i, Sset) in enumerate(slice_list)
             obs = (i == 1) ? terminal_obs : neutral_obs
             if !isempty(Sset)
-                add_state!(T, s, Sset, obs, i)
+                add_state!(quotient, s, Sset, obs, i)
             end
         end
     end
-    return T
+    return quotient
 end
 
+"""
+    refine_state_by_observation!(quotient, qid, R, new_obs; terminal_obs, atol)
+
+Split state `qid` along region `R`, giving the part inside `R` the observation `new_obs` and
+leaving the rest as it was. Returns whether anything was split.
+
+Both halves inherit the outgoing transitions of the original: a split refines *where* the
+state is, not what it can do. Terminal states are left alone -- their observation is what
+makes them terminal.
+"""
 function refine_state_by_observation!(
-    T::PCBisimulationQuotient{UT.SemiLinearSet, U},
+    quotient::PCBisimulationQuotient{UT.SemiLinearSet, U},
     qid::Int,
     R::Poly,
     new_obs::Int;
     terminal_obs::Int = -1,
     atol::Float64 = 1e-6,
 ) where {U}
-    haskey(T.states, qid) || return false
-    q = T.states[qid]
+    haskey(quotient.states, qid) || return false
+    q = quotient.states[qid]
 
     q.obs == terminal_obs && return false
 
@@ -345,36 +432,56 @@ function refine_state_by_observation!(
 
     touched || return false
 
-    remove_state!(T, qid)
+    remove_state!(quotient, qid)
 
     if !isempty(outside_parts)
-        out_id =
-            add_state!(T, old_node, UT.semilinear_set(outside_parts), old_obs, old_slice)
-        T.states[out_id].next = old_next
+        out_id = add_state!(
+            quotient,
+            old_node,
+            UT.semilinear_set(outside_parts),
+            old_obs,
+            old_slice,
+        )
+        quotient.states[out_id].next = old_next
     end
 
     if !isempty(inside_parts)
-        in_id = add_state!(T, old_node, UT.semilinear_set(inside_parts), new_obs, old_slice)
-        T.states[in_id].next = old_next
+        in_id = add_state!(
+            quotient,
+            old_node,
+            UT.semilinear_set(inside_parts),
+            new_obs,
+            old_slice,
+        )
+        quotient.states[in_id].next = old_next
     end
 
     return true
 end
 
+"""
+    refine_partitions_by_observations!(quotient, regions; terminal_obs, atol)
+
+Split states until none of them straddles the boundary of an observation region.
+
+Every state must have a single observation for the quotient to respect the labelling a
+specification is written against, so each region is applied in turn to every state alive at
+that point -- including the states produced by the previous region.
+"""
 function refine_partitions_by_observations!(
-    T::PCBisimulationQuotient{UT.SemiLinearSet, U},
+    quotient::PCBisimulationQuotient{UT.SemiLinearSet, U},
     regions;
     terminal_obs::Int = -1,
     atol::Float64 = 0.0,
 ) where {U}
-    Rh = [UT._as_hpolytope(R) for R in regions]
+    region_polytopes = [UT._as_hpolytope(R) for R in regions]
 
-    for (obs, R) in enumerate(Rh)
-        qids = copy(collect(keys(T.states)))
+    for (obs, R) in enumerate(region_polytopes)
+        qids = copy(collect(keys(quotient.states)))
         for qid in qids
-            haskey(T.states, qid) || continue
+            haskey(quotient.states, qid) || continue
             refine_state_by_observation!(
-                T,
+                quotient,
                 qid,
                 R,
                 obs;
@@ -383,13 +490,22 @@ function refine_partitions_by_observations!(
             )
         end
     end
-    return T
+    return quotient
 end
 
-function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCLF.PCLF)
+"""
+    initialize_terminal_transitions!(quotient, pclf)
+
+Connect the terminal states along the edges of the Lyapunov graph.
+
+The innermost shell is where the certificate stops distinguishing states, so any terminal
+state is taken to reach any terminal state of a node the graph has an edge to. These are the
+only transitions not discovered by refinement.
+"""
+function initialize_terminal_transitions!(quotient::PCBisimulationQuotient, pclf::PCLF.PCLF)
     terminal_by_node = Dict{Any, Vector{Int}}()
 
-    for (qid, q) in T.states
+    for (qid, q) in quotient.states
         if q.slice == 1
             get!(terminal_by_node, q.node, Int[])
             push!(terminal_by_node[q.node], qid)
@@ -399,28 +515,40 @@ function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCLF.
     for (s, d, m) in pclf.graph.edges
         if haskey(terminal_by_node, s) && haskey(terminal_by_node, d)
             for qs in terminal_by_node[s], qd in terminal_by_node[d]
-                add_transition!(T, qs, Int(m), qd)
+                add_transition!(quotient, qs, Int(m), qd)
             end
         end
     end
 
-    return T
+    return quotient
 end
 
 # ============================================================
 # Refinement
 # ============================================================
 
+"""
+    refine_one_state!(quotient, qid, pre_parts, mode, target_qid; atol)
+
+Split source state `qid` against `pre_parts`, the preimage of a target under `mode`, so that
+the part which lands in the target carries the transition and the rest does not. Returns
+whether anything was split.
+
+This is the step that makes the quotient exact: without it a state that only partly reaches
+the target would carry the transition wholesale, and the abstraction would admit behaviour the
+system does not have. Both halves inherit the original outgoing transitions; only the part
+inside the preimage gains the new one.
+"""
 function refine_one_state!(
-    T::PCBisimulationQuotient{UT.SemiLinearSet, U},
+    quotient::PCBisimulationQuotient{UT.SemiLinearSet, U},
     qid::Int,
     pre_parts::AbstractVector,
     mode::Int,
     target_qid::Int;
     atol::Float64 = 1e-6,
 ) where {U}
-    haskey(T.states, qid) || return false
-    q = T.states[qid]
+    haskey(quotient.states, qid) || return false
+    q = quotient.states[qid]
 
     old_next = copy(q.next)
     old_obs = q.obs
@@ -432,42 +560,48 @@ function refine_one_state!(
     touched = false
 
     for Q in q.set.array
-        Qrem = UT.semilinear_set(Q)
+        remainder = UT.semilinear_set(Q)
 
         for preP in pre_parts
-            Ipars = UT.poly_intersection_parts(Qrem, preP)
-            if isempty(Ipars)
+            hits = UT.poly_intersection_parts(remainder, preP)
+            if isempty(hits)
                 continue
             end
 
             touched = true
-            append!(inside_parts, Ipars)
+            append!(inside_parts, hits)
 
             # decompose only keeps nonempty pieces, so structural emptiness
             # of the remainder is exact
-            parts = UT.set_difference_decompose(Qrem, preP; atol = atol)
-            Qrem = UT.semilinear_set(parts)
-            if isempty(Qrem.array)
+            parts = UT.set_difference_decompose(remainder, preP; atol = atol)
+            remainder = UT.semilinear_set(parts)
+            if isempty(remainder.array)
                 break
             end
         end
 
-        append!(outside_parts, Qrem.array)
+        append!(outside_parts, remainder.array)
     end
 
     touched || return false
 
-    remove_state!(T, qid)
+    remove_state!(quotient, qid)
 
     if !isempty(outside_parts)
-        diff_id =
-            add_state!(T, old_node, UT.semilinear_set(outside_parts), old_obs, old_slice)
-        T.states[diff_id].next = copy(old_next)
+        diff_id = add_state!(
+            quotient,
+            old_node,
+            UT.semilinear_set(outside_parts),
+            old_obs,
+            old_slice,
+        )
+        quotient.states[diff_id].next = copy(old_next)
     end
 
-    inter_id = add_state!(T, old_node, UT.semilinear_set(inside_parts), old_obs, old_slice)
-    T.states[inter_id].next = copy(old_next)
-    add_transition!(T, inter_id, mode, target_qid)
+    inter_id =
+        add_state!(quotient, old_node, UT.semilinear_set(inside_parts), old_obs, old_slice)
+    quotient.states[inter_id].next = copy(old_next)
+    add_transition!(quotient, inter_id, mode, target_qid)
 
     return true
 end
@@ -476,6 +610,14 @@ end
 # Helpers
 # ============================================================
 
+"""
+    group_edges_by_dest_mode(edges, U)
+
+Index the Lyapunov graph edges by `(destination, mode)`, giving the source nodes for each.
+
+Refinement walks targets and asks which nodes can reach them, which is the reverse of how the
+edges are stored.
+"""
 function group_edges_by_dest_mode(edges, ::Type{U}) where {U}
     grouped = Dict{Tuple{U, Int}, Vector{U}}()
     for (s, d, m) in edges
