@@ -231,7 +231,7 @@ function bisimulation_pclf(
     Γ::AbstractVector{<:Real},
     regions;
     verbose::Bool = true,
-    atol::Float64 = 0.0,
+    atol::Float64 = 1e-6,
     max_slices::Union{Nothing, Int} = nothing,
 )
     A = ST.mode_matrices(system)
@@ -472,7 +472,7 @@ function refine_partitions_by_observations!(
     quotient::PCBisimulationQuotient{UT.SemiLinearSet, U},
     regions;
     terminal_obs::Int = -1,
-    atol::Float64 = 0.0,
+    atol::Float64 = 1e-6,
 ) where {U}
     region_polytopes = [UT._as_hpolytope(R) for R in regions]
 
