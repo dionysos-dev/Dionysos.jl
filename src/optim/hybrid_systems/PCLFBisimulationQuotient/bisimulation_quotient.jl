@@ -2,6 +2,16 @@
 # Lifted quotient data structures
 # ============================================================
 
+"""
+    PCAbstractState{S, U}
+
+One state of the quotient: a region `set` of the state space, the graph `node` and shell
+(`slice`) it came from, the observation it carries, and its outgoing transitions.
+
+A state is never edited in place. Refining one removes it and adds its pieces under fresh
+ids, so an id names the same region for as long as it exists -- which is what lets callers
+hold on to ids and lets boxes be cached against them.
+"""
 mutable struct PCAbstractState{S, U}
     id::Int
     node::U
@@ -11,6 +21,17 @@ mutable struct PCAbstractState{S, U}
     next::Vector{Tuple{Int, Int}}   # (mode, target_state_id)
 end
 
+"""
+    PCBisimulationQuotient{S, U}
+
+The quotient under construction: its states by id, the ids belonging to each graph node, and
+the shells the states were carved from.
+
+`part_ids` holds a `Vector` rather than a `Set` on purpose. The refinement sweep walks it to
+decide which states to split, so its order is the order they are split in, and a different
+order gives a different (still sound) quotient. A `Set` would leave that unspecified and the
+construction irreproducible; the linear removal it costs is under a percent of the build.
+"""
 mutable struct PCBisimulationQuotient{S, U}
     states::Dict{Int, PCAbstractState{S, U}}
     part_ids::Dict{U, Vector{Int}}
