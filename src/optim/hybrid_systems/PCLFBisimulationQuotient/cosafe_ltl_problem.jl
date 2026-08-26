@@ -452,7 +452,9 @@ function simulate_closed_loop(
     N::Int = 20,
     update_on_next::Bool = true,
 )
-    A = f.resetmaps
+    # one extraction for the whole run, and the same one the quotient was built from -- the
+    # mode matrices were being unpacked again on every step, by a second copy of the rule
+    A = ST.mode_matrices(f)
 
     xs = Vector{typeof(x0)}()
     us = Int[]
@@ -475,14 +477,7 @@ function simulate_closed_loop(
 
         push!(us, u)
 
-        Ak = A[Int(u)]
-        xnext = if Ak isa AbstractMatrix
-            Ak * x
-        elseif hasproperty(Ak, :A)
-            getproperty(Ak, :A) * x
-        else
-            error("Cannot simulate reset map of type $(typeof(Ak))")
-        end
+        xnext = A[Int(u)] * x
 
         x_for_update = update_on_next ? xnext : x
         mem = ST.update_state(controller, mem, x_for_update)
