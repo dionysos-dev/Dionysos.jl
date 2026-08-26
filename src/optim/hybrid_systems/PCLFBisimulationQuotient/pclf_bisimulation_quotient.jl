@@ -28,6 +28,23 @@ include("sublevel_support.jl")
 
 include("cosafe_ltl_problem.jl")
 
+"""
+    OptimizerBisimulationQuotient{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+
+Builds the path-complete-Lyapunov bisimulation quotient of a switched system.
+
+Set `"bisimulation_quotient_problem"` and `"pclf"`; read back `"bisimulation_quotient"`,
+`"D"` (the terminal set) and `"construction_time_sec"`.
+
+`atol` is the inset used when one polytope is cut out of another. It is not a mere
+tolerance: every cut moves the cutting plane inward by `atol`, so the quotient loses a thin
+shell at each one and the loss compounds over the thousands of cuts a refinement sweep
+performs. Measured on a 7-level, 2-mode example, the fraction of the domain left
+uncovered tracks `atol` linearly — 3.7% at `1e-3`, 0.39% at `1e-4`, 0.004% at `1e-6` —
+while the cost of tightening it is slight (a fifth more time from `1e-3` to `1e-6`, and a
+few percent more states). It cannot go to zero: cutting exactly produces degenerate,
+flat pieces that survive the emptiness test and make the construction diverge.
+"""
 mutable struct OptimizerBisimulationQuotient{T} <: OP.AbstractDionysosOptimizer
     # --- user inputs ---
     bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
@@ -59,7 +76,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: OP.AbstractDionysosOptimizer
             nothing,    # nb_levels
             200,        # max_slices
             nothing,    # polyhedra_backend
-            1e-3,       # atol
+            1e-6,       # atol
             1,          # print_level
             nothing,    # Γ
             nothing,    # D
