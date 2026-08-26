@@ -140,7 +140,7 @@ else. Run per phase:
 ```
 julia --project=test test/optim/PCLFBisimulationQuotient/bisimulation_quotient.jl
 julia --project=test test/optim/PCLFBisimulationQuotient/recipes.jl
-julia --project=test research/BisimulationQuotient/example_3_1.jl   # states, volume, plots
+julia --project=test research/BisimulationQuotient/paper_example_3_1.jl  # states, volume, plots
 ```
 
 The example matters because it is the only thing exercising the plotting path, which is exactly
