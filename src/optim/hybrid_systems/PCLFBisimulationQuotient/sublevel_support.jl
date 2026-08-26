@@ -134,6 +134,15 @@ function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.HPolytope)
     return isempty(vals) ? 0.0 : maximum(vals)
 end
 
+"""
+    gamma_cover_set(piece::PCLF.ObserverCLFPiece, X)
+
+The smallest level at which some observer state of `piece` covers `X`.
+
+The two reductions are not symmetric and the difference is the point: within one observer state
+every base piece has to cover `X`, so the level is their `maximum`; across observer states only
+one has to, so the answer is the `minimum` over them.
+"""
 function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
     vals = Float64[]
 
@@ -221,17 +230,16 @@ function piece_intersects_region_at_level(
     for S in piece.observer_states
         isempty(S) && continue
 
+        # An observer state holds simultaneously, so its sublevel set is the intersection of
+        # the base pieces' -- stacking their constraint lists is that intersection. The pieces
+        # are asked for their own sublevel sets rather than rebuilt here, so the definition of
+        # one lives in `get_sublevel_set` alone.
         cons = LazySets.HalfSpace[]
 
         for i in S
             Pi = piece.base_pieces[i]
             @assert Pi isa PCLF.PolyhedralPiece
-
-            for k in 1:size(Pi.G, 1)
-                gk = vec(Pi.G[k, :])
-                push!(cons, LazySets.HalfSpace(gk, τeff * Pi.w[k]))
-                push!(cons, LazySets.HalfSpace(-gk, τeff * Pi.w[k]))
-            end
+            append!(cons, LazySets.constraints_list(PCLF.get_sublevel_set(Pi, τeff)))
         end
 
         Pτ = LazySets.HPolytope(cons)
