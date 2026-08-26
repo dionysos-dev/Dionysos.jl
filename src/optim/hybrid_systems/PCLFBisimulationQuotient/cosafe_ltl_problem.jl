@@ -307,7 +307,15 @@ function _find_qid_global(quotient::PCBisimulationQuotient, x)
     return nothing
 end
 
-function solve_concrete_problem_lifted(
+"""
+    build_concrete_controller(automaton, abstract_controller)
+
+Lower a controller synthesised on the quotient automaton onto concrete states.
+
+Takes the automaton and controller directly; [`solve_concrete_problem`](@ref) is the same
+thing reached through the optimizer.
+"""
+function build_concrete_controller(
     Q::QuotientAutomaton,
     abstract_controller::ST.AbstractDiscreteController,
 )
@@ -402,10 +410,19 @@ function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
     Q === nothing && error("No quotient_automaton available.")
     Cabs === nothing && error("No abstract_controller available.")
 
-    return solve_concrete_problem_lifted(Q, Cabs)
+    return build_concrete_controller(Q, Cabs)
 end
 
-function initial_lifted_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
+"""
+    initial_controller_memory(optimizer, x0) -> (spec_state, quotient_state)
+
+The memory a freshly started controller carries at `x0`.
+
+`x0` may sit in more than one quotient state -- the shells share their boundaries -- so every
+candidate is tried and the first whose product state is winning is taken. Failing to be in any
+cell and being in cells that are all losing are different failures and are reported as such.
+"""
+function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     Q = opt.quotient_automaton
     absopt = opt.abstract_optimizer
     absprob = opt.abstract_problem
@@ -446,10 +463,6 @@ function initial_lifted_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     end
 
     return error("Initial concrete state belongs to quotient cells, but none is winning.")
-end
-
-function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
-    return initial_lifted_controller_memory(opt, x0)
 end
 
 function simulate_closed_loop(
