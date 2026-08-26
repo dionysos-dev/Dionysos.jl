@@ -60,8 +60,8 @@ function add_transition!(T::PCBisimulationQuotient, src::Int, mode::Int, dst::In
     return nothing
 end
 
-function semilinear_by_node(T::PCBisimulationQuotient, state_ids)
-    parts_by_node = Dict{Any, Vector{Poly}}()
+function semilinear_by_node(T::PCBisimulationQuotient{S, U}, state_ids) where {S, U}
+    parts_by_node = Dict{U, Vector{Poly}}()
 
     for qid in state_ids
         haskey(T.states, qid) || continue

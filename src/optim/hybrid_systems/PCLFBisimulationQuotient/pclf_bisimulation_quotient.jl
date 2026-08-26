@@ -157,7 +157,7 @@ function bisimulation_pclf(
     atol::Float64 = 0.0,
     max_slices::Union{Nothing, Int} = nothing,
 )
-    A = extract_mode_matrices(f)
+    A = ST.mode_matrices(f)
 
     sublevels = build_sublevel_sequence(pclf, Γ)
     slices = build_slice_sequence(sublevels; atol = atol)
@@ -228,22 +228,6 @@ end
 # ============================================================
 # Switched system helpers
 # ============================================================
-
-# could be move to system
-function extract_mode_matrices(f::HybridSystems.HybridSystem)
-    RMs = f.resetmaps
-    A = Vector{Matrix{Float64}}(undef, length(RMs))
-    for (i, rm) in enumerate(RMs)
-        if isa(rm, AbstractMatrix)
-            A[i] = Array(rm)
-        elseif :A in fieldnames(typeof(rm))
-            A[i] = Array(getfield(rm, :A))
-        else
-            error("Cannot extract matrix from resetmap of type $(typeof(rm)).")
-        end
-    end
-    return A
-end
 
 # ============================================================
 # Slice generation
