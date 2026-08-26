@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Trajectory certification · Dionysos</title><meta name="title" content="Trajectory certification · Dionysos"/><meta property="og:title" content="Trajectory certification · Dionysos"/><meta property="twitter:title" content="Trajectory certification · Dionysos"/><meta name="description" content="Documentation for Dionysos."/><meta property="og:description" content="Documentation for Dionysos."/><meta property="twitter:description" content="Documentation for Dionysos."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/documentercitations/citations-hover.css" rel="stylesheet" type="text/css"/><link href="../../assets/documentercitations/citations.css" rel="stylesheet" type="text/css"/><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/><script src="../../assets/documentercitations/citations-data.js"></script><script src="../../assets/documentercitations/citations-hover.js"></script><script src="../../assets/documentercitations/citations-backlinks.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/abstraction-based-control/">Abstraction-based control</a></li><li><a class="tocitem" href="../../manual/overview/">Overview</a></li></ul></li><li><a class="tocitem" href="../getting_started/">Getting Started</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/">Overview</a></li><li><a class="tocitem" href="../path_planning/">Path planning</a></li><li><a class="tocitem" href="../unicycle_robot/">Unicycle robot</a></li><li><a class="tocitem" href="../dcdc_converter/">DC-DC converter</a></li><li><a class="tocitem" href="../adaptive_cruise_control/">Adaptive cruise control</a></li><li><a class="tocitem" href="../thermostat/">Thermostat</a></li><li><a class="tocitem" href="../integrator_ltl/">Integrator</a></li><li><a class="tocitem" href="../biped_velocity_control/">Velocity-controlled biped</a></li></ul></li><li><span class="tocitem">Solver families</span><ul><li><a class="tocitem" href="../gol_lazar_belta/">Gol–Lazar–Belta</a></li><li><a class="tocitem" href="../lazy_ellipsoids_abstraction/">Lazy ellipsoids</a></li><li class="is-active"><a class="tocitem" href>Trajectory certification</a><ul class="internal"><li><a class="tocitem" href="#The-control-task"><span>The control task</span></a></li><li><a class="tocitem" href="#Stage-1a-—-a-coarse-seed-from-a-grid-abstraction"><span>Stage 1a — a coarse seed from a grid abstraction</span></a></li><li><a class="tocitem" href="#Stage-1b-—-CEM-refinement"><span>Stage 1b — CEM refinement</span></a></li><li><a class="tocitem" href="#Stage-2-—-ellipsoidal-certification"><span>Stage 2 — ellipsoidal certification</span></a></li><li><a class="tocitem" href="#The-certificate,-exercised"><span>The certificate, exercised</span></a></li><li><a class="tocitem" href="#The-funnel"><span>The funnel</span></a></li></ul></li><li><a class="tocitem" href="../state_feedback_pwa/">State-feedback PWA</a></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Dionysos/">Dionysos</a></li><li><a class="tocitem" href="../../reference/Mapping/">Mapping</a></li><li><a class="tocitem" href="../../reference/Optim/">Optim</a></li><li><a class="tocitem" href="../../reference/Problem/">Problem</a></li><li><a class="tocitem" href="../../reference/Symbolic/">Symbolic</a></li><li><a class="tocitem" href="../../reference/System/">System</a></li><li><a class="tocitem" href="../../reference/Utils/">Utils</a></li><li><a class="tocitem" href="../../reference/Wrapper/">Wrapper</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/conventions/">Conventions</a></li><li><a class="tocitem" href="../../developers/examples/">Adding an example</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li><li><a class="tocitem" href="../../bibliography/">Bibliography</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Solver families</a></li><li class="is-active"><a href>Trajectory certification</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Trajectory certification</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/solvers/trajectory_certification.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Trajectory-certification:-generate,-then-certify"><a class="docs-heading-anchor" href="#Trajectory-certification:-generate,-then-certify">Trajectory certification: generate, then certify</a><a id="Trajectory-certification:-generate,-then-certify-1"></a><a class="docs-heading-anchor-permalink" href="#Trajectory-certification:-generate,-then-certify" title="Permalink"></a></h1><table><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr><tr><td style="text-align: left"><strong>System</strong></td><td style="text-align: left">2-D continuous, nonlinear (pendulum)</td></tr><tr><td style="text-align: left"><strong>Specification</strong></td><td style="text-align: left">reach (swing-up)</td></tr><tr><td style="text-align: left"><strong>Solver</strong></td><td style="text-align: left">MPPI/CEM generation + ellipsoidal funnel certification</td></tr></table><p>Abstraction-based synthesis explores the whole state space; this solver family splits the work instead: a cheap <em>stochastic planner</em> proposes one nominal trajectory, and a chain of small SDPs <em>certifies</em> it — synthesizing, for every step <code>k</code>, an ellipsoid <span>$E_k$</span> and an affine feedback <span>$κ_k$</span> with the invariant</p><p class="math-container">\[x ∈ E_k,\; u = κ_k(x) \;⟹\; f(x, u) ∈ E_{k+1},\]</p><p>with the last ellipsoid inside the target set. The chain (a <em>funnel</em>) is the formal guarantee: every state of the entry ellipsoid is steered into the target, with all inputs feasible. The certificate <em>is</em> the controller.</p><p>Driven through MathOptInterface directly: the SDP backend and the symbolic linearization provider it needs are not expressible in the JuMP front-end.</p><pre><code class="language-julia hljs">import LazySets
+import LinearAlgebra as LA
+import MathematicalSystems as MS
+using StaticArrays, Plots
+using JuMP, Clarabel # JuMP exports `MOI`; the docs environment has no direct MathOptInterface dependency
+using Symbolics
+using Random, Test
+
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const ST = DI.System
+const PR = DI.Problem
+const MP = DI.Mapping
+const AB = DI.Optim.Abstraction
+const EB = AB.EllipsoidalTrajectoryCertifier
+
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        &quot;problems&quot;,
+        &quot;Pendulum&quot;,
+        &quot;simple_pendulum.jl&quot;,
+    ),
+);</code></pre><h2 id="The-control-task"><a class="docs-heading-anchor" href="#The-control-task">The control task</a><a id="The-control-task-1"></a><a class="docs-heading-anchor-permalink" href="#The-control-task" title="Permalink"></a></h2><p>Pendulum swing-up: from hanging down (<span>$θ = 0$</span>) to upright (<span>$θ = π ± 15°$</span>, <span>$|ω| ≤ 1$</span>), with the benchmark&#39;s true input bound <span>$|τ| ≤ 4.5$</span>. The angle is periodic, which both the planner and the certification frame must respect.</p><pre><code class="language-julia hljs">params = SimplePendulum.Params(; l = 1.0, g = 9.81)
+problem = SimplePendulum.optimal_control_problem(;
+    params = params,
+    objective = &quot;reachability_up_medium_power_no_obstacle&quot;,
+)
+Δt = 0.1
+
+periodic_dims = SVector(1)
+periods = SVector(2π)
+wrap = UT.get_periodic_wrapper(periodic_dims, periods; start = SVector(-π));</code></pre><h2 id="Stage-1a-—-a-coarse-seed-from-a-grid-abstraction"><a class="docs-heading-anchor" href="#Stage-1a-—-a-coarse-seed-from-a-grid-abstraction">Stage 1a — a coarse seed from a grid abstraction</a><a id="Stage-1a-—-a-coarse-seed-from-a-grid-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Stage-1a-—-a-coarse-seed-from-a-grid-abstraction" title="Permalink"></a></h2><p>Any trajectory can seed the planner; a coarse abstraction-based controller is a reliable way to get one that already swings up.</p><pre><code class="language-julia hljs">opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;concrete_problem&quot;), problem)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;h&quot;), SVector(3.0 * π / 180.0, 0.1))
+MOI.set(
+    opt,
+    MOI.RawOptimizerAttribute(&quot;input_grid&quot;),
+    MP.GridFree(SVector(0.0), SVector(0.3)),
+)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;time_step&quot;), Δt)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;approx_mode&quot;), AB.UniformGridAbstraction.GROWTH)
+MOI.set(
+    opt,
+    MOI.RawOptimizerAttribute(&quot;jacobian_bound&quot;),
+    SimplePendulum.jacobian_bound(params),
+)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;use_periodic_mapping&quot;), true)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;periodic_dims&quot;), periodic_dims)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;periodic_periods&quot;), periods)
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;periodic_start&quot;), SVector(-π))
+MOI.set(opt, MOI.RawOptimizerAttribute(&quot;early_stop&quot;), true)
+MOI.set(opt, MOI.Silent(), true)
+
+seed_gen = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
+    opt;
+    initial_state = SVector(0.0, 0.0),
+    concrete = false,
+    nstep = 100,
+)
+AB.set_problem!(seed_gen, problem)
+AB.generate!(seed_gen)
+seed_traj = AB.get_trajectory(seed_gen)
+length(ST.states(seed_traj))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">34</code></pre><h2 id="Stage-1b-—-CEM-refinement"><a class="docs-heading-anchor" href="#Stage-1b-—-CEM-refinement">Stage 1b — CEM refinement</a><a id="Stage-1b-—-CEM-refinement-1"></a><a class="docs-heading-anchor-permalink" href="#Stage-1b-—-CEM-refinement" title="Permalink"></a></h2><p>The sampling-based planner polishes the seed under <em>wrap-aware</em> costs. Two details matter for the certificate downstream. First, the <strong>input reserve</strong>: the plan only uses <span>$60\%$</span> of the input budget, so the feedback <span>$κ_k$</span> can spend the rest defending the funnel. Second, the <strong>terminal pull</strong>: the reach cost scores the closest pass, so an extra endpoint cost is what drives the final state deep into the target — a centered endpoint is what lets a large terminal ellipsoid be inscribed.</p><pre><code class="language-julia hljs">base = PR.discretize_problem(problem, Δt; num_substeps = 5)
+T_split = UT.set_in_period(problem.target_set, periodic_dims, periods, SVector(-π))
+discrete_problem = PR.OptimalControlProblem(
+    base.system,
+    base.initial_set,
+    T_split,
+    base.state_cost,
+    base.transition_cost,
+    base.time,
+    base.safe_set,
+)
+
+u_max = 4.5
+u_plan = 0.6 * u_max
+
+cost = AB.CompositeCost(
+    AB.ReachObjectiveCost(T_split; wrap = wrap),
+    AB.TerminalPullCost(
+        [π, 0.0],
+        [0.249, 0.95];
+        w = 500.0,
+        wrap = wrap,
+        periods = [2π, nothing],
+    ),
+    AB.InputEffortCost(0.001),
+    AB.InputSmoothnessCost(; w_du = 0.05, w_ddu = 0.01),
+    AB.DomainPenaltyCost(problem.system.X; wrap = wrap),
+)
+
+mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
+    rng = Random.MersenneTwister(1),
+    seed_trajectory = seed_traj,
+    nstep = 90,
+    nsamples = 1000,
+    niter = 40,
+    noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.8)),
+    project_input = u -&gt; SVector(clamp(u[1], -u_plan, u_plan)),
+    cost = cost,
+    wrap_state = (problem, x) -&gt; wrap(x),
+    update_rule = :cem,
+    elite_frac = 0.05,
+    antithetic = true,
+    stop_on_success = false,
+)
+AB.set_problem!(mppi, discrete_problem)
+AB.generate!(mppi)
+@test AB.get_success(mppi)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Test Passed</span></span></code></pre><p>The certification chain works on the <em>lifted</em> (unwrapped) trajectory, shifted so the endpoint lands at the upright position <span>$θ = π$</span>:</p><pre><code class="language-julia hljs">traj = AB.get_trajectory(mppi)
+lifted = ST.unwrap_trajectory(traj, (1,), (2π,))
+θN = collect(ST.states(lifted))[end][1]
+shift = 2π * round((θN - π) / (2π))
+xs_lift = [SVector(x[1] - shift, x[2]) for x in ST.states(lifted)]
+lifted = ST.Trajectory(xs_lift; inputs = collect(ST.inputs(lifted)))
+length(ST.inputs(lifted))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">89</code></pre><h2 id="Stage-2-—-ellipsoidal-certification"><a class="docs-heading-anchor" href="#Stage-2-—-ellipsoidal-certification">Stage 2 — ellipsoidal certification</a><a id="Stage-2-—-ellipsoidal-certification-1"></a><a class="docs-heading-anchor-permalink" href="#Stage-2-—-ellipsoidal-certification" title="Permalink"></a></h2><p>The per-step SDP needs sound local models: a symbolic provider computes exact Jacobians and interval Hessian bounds of the RK4-discretized dynamics over each linearization box. Certification runs in <em>globally normalized</em> coordinates <span>$z = x ./ t$</span> (built symbolically once, so the bounds stay exact in the working frame) — on this benchmark, certification without normalization dies mid-chain from conditioning alone.</p><pre><code class="language-julia hljs">Symbolics.@variables θ ω τ w1 w2 T
+f_cont(xloc, uloc) = collect(SimplePendulum.dynamic(params)(xloc, uloc))
+f_disc = ST.runge_kutta4(f_cont, [θ, ω], [τ], T, 1)
+fsymbolic = Symbolics.substitute([f_disc[1] + w1, f_disc[2] + w2], Dict(T =&gt; Δt))
+Wset = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
+provider = ST.SymbolicAffineApproximationProvider(
+    fsymbolic,
+    [θ, ω],
+    [τ],
+    [w1, w2],
+    [0.0, 0.0],
+    ST.format_input_set(problem.system.U),
+    ST.format_noise_set(Wset),
+)
+
+t = [0.85 * 15.0 * π / 180.0, 0.25]
+zprovider = ST.normalized_symbolic_provider(provider, t)
+
+zproblem = PR.OptimalControlProblem(
+    base.system,
+    ST.normalize_box(problem.initial_set, t),
+    ST.normalize_box(problem.target_set, t),
+    nothing,
+    nothing,
+    base.time,
+    nothing,
+)
+ztraj = ST.normalize_trajectory(lifted, t);</code></pre><p>The backward chain starts from an ellipsoid inscribed in the target around the endpoint and synthesizes each <span>$(E_k, κ_k)$</span> against <span>$E_{k+1}$</span>, searching linearization-box scales for the largest certified ellipsoid. The chain maximizes the smallest semi-axis (<code>:maximin</code>) — the robust size objective: a pancake-collapsed ellipsoid is worthless under it, so long chains keep genuine volume in every direction.</p><pre><code class="language-julia hljs">adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.10] ./ t,
+    ΔX_min = [0.005, 0.005] ./ t,
+    ΔX_max = [2.5, 3.5] ./ t,
+    ΔU_initial = [0.25],
+    ΔU_min = [0.01],
+    ΔU_max = [4.5],
+    search_scales = [0.75, 1.0, 1.5, 2.0],
+    objective = :max_volume,
+)
+back_opts = EB.ChainOptions(;
+    maxδx = 12.0,
+    maxδu = 3.0,
+    λ = 0.001,
+    terminal_shrink = 0.95,
+    linearization_δx = [0.05, 0.10] ./ t,
+    linearization_δu = [1.0],
+    adaptive_boxes = adaptive_opts,
+    objective = :maximin,
+    check_state_domain = false,
+)
+
+sdp = optimizer_with_attributes(Clarabel.Optimizer, &quot;verbose&quot; =&gt; false)
+bw = EB.BackwardCertifier(zprovider, sdp, back_opts)
+AB.set_problem!(bw, zproblem)
+AB.set_trajectory!(bw, ztraj)
+AB.certify!(bw)
+
+res = EB.get_result(bw)
+@test res.success
+@test res.terminal_contained == true</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Test Passed</span></span></code></pre><p>Every step certified, terminal ellipsoid inside the target: the specification is closed. The certified product is a <code>ST.FunnelController</code> — the step-indexed feedbacks with their validity regions:</p><pre><code class="language-julia hljs">zctrl = EB.get_controller(bw)
+length(zctrl.kappas)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">89</code></pre><h2 id="The-certificate,-exercised"><a class="docs-heading-anchor" href="#The-certificate,-exercised">The certificate, exercised</a><a id="The-certificate,-exercised-1"></a><a class="docs-heading-anchor-permalink" href="#The-certificate,-exercised" title="Permalink"></a></h2><p>The guarantee is falsifiable: sample the <em>entry</em> ellipsoid, replay the funnel feedbacks on the certified (RK4-discretized) plant map, and every sample must land in the target — no re-planning, no exceptions.</p><pre><code class="language-julia hljs">f_ode = SimplePendulum.dynamic(params)
+function f_x(x, u)
+    k1 = f_ode(x, u)
+    k2 = f_ode(x + Δt / 2 * k1, u)
+    k3 = f_ode(x + Δt / 2 * k2, u)
+    k4 = f_ode(x + Δt * k3, u)
+    return x + Δt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+end
+f_z(z, u) = SVector{2}(f_x(SVector{2}(t .* z), u) ./ t)
+
+E_entry = res.lmi_data.ellipsoids[1]
+zT = ST.normalize_box(problem.target_set, t)
+n_samples = 25
+n_ok = 0
+rng_val = Random.MersenneTwister(7)
+for zs0 in UT.samples(E_entry, n_samples; rng = rng_val)
+    z = SVector{2}(zs0)
+    for κ in res.lmi_data.kappas
+        u = SVector{1}(clamp.(Matrix(κ.A) * collect(z) .+ collect(κ.c), -u_max, u_max))
+        z = f_z(z, u)
+    end
+    global n_ok += (z ∈ zT)
+end
+@test n_ok == n_samples</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Test Passed</span></span></code></pre><h2 id="The-funnel"><a class="docs-heading-anchor" href="#The-funnel">The funnel</a><a id="The-funnel-1"></a><a class="docs-heading-anchor-permalink" href="#The-funnel" title="Permalink"></a></h2><p>The certified corridor in the lifted <span>$(θ, ω)$</span> plane: every state inside a blue ellipsoid is provably steered along the chain into the target.</p><pre><code class="language-julia hljs">fig = plot(;
+    xlabel = &quot;θ  [rad]&quot;,
+    ylabel = &quot;ω  [rad/s]&quot;,
+    title = &quot;Certified pendulum swing-up&quot;,
+    legend = :topleft,
+    size = (900, 600),
+)
+plot!(fig, problem.initial_set; color = :gray, alpha = 0.5, label = &quot;initial set&quot;)
+plot!(fig, problem.target_set; color = :green, alpha = 0.35, label = &quot;target set&quot;)
+for (i, E) in enumerate(res.lmi_data.ellipsoids)
+    plot!(
+        fig,
+        ST.denormalize_ellipsoid(E, t);
+        color = :steelblue,
+        alpha = 0.25,
+        linewidth = 1.2,
+        linecolor = :steelblue,
+        label = i == 1 ? &quot;certified funnel&quot; : &quot;&quot;,
+    )
+end
+plot!(
+    fig,
+    [x[1] for x in xs_lift],
+    [x[2] for x in xs_lift];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 2,
+    label = &quot;nominal trajectory&quot;,
+)
+fig</code></pre><img src="ea7e2aac.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../lazy_ellipsoids_abstraction/">« Lazy ellipsoids</a><a class="docs-footer-nextpage" href="../state_feedback_pwa/">State-feedback PWA »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 26 August 2026 09:22">Wednesday 26 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
