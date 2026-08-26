@@ -179,6 +179,11 @@ Makie 3D axis `ax`, one horizontal layer per automaton node (its z-height given 
 Available only when a Makie backend is loaded (`using GLMakie`, `using CairoMakie`, …); the
 method is provided by `DionysosMakieExt`. Keyword arguments select which states to draw
 (`state_ids`), how to colour them (`color_by`, `node_colors`), and the outline/opacity style.
+
+By default the cells are batched into one mesh per colour and a single stroke for every
+outline, since a quotient of a few thousand states would otherwise become as many plot
+objects. `merge_plots = false` restores one mesh per polytope, which matters only when the
+drawing order of individual overlapping cells does.
 """
 function plot_lifted_bisimulation! end
 

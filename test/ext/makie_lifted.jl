@@ -52,6 +52,46 @@ end
     # Default `node_z` (the extension's internal node-z map) is exercised too.
     @test Dionysos.plot_lifted_bisimulation!(ax, bisim) === ax
 
+    # Batching: two states of different colours become two meshes plus one stroke for both
+    # outlines, where drawing them separately gives one mesh and one stroke each. Both must
+    # put the same triangles on screen.
+    ntris(a) = sum(
+        length(Makie.GeometryBasics.faces(p[1][])) for
+        p in a.scene.plots if p isa Makie.Mesh
+    )
+    merged = Axis3(Figure()[1, 1])
+    Dionysos.plot_lifted_bisimulation!(
+        merged,
+        bisim;
+        node_z = node_z,
+        color_by = :state,
+        show_contours = true,
+    )
+    split = Axis3(Figure()[1, 1])
+    Dionysos.plot_lifted_bisimulation!(
+        split,
+        bisim;
+        node_z = node_z,
+        color_by = :state,
+        show_contours = true,
+        merge_plots = false,
+    )
+    @test length(merged.scene.plots) == 3   # 2 colours + 1 outline stroke
+    @test length(split.scene.plots) == 4    # 2 meshes + 2 outline strokes
+    @test ntris(merged) == ntris(split)
+
+    # One colour for every state collapses to a single mesh.
+    single = Axis3(Figure()[1, 1])
+    Dionysos.plot_lifted_bisimulation!(
+        single,
+        bisim;
+        node_z = node_z,
+        color_by = :red,
+        show_contours = false,
+    )
+    @test length(single.scene.plots) == 1
+    @test ntris(single) == ntris(split)
+
     # Trajectory lifted onto the node layers.
     X_seq = [[0.5, 0.5], [1.5, 0.5]]
     M_seq = [(0, q1), (0, q2)]
