@@ -19,12 +19,11 @@ end
 # Full quotient recipe
 # ------------------------------------------------------------
 @recipe function f(
-    T::PCBisimulationQuotient;
+    quotient::PCBisimulationQuotient;
     what = :states,
     node = nothing,
     slice = nothing,
     obs = nothing,
-    mode = nothing,
     state_ids = nothing,
     by = :state,
     fillalpha = 0.25,
@@ -58,7 +57,7 @@ end
 
     if what == :states
         qlist = [
-            q for q in values(T.states) if (isnothing(node) || q.node == node) &&
+            q for q in values(quotient.states) if (isnothing(node) || q.node == node) &&
                 (isnothing(slice) || q.slice == slice) &&
                 (isnothing(obs) || q.obs == obs) &&
                 (isnothing(state_id_set) || q.id in state_id_set)
@@ -99,7 +98,7 @@ end
         seen = Set{Tuple{Any, Int}}()
 
         groups = Tuple{Any, Int, UT.SemiLinearSet}[]
-        for (nd, slice_list) in T.slices
+        for (nd, slice_list) in quotient.slices
             if !isnothing(node) && nd != node
                 continue
             end
