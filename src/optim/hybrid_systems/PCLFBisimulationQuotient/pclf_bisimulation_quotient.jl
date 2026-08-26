@@ -76,7 +76,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: OP.AbstractDionysosOptimizer
             nothing,    # nb_levels
             200,        # max_slices
             nothing,    # polyhedra_backend
-            1e-6,       # atol
+            1e-4,       # atol
             1,          # print_level
             nothing,    # Γ
             nothing,    # D
@@ -185,7 +185,7 @@ function refine_sources!(
     mode::Int,
     dest_node,
     slice::Int;
-    atol::Float64 = 1e-6,
+    atol::Float64 = 1e-4,
 )
     refined = 0
     for s in source_nodes
@@ -223,7 +223,9 @@ only ever split against targets whose own refinement is already settled.
 `atol` is the inset applied whenever one polytope is cut out of another; see
 [`OptimizerBisimulationQuotient`](@ref) for what it costs. It must be strictly positive --
 cutting exactly leaves degenerate pieces that survive the emptiness test and make the
-refinement diverge.
+refinement diverge, and it cannot go far below `1e-4` either: at `1e-6` a few hundred
+flat pieces survive `isempty` -- which only asks for feasibility -- and some of them have no
+support vector at all, which breaks anything that tries to bound them, plotting included.
 """
 function bisimulation_pclf(
     system::HybridSystems.HybridSystem,
@@ -231,7 +233,7 @@ function bisimulation_pclf(
     Γ::AbstractVector{<:Real},
     regions;
     verbose::Bool = true,
-    atol::Float64 = 1e-6,
+    atol::Float64 = 1e-4,
     max_slices::Union{Nothing, Int} = nothing,
 )
     A = ST.mode_matrices(system)
@@ -330,7 +332,7 @@ plain sum within a node.
 """
 function build_slice_sequence(
     sublevels::Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}};
-    atol::Float64 = 1e-6,
+    atol::Float64 = 1e-4,
 ) where {U}
     slices = Dict{U, Vector{UT.SemiLinearSet}}()
 
@@ -398,7 +400,7 @@ function refine_state_by_observation!(
     R::Poly,
     new_obs::Int;
     terminal_obs::Int = -1,
-    atol::Float64 = 1e-6,
+    atol::Float64 = 1e-4,
 ) where {U}
     haskey(quotient.states, qid) || return false
     q = quotient.states[qid]
@@ -472,7 +474,7 @@ function refine_partitions_by_observations!(
     quotient::PCBisimulationQuotient{UT.SemiLinearSet, U},
     regions;
     terminal_obs::Int = -1,
-    atol::Float64 = 1e-6,
+    atol::Float64 = 1e-4,
 ) where {U}
     region_polytopes = [UT._as_hpolytope(R) for R in regions]
 
@@ -545,7 +547,7 @@ function refine_one_state!(
     pre_parts::AbstractVector,
     mode::Int,
     target_qid::Int;
-    atol::Float64 = 1e-6,
+    atol::Float64 = 1e-4,
 ) where {U}
     haskey(quotient.states, qid) || return false
     q = quotient.states[qid]
