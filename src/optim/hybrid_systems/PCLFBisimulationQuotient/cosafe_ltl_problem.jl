@@ -29,12 +29,12 @@ function SY.enum_transitions(Q::QuotientAutomaton)
     return trans
 end
 
-function QuotientAutomaton(T::PCBisimulationQuotient)
-    qids = sort(collect(keys(T.states)))
+function QuotientAutomaton(quotient::PCBisimulationQuotient)
+    qids = sort(collect(keys(quotient.states)))
     id2idx = Dict(qid => i for (i, qid) in enumerate(qids))
 
     modes = Int[]
-    for q in values(T.states), (m, _) in q.next
+    for q in values(quotient.states), (m, _) in q.next
         push!(modes, m)
     end
     ninput = isempty(modes) ? 0 : maximum(modes)
@@ -44,7 +44,7 @@ function QuotientAutomaton(T::PCBisimulationQuotient)
     pre_tab = [Tuple{Int, Int}[] for _ in 1:n]
 
     for (i, qid) in enumerate(qids)
-        q = T.states[qid]
+        q = quotient.states[qid]
         for (m, dst_qid) in q.next
             haskey(id2idx, dst_qid) || continue
             j = id2idx[dst_qid]
@@ -57,7 +57,7 @@ function QuotientAutomaton(T::PCBisimulationQuotient)
         post_tab[i][u] = unique(post_tab[i][u])
     end
 
-    return QuotientAutomaton(T, qids, id2idx, post_tab, pre_tab, ninput)
+    return QuotientAutomaton(quotient, qids, id2idx, post_tab, pre_tab, ninput)
 end
 
 from_autom_to_bis_state(Q::QuotientAutomaton, qs::Int) = Q.qids[qs]
@@ -149,9 +149,9 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     isempty(optimizer.ap_to_obs) && error("ap_to_obs not set")
 
     concrete_problem = optimizer.concrete_problem
-    T = optimizer.bisimulation_quotient
+    quotient = optimizer.bisimulation_quotient
 
-    Q = QuotientAutomaton(T)
+    Q = QuotientAutomaton(quotient)
     optimizer.quotient_automaton = Q
 
     abstract_problem = build_abstract_problem(concrete_problem, Q, optimizer.ap_to_obs)
@@ -272,9 +272,9 @@ end
 # belonging to some unrelated cell that happens to contain the point would not be sound. A point
 # reachable only by the global search is therefore trackable but not controllable, which is the
 # honest answer rather than a gap.
-function _find_qid_in_node(T::PCBisimulationQuotient, node, x)
-    for qid in get(T.part_ids, node, Int[])
-        q = T.states[qid]
+function _find_qid_in_node(quotient::PCBisimulationQuotient, node, x)
+    for qid in get(quotient.part_ids, node, Int[])
+        q = quotient.states[qid]
         if x ∈ q.set
             return qid
         end
@@ -282,10 +282,10 @@ function _find_qid_in_node(T::PCBisimulationQuotient, node, x)
     return nothing
 end
 
-function _find_successor_qid(T::PCBisimulationQuotient, qid::Int, x)
-    q = T.states[qid]
+function _find_successor_qid(quotient::PCBisimulationQuotient, qid::Int, x)
+    q = quotient.states[qid]
     for (_, dst_qid) in q.next
-        dst = T.states[dst_qid]
+        dst = quotient.states[dst_qid]
         if x ∈ dst.set
             return dst_qid
         end
@@ -293,13 +293,13 @@ function _find_successor_qid(T::PCBisimulationQuotient, qid::Int, x)
     return nothing
 end
 
-function _find_qid_same_node(T::PCBisimulationQuotient, qid::Int, x)
-    node = T.states[qid].node
-    return _find_qid_in_node(T, node, x)
+function _find_qid_same_node(quotient::PCBisimulationQuotient, qid::Int, x)
+    node = quotient.states[qid].node
+    return _find_qid_in_node(quotient, node, x)
 end
 
-function _find_qid_global(T::PCBisimulationQuotient, x)
-    for (qid, q) in T.states
+function _find_qid_global(quotient::PCBisimulationQuotient, x)
+    for (qid, q) in quotient.states
         if x ∈ q.set
             return qid
         end
@@ -311,7 +311,7 @@ function solve_concrete_problem_lifted(
     Q::QuotientAutomaton,
     abstract_controller::ST.AbstractDiscreteController,
 )
-    T = Q.quotient
+    quotient = Q.quotient
 
     qid_to_qs(qid::Int) = Q.id2idx[qid]
     qs_to_qid(qs::Int) = Q.qids[qs]
@@ -328,13 +328,13 @@ function solve_concrete_problem_lifted(
     h_conc = function (mem, x)
         qa, qid = mem
 
-        haskey(T.states, qid) || return nothing
-        q = T.states[qid]
+        haskey(quotient.states, qid) || return nothing
+        q = quotient.states[qid]
 
         qid_use = if x ∈ q.set
             qid
         else
-            qid_same = _find_qid_same_node(T, qid, x)
+            qid_same = _find_qid_same_node(quotient, qid, x)
             isnothing(qid_same) ? nothing : qid_same
         end
 
@@ -348,16 +348,16 @@ function solve_concrete_problem_lifted(
     g_conc = function (mem, x_for_update)
         qa, qid = mem
 
-        haskey(T.states, qid) || return mem
+        haskey(quotient.states, qid) || return mem
 
-        qid_next = _find_successor_qid(T, qid, x_for_update)
+        qid_next = _find_successor_qid(quotient, qid, x_for_update)
 
         if isnothing(qid_next)
-            qid_next = _find_qid_same_node(T, qid, x_for_update)
+            qid_next = _find_qid_same_node(quotient, qid, x_for_update)
         end
 
         if isnothing(qid_next)
-            qid_next = _find_qid_global(T, x_for_update)
+            qid_next = _find_qid_global(quotient, x_for_update)
         end
 
         isnothing(qid_next) && return mem
@@ -372,12 +372,12 @@ function solve_concrete_problem_lifted(
         mem, x = memx
         qa, qid = mem
 
-        haskey(T.states, qid) || return false
+        haskey(quotient.states, qid) || return false
 
-        qid_use = if x ∈ T.states[qid].set
+        qid_use = if x ∈ quotient.states[qid].set
             qid
         else
-            _find_qid_same_node(T, qid, x)
+            _find_qid_same_node(quotient, qid, x)
         end
 
         isnothing(qid_use) && return false
@@ -414,7 +414,7 @@ function initial_lifted_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     absopt === nothing && error("No abstract_optimizer available.")
     absprob === nothing && error("No abstract_problem available.")
 
-    T = Q.quotient
+    quotient = Q.quotient
     product_automaton_opt = absopt.product_automaton_optimizer
     P = product_automaton_opt.problem.system
     W = product_automaton_opt.controllable_set
@@ -429,7 +429,7 @@ function initial_lifted_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
 
     candidates = Tuple{Int, Int}[]
     for (qs, qid) in enumerate(Q.qids)
-        if x0 ∈ T.states[qid].set
+        if x0 ∈ quotient.states[qid].set
             push!(candidates, (qs, qid))
         end
     end
