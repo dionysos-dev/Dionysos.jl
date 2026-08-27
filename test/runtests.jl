@@ -19,6 +19,7 @@ const TEST_FILES = [
     ("./utils/sets/ellipsoid.jl",),
     ("./utils/sets/ellipsoid_intersection.jl",),
     ("./utils/sets/semilinear_set.jl",),
+    ("./utils/pclf.jl",),
     ("./utils/sets/set_algebra.jl",),
     ("./utils/periodic.jl",),
     ("./utils/pclf.jl",),

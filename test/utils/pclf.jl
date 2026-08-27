@@ -245,4 +245,101 @@ import Clarabel
     end
 end
 
+# ------------------------------------------------------------------
+# Graph shape: completeness and determinism
+# ------------------------------------------------------------------
+# The two properties are independent and license different uses. Path-completeness represents every
+# finite mode word by some path, which is what co-safe synthesis needs; completeness additionally
+# gives every node an edge for every mode, which is what verification under arbitrary switching
+# needs, since a missing edge removes a move the real adversary has.
+@testset "graph completeness and determinism" begin
+    for k in 0:2
+        G = PCLF.generate_DeBruijn_edges(2, k)
+        @test PCLF.is_complete(G, 1:2)
+        @test PCLF.is_deterministic(G, 1:2)
+    end
+
+    G = PCLF.generate_DeBruijn_edges(2, 1; dual = true)
+    @test !PCLF.is_complete(G, 1:2)
+    @test !PCLF.is_deterministic(G, 1:2)
+
+    H = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (1, 2, 2), (1, 2, 1), (2, 1, 2)])
+    @test !PCLF.is_complete(H, 1:2)          # node 2 has no mode-1 edge
+    @test !PCLF.is_deterministic(H, 1:2)     # node 1 branches on mode 1
+
+    for M in (2, 4)
+        edges = [(s, mod(s + m - 1, M), m) for s in 0:(M - 1) for m in 1:M]
+        R = PCLF.edgeList_to_LabDigraph(edges)
+        @test PCLF.is_complete(R, 1:M)
+        @test PCLF.is_deterministic(R, 1:M)
+    end
+end
+
+# ------------------------------------------------------------------
+# An absent certificate must be reported, never disguised as a bound
+# ------------------------------------------------------------------
+# The bisection starts from `b = max_i ||A_i||_inf`, which is *not* known to be feasible. If no trial
+# rate is ever feasible, `b` never moves; returning it would report that trivial norm as a computed
+# certificate, with the same value for every template -- which is how the failure previously
+# masqueraded as a non-monotone bound across template refinements.
+@testset "absent certificate reported as Inf, not as the norm bound" begin
+    A1 = [1.6 0.0; 0.0 1.6]
+    A2 = [0.0 1.6; 1.6 0.0]
+    f = HybridSystems.discreteswitchedsystem([A1, A2])
+    norm_bound = max(LA.opnorm(A1, Inf), LA.opnorm(A2, Inf))
+
+    G = PCLF.generate_DeBruijn_edges(2, 1)
+    nodes = sort(collect(G.verts))
+    part = PCLF.conic_partitions_2d(2)
+    opt = JuMP.optimizer_with_attributes(
+        Clarabel.Optimizer, "max_iter" => 2000, "verbose" => false,
+    )
+
+    pclf = PCLF.compute_polyhedral_pieces_pclf(
+        f, G, opt, Dict(v => part for v in nodes); MLF = true,
+    )
+    @test pclf.JSRapprox == Inf
+    @test pclf.JSRapprox != norm_bound
+    @test isempty(pclf.pieces)
+end
+
+# ------------------------------------------------------------------
+# Monotonicity over a nested template family
+# ------------------------------------------------------------------
+# `conic_partitions_2d` bisects every cone of the previous order, so order p+1 is a strictly richer
+# template and the optimal rate cannot increase. Clarabel's default feasibility tolerance (1e-8)
+# does not converge at order 3 on this instance; 1e-6 does, and then the sequence is monotone. The
+# looser tolerance is part of the fixture, not a workaround for a modelling error.
+@testset "bound is non-increasing in nested conic-partition order" begin
+    A1 = [0.70 0.10; 0.00 0.65]
+    A2 = [0.60 -0.15; 0.10 0.55]
+    f = HybridSystems.discreteswitchedsystem([A1, A2])
+    G = PCLF.generate_DeBruijn_edges(2, 1)
+    nodes = sort(collect(G.verts))
+    opt = JuMP.optimizer_with_attributes(
+        Clarabel.Optimizer, "max_iter" => 2000, "verbose" => false,
+        "tol_feas" => 1e-6, "tol_gap_abs" => 1e-6, "tol_gap_rel" => 1e-6,
+    )
+
+    bounds = Float64[]
+    for p in 1:3
+        part = PCLF.conic_partitions_2d(p)
+        pclf = PCLF.compute_polyhedral_pieces_pclf(
+            f, G, opt, Dict(v => part for v in nodes); MLF = true,
+        )
+        push!(bounds, pclf.JSRapprox)
+    end
+
+    @test all(isfinite, bounds)
+    for (prev, next) in zip(bounds, Iterators.drop(bounds, 1))
+        @test next <= prev + 1e-3
+    end
+end
+
+@testset "conic partitions refine" begin
+    for p in 1:3
+        @test length(PCLF.conic_partitions_2d(p)) == 4 * 2^(p - 1)
+    end
+end
+
 end # module TestMain

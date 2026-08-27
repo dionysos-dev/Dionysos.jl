@@ -26,6 +26,44 @@ function edgeList_to_LabDigraph(edges::Vector{Tuple{U, U, T}}) where {T <: Real,
     return LabDigraph{T, U}(edges, verts)
 end
 
+"""
+    is_complete(G::LabDigraph, modes) -> Bool
+
+Whether every node of `G` has an outgoing edge for every mode in `modes`.
+
+Completeness and path-completeness are different properties and license different uses. A
+path-complete graph represents every finite mode *word* by some path, which is what synthesis needs:
+a co-safe specification is witnessed in finite time, and the witness word has a path to follow.
+Verification under arbitrary switching needs more — a node missing an outgoing edge for some mode
+removes a move the real adversary has, so the abstraction can certify a universal property the
+concrete system does not satisfy. Completeness is exactly what closes that gap.
+
+See also [`is_deterministic`](@ref), which bounds the same counts from above rather than below.
+"""
+function is_complete(G::LabDigraph, modes)
+    return all(
+        any(e -> e[1] == s && e[3] == m, G.edges) for s in G.verts for m in modes
+    )
+end
+
+"""
+    is_deterministic(G::LabDigraph, modes) -> Bool
+
+Whether every `(node, mode)` pair of `G` has at most one outgoing edge.
+
+When a graph branches, the successor node is not determined by the mode, and something must resolve
+the choice. A controller that tracks one node resolves it in its own favour; an adversary that
+resolves it instead removes freedom the concrete system grants. The distinction matters for
+synthesis guarantees, so it is worth being able to test.
+
+See also [`is_complete`](@ref).
+"""
+function is_deterministic(G::LabDigraph, modes)
+    return all(
+        count(e -> e[1] == s && e[3] == m, G.edges) <= 1 for s in G.verts for m in modes
+    )
+end
+
 abstract type AbstractPiece end
 
 function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
@@ -220,6 +258,7 @@ function compute_quadratic_pieces_pclf(
 
     # --- bisection loop ---
     iter = 0
+    any_feasible = false
     while (b - a > tol) && (iter < maxiter)
         iter += 1
         gamma = (a + b) / 2
@@ -252,10 +291,19 @@ function compute_quadratic_pieces_pclf(
 
         st = JuMP.termination_status(model)
         if st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT
+            any_feasible = true
             b = gamma
         else
             a = gamma
         end
+    end
+
+    # See the note in `compute_polyhedral_pieces_pclf`: `b` is only an unverified norm bound until
+    # some trial certifies it, so returning it unconditionally reports a failure as a result.
+    if !any_feasible
+        @warn "compute_quadratic_pieces_pclf: no feasible contraction rate found; no certificate \
+               exists for this graph and template. Returning JSRapprox = Inf."
+        return PCLF(G, Dict{typeof(verts[1]), AbstractPiece}(), Inf)
     end
 
     gamma = b
@@ -434,6 +482,7 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     # --- bisection ---
     iter = 0
     feasible_at = false
+    any_feasible = false
     while (b - a > tol) && (iter < maxiter)
         iter += 1
         gamma = (a + b) / 2
@@ -467,10 +516,19 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         feasible_at = (st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT)
 
         if feasible_at
+            any_feasible = true
             b = gamma
         else
             a = gamma
         end
+    end
+
+    # See the note in `compute_polyhedral_pieces_pclf`: `b` is only an unverified norm bound until
+    # some trial certifies it, so returning it unconditionally reports a failure as a result.
+    if !any_feasible
+        @warn "compute_symmetric_2n_faces_polyhedral_pieces_pclf: no feasible contraction rate \
+               found; no certificate exists for this graph and template. Returning JSRapprox = Inf."
+        return PCLF(D, Dict{Any, AbstractPiece}(), Inf)
     end
 
     gamma = b
@@ -724,17 +782,29 @@ function compute_polyhedral_pieces_pclf(
     end
 
     # --- bisection over rho ---
+    # `b` starts at a trivial norm bound that is *not* known to be feasible. If no trial rate is
+    # ever feasible, `b` never moves, and returning it would report that trivial bound as though it
+    # were a computed certificate — silently, and with the same value for every template, which is
+    # how this failure previously masqueraded as a non-monotone bound across template refinements.
     iter = 0
+    any_feasible = false
     while (b - a > tol) && (iter < maxiter)
         iter += 1
         rho_trial = (a + b) / 2
         res = feasibility_at_rho(rho_trial; extract_solution = false)
 
         if res.feasible
+            any_feasible = true
             b = rho_trial
         else
             a = rho_trial
         end
+    end
+
+    if !any_feasible
+        @warn "compute_polyhedral_pieces_pclf: no feasible contraction rate found; no certificate \
+               exists for this graph and template. Returning JSRapprox = Inf."
+        return PCLF(D, Dict{Any, AbstractPiece}(), Inf)
     end
 
     gamma = b
