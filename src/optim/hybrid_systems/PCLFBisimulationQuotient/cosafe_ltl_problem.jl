@@ -501,7 +501,7 @@ function simulate_closed_loop(
 )
     # one extraction for the whole run, and the same one the quotient was built from -- the
     # mode matrices were being unpacked again on every step, by a second copy of the rule
-    A = ST.mode_matrices(f)
+    A = UT.mode_matrices(f)
 
     xs = Vector{typeof(x0)}()
     us = Int[]

@@ -2,6 +2,7 @@ module Utils
 
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
+import HybridSystems
 import Polyhedra
 import LazySets
 import SpecialFunctions
@@ -22,6 +23,7 @@ include("sets/set_algebra.jl")
 include("sets/ellipsoid.jl")
 include("sets/semilinear_set.jl")
 
+include("hybrid_system.jl")
 include("pclf.jl")
 include("incremental_stability.jl")
 

@@ -238,7 +238,7 @@ function bisimulation_pclf(
     atol::Float64 = 1e-4,
     max_slices::Union{Nothing, Int} = nothing,
 )
-    A = ST.mode_matrices(system)
+    A = UT.mode_matrices(system)
 
     sublevels = build_sublevel_sequence(pclf, Γ)
     slices = build_slice_sequence(sublevels; atol = atol)

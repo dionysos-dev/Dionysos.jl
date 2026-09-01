@@ -9,6 +9,7 @@ import HybridSystems
 import JuMP
 import LinearAlgebra as LA
 import Clarabel
+import HiGHS
 
 @testset "PathCompleteFramework" begin
     @testset "edgeList_to_LabDigraph" begin
@@ -292,11 +293,17 @@ end
     nodes = sort(collect(G.verts))
     part = PCLF.conic_partitions_2d(2)
     opt = JuMP.optimizer_with_attributes(
-        Clarabel.Optimizer, "max_iter" => 2000, "verbose" => false,
+        Clarabel.Optimizer,
+        "max_iter" => 2000,
+        "verbose" => false,
     )
 
     pclf = PCLF.compute_polyhedral_pieces_pclf(
-        f, G, opt, Dict(v => part for v in nodes); MLF = true,
+        f,
+        G,
+        opt,
+        Dict(v => part for v in nodes);
+        MLF = true,
     )
     @test pclf.JSRapprox == Inf
     @test pclf.JSRapprox != norm_bound
@@ -317,15 +324,23 @@ end
     G = PCLF.generate_DeBruijn_edges(2, 1)
     nodes = sort(collect(G.verts))
     opt = JuMP.optimizer_with_attributes(
-        Clarabel.Optimizer, "max_iter" => 2000, "verbose" => false,
-        "tol_feas" => 1e-6, "tol_gap_abs" => 1e-6, "tol_gap_rel" => 1e-6,
+        Clarabel.Optimizer,
+        "max_iter" => 2000,
+        "verbose" => false,
+        "tol_feas" => 1e-6,
+        "tol_gap_abs" => 1e-6,
+        "tol_gap_rel" => 1e-6,
     )
 
     bounds = Float64[]
     for p in 1:3
         part = PCLF.conic_partitions_2d(p)
         pclf = PCLF.compute_polyhedral_pieces_pclf(
-            f, G, opt, Dict(v => part for v in nodes); MLF = true,
+            f,
+            G,
+            opt,
+            Dict(v => part for v in nodes);
+            MLF = true,
         )
         push!(bounds, pclf.JSRapprox)
     end
@@ -340,6 +355,91 @@ end
     for p in 1:3
         @test length(PCLF.conic_partitions_2d(p)) == 4 * 2^(p - 1)
     end
+end
+
+@testset "mode_matrices accepts both resetmap shapes" begin
+    A1, A2 = [0.5 0.0; 0.0 0.4], [0.3 0.1; 0.0 0.2]
+    f = HybridSystems.discreteswitchedsystem([A1, A2])
+
+    # `discreteswitchedsystem` wraps a bare matrix in a `LinearMap`, so this exercises the
+    # `:A in fieldnames` branch; the bare-matrix branch is exercised by passing them through.
+    @test UT.mode_matrices(f) == [A1, A2]
+    @test UT.mode_matrices(f) isa Vector{Matrix{Float64}}
+end
+
+@testset "check_pclf reproduces a known contraction rate" begin
+    # x ↦ 0.5x under V(x) = ‖x‖_∞ contracts at exactly 0.5.
+    f = HybridSystems.discreteswitchedsystem([Matrix(0.5 * LA.I, 2, 2)])
+    graph = PCLF.edgeList_to_LabDigraph([(1, 1, 1)])
+    pieces = Dict{Any, PCLF.AbstractPiece}(
+        1 => PCLF.PolyhedralPiece(Matrix(1.0LA.I, 2, 2), ones(2)),
+    )
+
+    ok = PCLF.check_pclf(PCLF.PCLF(graph, pieces, 0.5), f)
+    @test ok.rate ≈ 0.5 atol = 1e-6
+    @test isempty(ok.violated)
+
+    # A rate the system does not attain must be refuted.
+    @test length(PCLF.check_pclf(PCLF.PCLF(graph, pieces, 0.2), f).violated) == 1
+end
+
+@testset "check_pclf normalises the homogeneity degree" begin
+    # The same system certified quadratically: the value ratio is 0.25 but the gauge rate is 0.5.
+    # Without the degree correction a quadratic certificate would read as ρ² and look better than
+    # it is, and would not be comparable with a polyhedral one on the same system.
+    f = HybridSystems.discreteswitchedsystem([Matrix(0.5 * LA.I, 2, 2)])
+    graph = PCLF.edgeList_to_LabDigraph([(1, 1, 1)])
+    quad = Dict{Any, PCLF.AbstractPiece}(1 => PCLF.EllipsoidalPiece(Matrix(1.0LA.I, 2, 2)))
+
+    @test PCLF.piece_degree(PCLF.EllipsoidalPiece(Matrix(1.0LA.I, 2, 2))) == 2
+    @test PCLF.piece_degree(PCLF.PolyhedralPiece(Matrix(1.0LA.I, 2, 2), ones(2))) == 1
+    @test PCLF.check_pclf(PCLF.PCLF(graph, quad, 0.5), f).rate ≈ 0.5 atol = 1e-6
+end
+
+@testset "certify_pclf is exact where check_pclf only samples" begin
+    # Example 3.1 of Gol, Ding, Lazar & Belta with their published certificate. The exact rate is
+    # 0.940008, so their printed 0.94 is that supremum rounded: a sample lands just under it and
+    # the linear program lands just over. Both must agree to six decimals on the value itself.
+    A1 = [-0.65 0.32; -0.42 -0.92]
+    A2 = [0.65 0.32; -0.42 -0.92]
+    f = HybridSystems.discreteswitchedsystem([A1, A2])
+    L = [-0.0625 1.0; 0.6815 1.0; 0.9947 0.6868; 0.9947 -0.0678]
+
+    graph = PCLF.generate_DeBruijn_edges(2, 0)
+    pclf = PCLF.PCLF(
+        graph,
+        Dict{Any, PCLF.AbstractPiece}(1 => PCLF.PolyhedralPiece(L, ones(size(L, 1)))),
+        0.94,
+    )
+
+    exact = PCLF.certify_pclf(pclf, f, HiGHS.Optimizer)
+    sampled = PCLF.check_pclf(pclf, f)
+
+    @test exact.rate ≈ 0.940008 atol = 1e-5
+    # A sample of a supremum can only fall short of it.
+    @test sampled.rate <= exact.rate + 1e-9
+
+    # Refutation must be unanimous when the claimed rate is far from the true one.
+    bad = PCLF.PCLF(graph, pclf.pieces, 0.5)
+    @test length(PCLF.certify_pclf(bad, f, HiGHS.Optimizer).violated) == 2
+    @test length(PCLF.check_pclf(bad, f).violated) == 2
+end
+
+@testset "checkers reject what they cannot decide" begin
+    f = HybridSystems.discreteswitchedsystem([Matrix(0.5 * LA.I, 2, 2)])
+    graph = PCLF.edgeList_to_LabDigraph([(1, 1, 1)])
+
+    # The failure the solvers now signal with `JSRapprox = Inf` carries no pieces at all.
+    empty_pclf = PCLF.PCLF(graph, Dict{Any, PCLF.AbstractPiece}(), Inf)
+    @test_throws ErrorException PCLF.check_pclf(empty_pclf, f)
+
+    # `certify_pclf` is exact only for polyhedral pieces and must say so rather than approximate.
+    quad = Dict{Any, PCLF.AbstractPiece}(1 => PCLF.EllipsoidalPiece(Matrix(1.0LA.I, 2, 2)))
+    @test_throws ErrorException PCLF.certify_pclf(
+        PCLF.PCLF(graph, quad, 0.5),
+        f,
+        HiGHS.Optimizer,
+    )
 end
 
 end # module TestMain

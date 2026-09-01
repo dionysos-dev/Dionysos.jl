@@ -41,9 +41,7 @@ concrete system does not satisfy. Completeness is exactly what closes that gap.
 See also [`is_deterministic`](@ref), which bounds the same counts from above rather than below.
 """
 function is_complete(G::LabDigraph, modes)
-    return all(
-        any(e -> e[1] == s && e[3] == m, G.edges) for s in G.verts for m in modes
-    )
+    return all(any(e -> e[1] == s && e[3] == m, G.edges) for s in G.verts for m in modes)
 end
 
 """
@@ -221,17 +219,7 @@ function compute_quadratic_pieces_pclf(
 )
 
     # --- extract matrices from resetmaps ---
-    RMs = f.resetmaps
-    A = Vector{Matrix{Float64}}(undef, length(RMs))
-    for (i, rm) in enumerate(RMs)
-        if isa(rm, AbstractMatrix)
-            A[i] = Array(rm)
-        elseif :A in fieldnames(typeof(rm))
-            A[i] = Array(getfield(rm, :A))
-        else
-            error("Cannot extract matrix from resetmap of type $(typeof(rm)).")
-        end
-    end
+    A = UT.mode_matrices(f)
 
     # --- vertices and indexing for P variables ---
     verts = collect(G.verts)
@@ -406,17 +394,7 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
 )
 
     # --- extract matrices from resetmaps ---
-    RMs = f.resetmaps
-    A = Vector{Matrix{Float64}}(undef, length(RMs))
-    for (i, rm) in enumerate(RMs)
-        if isa(rm, AbstractMatrix)
-            A[i] = Array(rm)
-        elseif :A in fieldnames(typeof(rm))
-            A[i] = Array(getfield(rm, :A))
-        else
-            error("Cannot extract matrix from resetmap of type $(typeof(rm)).")
-        end
-    end
+    A = UT.mode_matrices(f)
 
     # --- vertices and indexing for w variables ---
     verts = collect(D.verts)
@@ -633,17 +611,7 @@ function compute_polyhedral_pieces_pclf(
 )
 
     # --- extract matrices from resetmaps ---
-    RMs = f.resetmaps
-    A = Vector{Matrix{Float64}}(undef, length(RMs))
-    for (i, rm) in enumerate(RMs)
-        if isa(rm, AbstractMatrix)
-            A[i] = Array(rm)
-        elseif :A in fieldnames(typeof(rm))
-            A[i] = Array(getfield(rm, :A))
-        else
-            error("Cannot extract matrix from resetmap of type $(typeof(rm)).")
-        end
-    end
+    A = UT.mode_matrices(f)
 
     # --- vertices and indexing ---
     verts = collect(D.verts)
@@ -993,6 +961,171 @@ end
 function conic_partitions_dict_2d(order::Int, node_ids)
     cones = conic_partitions_2d(order)
     return Dict(id => cones for id in node_ids)
+end
+
+# ------------------------------------------------------------
+# Checking a certificate
+# ------------------------------------------------------------
+
+# Piece values are homogeneous, but not all of the same degree: `max|Gx|/w` scales linearly in `x`
+# while `x'Px` scales quadratically, and the solvers constrain them accordingly — `γ` in the
+# polyhedral programs, `γ²` in the semidefinite one. `JSRapprox` is the rate of the gauge in both
+# cases, so an observed value ratio must be taken to the power `1/degree` before it can be compared
+# with it; without that a valid quadratic certificate reads as `ρ²` and looks better than it is.
+piece_degree(::AbstractPiece) = error("piece_degree not implemented")
+piece_degree(::PolyhedralPiece) = 1
+piece_degree(::EllipsoidalPiece) = 2
+piece_degree(p::ObserverCLFPiece) = piece_degree(first(values(p.base_pieces)))
+
+# Both checkers report the same shape, and both compare against `JSRapprox` with a relative
+# tolerance, since a rate returned by a solver is attained only up to its own accuracy.
+function _rate_report(by_edge, rho, rtol)
+    rate = maximum(values(by_edge))
+    violated = sort!([e for (e, r) in by_edge if r > rho * (1 + rtol)]; by = string)
+    return (; rate = rate, by_edge = by_edge, violated = violated, certified_rate = rho)
+end
+
+function _edge_pieces(pclf::PCLF, u, v)
+    haskey(pclf.pieces, u) && haskey(pclf.pieces, v) ||
+        error("The certificate has no piece for node $u or node $v.")
+    pu, pv = pclf.pieces[u], pclf.pieces[v]
+    piece_degree(pu) == piece_degree(pv) || error(
+        "Nodes $u and $v carry pieces of different homogeneity degree; their values are not \
+         comparable along an edge.",
+    )
+    return pu, pv
+end
+
+"""
+    check_pclf(pclf, f; nsample = 20_000, rng = nothing, rtol = 1e-6)
+    check_pclf(pclf, A; nsample = 20_000, rng = nothing, rtol = 1e-6)
+
+Test the contraction inequality that defines the certificate `pclf`, by sampling.
+
+Along every edge `(s, s′, m)` of the graph a path-complete Lyapunov function claims
+
+    V_{s′}(A_m x) ≤ ρ^d V_s(x)    for all x,
+
+with `ρ = pclf.JSRapprox` and `d` the homogeneity degree of the pieces. Both sides are homogeneous,
+so the claim does not depend on the scale of `x` and sampling directions covers it.
+
+The mode matrices are taken either from a `HybridSystems.HybridSystem` or given directly as a
+vector indexed by mode label.
+
+Returns `(; rate, by_edge, violated, certified_rate)`. `rate` is the largest rate observed over all
+edges and `by_edge` the rate of each, both expressed on the gauge — that is, as
+`(V_{s′}(A_m x) / V_s(x))^(1/d)` — so that they are directly comparable with `pclf.JSRapprox`
+whatever the piece type. `violated` lists the edges exceeding it by more than `rtol` in relative
+terms.
+
+A sample underestimates a supremum, so this refutes a certificate rather than establishing one: a
+`rate` above `ρ` proves the certificate wrong, a `rate` below it is evidence and not a proof. When
+the pieces are polyhedral, [`certify_pclf`](@ref) decides the question exactly.
+
+`rng` is the caller's, and `nothing` uses the default global one; pass a seeded generator when a
+run has to be reproducible.
+
+See also [`certify_pclf`](@ref).
+"""
+function check_pclf(pclf::PCLF, f::HybridSystems.HybridSystem; kwargs...)
+    return check_pclf(pclf, UT.mode_matrices(f); kwargs...)
+end
+
+function check_pclf(
+    pclf::PCLF,
+    A::Vector{<:AbstractMatrix};
+    nsample::Int = 20_000,
+    rng = nothing,
+    rtol::Float64 = 1e-6,
+)
+    isempty(pclf.pieces) &&
+        error("The certificate carries no pieces; there is nothing to check.")
+    n = size(A[1], 2)
+    by_edge = Dict{Any, Float64}()
+
+    for (u, v, label) in pclf.graph.edges
+        pu, pv = _edge_pieces(pclf, u, v)
+        d = piece_degree(pu)
+        Am = A[Int(label)]
+        worst = 0.0
+        for _ in 1:nsample
+            x = rng === nothing ? randn(n) : randn(rng, n)
+            Vu = piece_value(pu, x)
+            # A direction on which the source value vanishes carries no information about the
+            # ratio, and dividing by it would manufacture one.
+            Vu > 0 || continue
+            worst = max(worst, piece_value(pv, Am * x) / Vu)
+        end
+        by_edge[(u, v, label)] = worst^(1 / d)
+    end
+
+    return _rate_report(by_edge, pclf.JSRapprox, rtol)
+end
+
+"""
+    certify_pclf(pclf, f, optimizer; rtol = 1e-6)
+    certify_pclf(pclf, A, optimizer; rtol = 1e-6)
+
+Decide the contraction inequality of `pclf` exactly, for polyhedral pieces.
+
+For a polyhedral piece the value is a gauge, so by homogeneity the rate along an edge `(s, s′, m)`
+is
+
+    sup { V_{s′}(A_m x) : V_s(x) ≤ 1 },
+
+a maximum of linear functionals over a polytope, hence a linear program per row of `G_{s′}` and per
+sign. `optimizer` is any LP-capable `JuMP` optimizer.
+
+The return value has the same fields as [`check_pclf`](@ref), but the rates are suprema rather than
+sample maxima: an empty `violated` here establishes the certificate instead of merely failing to
+refute it.
+"""
+function certify_pclf(pclf::PCLF, f::HybridSystems.HybridSystem, optimizer; kwargs...)
+    return certify_pclf(pclf, UT.mode_matrices(f), optimizer; kwargs...)
+end
+
+function certify_pclf(
+    pclf::PCLF,
+    A::Vector{<:AbstractMatrix},
+    optimizer;
+    rtol::Float64 = 1e-6,
+)
+    isempty(pclf.pieces) &&
+        error("The certificate carries no pieces; there is nothing to certify.")
+    all(p isa PolyhedralPiece for p in values(pclf.pieces)) || error(
+        "certify_pclf is exact only for polyhedral pieces; use check_pclf for the others.",
+    )
+
+    n = size(A[1], 2)
+    by_edge = Dict{Any, Float64}()
+
+    for (u, v, label) in pclf.graph.edges
+        pu, pv = _edge_pieces(pclf, u, v)
+        M = pv.G * A[Int(label)]
+        worst = 0.0
+        for i in 1:size(M, 1), σ in (1.0, -1.0)
+            model = JuMP.Model(optimizer)
+            JuMP.set_silent(model)
+            x = JuMP.@variable(model, [1:n])
+            JuMP.@constraint(model, pu.G * x .<= pu.w)
+            JuMP.@constraint(model, pu.G * x .>= -pu.w)
+            JuMP.@objective(
+                model,
+                MOI.MAX_SENSE,
+                σ * LinearAlgebra.dot(M[i, :], x) / pv.w[i]
+            )
+            JuMP.optimize!(model)
+            st = JuMP.termination_status(model)
+            st == MOI.OPTIMAL || error(
+                "The program over edge ($u, $v, $label) terminated with status $st. An unbounded \
+                 status means the sublevel set of node $u is unbounded, i.e. G is not of rank n.",
+            )
+            worst = max(worst, JuMP.objective_value(model))
+        end
+        by_edge[(u, v, label)] = worst
+    end
+
+    return _rate_report(by_edge, pclf.JSRapprox, rtol)
 end
 
 end # module
