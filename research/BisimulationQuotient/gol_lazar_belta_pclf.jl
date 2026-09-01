@@ -1,8 +1,18 @@
-# Example 3.1 of the paper.
+# Example 3.1 — the paper's reference run.
 #
-# A two-mode system on a square, a common polyhedral PCLF over a one-node graph with a self-loop
-# per mode, and a three-part co-safe LTL specification. This is the run the paper's figures and
-# reported numbers come from: 10611 quotient states, controllable-set volume 186.728.
+# The system, working set and observation regions are those of Gol, Ding, Lazar & Belta
+# (arXiv:1208.5471, Example 3.1); the certificate is ours. Where
+# `gol_lazar_belta_example.jl` reproduces *their* certificate at |S| = 1 to check that the
+# framework contains theirs, this script runs the full pipeline on the same problem with a
+# two-node path-complete certificate: quotient, co-safe LTL synthesis, controller, closed-loop
+# trajectory and winning-region volume.
+#
+# Reference numbers: 10611 quotient states, controllable-set volume 186.72811640312693.
+#
+# The two are not comparable as a cost benchmark. They use different certificates, and a
+# certificate determines its own slice family and terminal set, so their cell counts measure
+# different partitions of different regions — see the note at the head of
+# `gol_lazar_belta_example.jl`.
 
 include(joinpath(@__DIR__, "common.jl"))
 using Spot
@@ -13,32 +23,12 @@ gr()
 # System and problem
 # ---------------------------------------------------------
 
-A1 = @SMatrix [-0.65 0.32; -0.42 -0.92]
-A2 = @SMatrix [0.65 0.32; -0.42 -0.92]
-f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
+# The system, working set and observation regions are Example 3.1 of Gol, Ding, Lazar & Belta
+# (arXiv:1208.5471). They are defined once in `common.jl` so that this script and
+# `gol_lazar_belta_example.jl`, which compares our certificate against theirs, abstract exactly
+# the same problem — otherwise the two quotients would partition different sets.
 
-p = 5.9
-X = LazySets.HPolytope([
-    LazySets.HalfSpace([1.0, 0.0], p),
-    LazySets.HalfSpace([-1.0, 0.0], p),
-    LazySets.HalfSpace([0.0, 1.0], p),
-    LazySets.HalfSpace([0.0, -1.0], p),
-])
-
-R1 = LazySets.HPolytope(
-    [-0.9869 -0.1615; -0.0931 0.9957; 0.9659 0.2587; 0.0825 -0.9966],
-    [6.6767, 9.2315, 2.3700, -5.9038],
-)
-R2 = LazySets.HPolytope(
-    [0.9993 0.0363; -0.7743 -0.6329; 0.5463 0.8376],
-    [-2.1809, 6.3754, -4.8983],
-)
-R3 = LazySets.HPolytope(
-    [-0.9946 -0.1041; 0.5277 0.8494; 0.9999 0.0146; -0.1191 -0.9929],
-    [-5.5771, 5.3510, 9.1600, 6.2406],
-)
-
-problem = PR.BisimulationQuotientProblem(f, X, [R1, R2, R3])
+(; f, problem, X, R1, R2, R3) = gol_lazar_belta_problem()
 
 # ---------------------------------------------------------
 # Polyhedral PCLF
@@ -68,7 +58,7 @@ println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 (; optimizer, quotient, D) =
     build_quotient(problem, pclf; atol = 1e-4, level_tol = 1e-2, max_slices = 50)
 
-export_optimizer_jld2(optimizer, joinpath(@__DIR__, "paper_example_3_1.jld2"))
+export_optimizer_jld2(optimizer, joinpath(@__DIR__, "gol_lazar_belta_pclf.jld2"))
 
 fig = plot(; aspect_ratio = :equal)
 plot!(fig, quotient; what = :states, node = (1,), show_contours = false)
