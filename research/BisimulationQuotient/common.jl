@@ -68,7 +68,13 @@ Used by the De Bruijn and custom-graph experiments. Returns the switched system,
 function two_mode_problem()
     A1 = @SMatrix [0.70 0.10; 0.00 0.65]
     A2 = @SMatrix [0.60 -0.15; 0.10 0.55]
-    f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
+    # The scripts here synthesise the switching signal, so the modes are declared the
+    # controller's. HybridSystems' constructor would otherwise declare them autonomous — the
+    # environment's — which turns a solve into verification (see plan.md §4.0).
+    f = ST.with_switching(
+        HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)]),
+        HybridSystems.ControlledSwitching(),
+    )
 
     X = LazySets.Hyperrectangle(; low = [-2.0, -2.0], high = [2.0, 2.0])
     R1 = LazySets.Hyperrectangle(; low = [0.8, 0.8], high = [1.5, 1.5])
@@ -87,7 +93,10 @@ rotated-state-space experiment from the PCLF/CLF comparison.
 function observer_graph_problem(; p::Float64 = 1.7, rotation::Float64 = 0.0)
     A1 = (1.0 / 10.0) * [1.5519 0.4474; 7.6412 7.4716]
     A2 = (1.0 / 10.0) * [0.4750 9.1755; 1.8955 0.1850]
-    f = HybridSystems.discreteswitchedsystem([A1, A2])
+    f = ST.with_switching(
+        HybridSystems.discreteswitchedsystem([A1, A2]),
+        HybridSystems.ControlledSwitching(),
+    )
 
     Rot = [cos(rotation) -sin(rotation); sin(rotation) cos(rotation)]
     normals = [Rot * n for n in ([1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0])]
@@ -118,7 +127,13 @@ Their published certificate is `V(x) = ‖Lx‖_∞` with `L = gol_lazar_belta_L
 function gol_lazar_belta_problem(; p::Float64 = 5.9)
     A1 = @SMatrix [-0.65 0.32; -0.42 -0.92]
     A2 = @SMatrix [0.65 0.32; -0.42 -0.92]
-    f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
+    # The scripts here synthesise the switching signal, so the modes are declared the
+    # controller's. HybridSystems' constructor would otherwise declare them autonomous — the
+    # environment's — which turns a solve into verification (see plan.md §4.0).
+    f = ST.with_switching(
+        HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)]),
+        HybridSystems.ControlledSwitching(),
+    )
 
     X = LazySets.HPolytope([
         LazySets.HalfSpace([1.0, 0.0], p),
@@ -281,9 +296,25 @@ function synthesize_cosafe_ltl(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), print_level)
     MOI.optimize!(optimizer)
 
-    controller = PCQ.solve_concrete_problem(optimizer)
     controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+
+    # When the system declares its switching autonomous the modes are the environment's, the
+    # optimizer answered the universal question, and there is no controller to build or to
+    # simulate — the verified set is the whole answer.
+    if optimizer.environment_folded
+        return (;
+            optimizer,
+            controller = nothing,
+            controllable_set,
+            uncontrollable_set,
+            X = nothing,
+            U = nothing,
+            M = nothing,
+        )
+    end
+
+    controller = PCQ.solve_concrete_problem(optimizer)
 
     mem0 = PCQ.initial_controller_memory(optimizer, x0)
     sim = PCQ.simulate_closed_loop(f, controller, x0, mem0; N = N)
@@ -456,7 +487,8 @@ function _plot_winning_losing!(
         fillalpha = 1.0,
         kw...,
     )
-    plot!(panel, ST.Trajectory(X_seq); label = "Trajectory")
+    # A verification has no closed loop: there is no controller, hence no trajectory to draw.
+    X_seq === nothing || plot!(panel, ST.Trajectory(X_seq); label = "Trajectory")
     return panel
 end
 

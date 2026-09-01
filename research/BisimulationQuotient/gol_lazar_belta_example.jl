@@ -105,38 +105,82 @@ println()
 #
 #     φ := (¬R₂ U Π_D) ∧ F R₁ ∧ ((R₃ ⇒ X ¬R₁) U Π_D)
 #
-# Their Problem 5.1 is synthesis: find the largest set of initial states from which some switching
-# sequence satisfies φ. That is the existential semantics, and it is what `synthesize_cosafe_ltl`
-# computes here.
-#
-# Their Problem 5.2 — verification under arbitrary switching, where *every* switching sequence must
-# satisfy φ — is a different quantifier, over switching sequences rather than over graph nodes, and
-# is not exposed by the optimizer used here. It is left out rather than approximated.
+# Their Problem 5.1 is synthesis: find the largest set of initial states from which *some*
+# switching sequence satisfies φ. Their Problem 5.2 is verification: the set from which *every*
+# switching sequence does. The two differ only in who owns the switching signal, and that is how
+# they are asked here — the same quotient, specification and solver call, on the system declared
+# with controlled switching for 5.1 and with autonomous switching for 5.2. Under autonomous
+# switching the quotient is folded and the unchanged solver computes the universal fixed point; a
+# verification returns the set and no controller.
 
 φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
 x0 = SVector(-4.0, -7.0)
 
-result = synthesize_cosafe_ltl(
-    f,
-    quotient,
+spec = (
     Dionysos.spot_stepper(φ),
     Dict(:D => D, :R1 => R1, :R2 => R2, :R3 => R3),
     Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3),
+)
+
+result = synthesize_cosafe_ltl(f, quotient, spec..., x0; N = 50)
+
+verification = synthesize_cosafe_ltl(
+    ST.with_switching(f, HybridSystems.AutonomousSwitching()),
+    quotient,
+    spec...,
     x0;
-    N = 50,
+    print_level = 0,
 )
 
 winning_volume =
     PCQ.get_volume(quotient, result.controllable_set; backend = CDDLib.Library())
+verified_volume =
+    PCQ.get_volume(quotient, verification.controllable_set; backend = CDDLib.Library())
+
+# The soundness relation between the two quantifiers, checked rather than assumed: a state every
+# switching sequence serves is in particular a state some controller wins.
+@assert verification.controllable_set ⊆ result.controllable_set
+@assert verification.controller === nothing
 
 println()
 @printf(
-    "synthesis: %d of %d cells winning, volume %.4f, trajectory %d steps\n",
+    "synthesis (5.1):    %d of %d cells winning, volume %.4f, trajectory %d steps\n",
     length(result.controllable_set),
     length(quotient.states),
     winning_volume,
     length(result.X),
 )
+@printf(
+    "verification (5.2): %d of %d cells verified, volume %.4f\n",
+    length(verification.controllable_set),
+    length(quotient.states),
+    verified_volume,
+)
+
+# ---------------------------------------------------------
+# The gap between the quantifiers, witnessed
+# ---------------------------------------------------------
+# Their initial point a = (-4, -7) is controllable (5.1): some switching sequence satisfies φ
+# from it. If it is not verified (5.2), a bare "no" is not evidence — the counterexample is: a
+# switching word from which no controller recovers, replayed concretely.
+
+x0_verified = any(qid -> x0 ∈ quotient.states[qid].set, verification.controllable_set)
+println()
+if x0_verified
+    println("x0 = $x0 is verified: every switching sequence satisfies φ from it.")
+    cex = nothing
+else
+    cex = PCQ.verification_counterexample(verification.optimizer, x0)
+    tail =
+        cex.entered_sink ? "runs off the abstraction's coverage" :
+        "then repeats from step $(cex.lasso_start) forever"
+    @printf(
+        "x0 = %s is controllable but not verified. Defeating switching word: %s, %s.\n",
+        string(x0),
+        join(string.(cex.modes), " "),
+        tail,
+    )
+end
 
 # ---------------------------------------------------------
 # Figures, following theirs
@@ -153,7 +197,18 @@ savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_slices.png"))
 fig = plot_quotient(quotient, problem, "Bisimulation quotient, |S| = 1")
 savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_quotient.png"))
 
-fig = plot_synthesis_result(quotient, result, problem, "Satisfying initial states")
-savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_satisfying.png"))
+# The mirrored pair the paper puts side by side: same quotient, same colour code, one word of
+# difference. Synthesis (5.1, ∃) — green is what some switching sequence serves, with the
+# closed-loop trajectory. Verification (5.2, ∀) — green is what every switching sequence serves,
+# with the counterexample trajectory when there is one: the environment's play from the paper's
+# own initial point, leaving the region no controller can bring it back from.
+fig = plot_synthesis_result(quotient, result, problem, "Synthesis (5.1, ∃)")
+savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_synthesis.png"))
 
-println("wrote gol_lazar_belta_{slices,quotient,satisfying}.png")
+fig = plot_synthesis_result(quotient, verification, problem, "Verification (5.2, ∀)")
+if cex !== nothing
+    plot!(fig, ST.Trajectory([SVector{2}(x) for x in cex.X]); label = "counterexample")
+end
+savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_verification.png"))
+
+println("wrote gol_lazar_belta_{slices,quotient,synthesis,verification}.png")

@@ -23,8 +23,10 @@ const RHO = 0.94         # slow contraction, so the trajectory is long enough to
 
 rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
 
-rotation_system(ρ, q) =
-    HybridSystems.discreteswitchedsystem([ρ .* rotation(2π / q), ρ .* rotation(-2π / q)])
+rotation_system(ρ, q) = ST.with_switching(
+    HybridSystems.discreteswitchedsystem([ρ .* rotation(2π / q), ρ .* rotation(-2π / q)]),
+    HybridSystems.ControlledSwitching(),
+)
 
 function cycle_pclf(ρ, q)
     θ = 2π / q
