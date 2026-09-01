@@ -90,6 +90,7 @@ const TEST_FILES = [
     ("./optim/discrete_systems/bounded_input_variation.jl",),
     # UniformGridAbstraction: abstraction-build modes + end-to-end control specs.
     ("./optim/UniformGridAbstraction/growth_bound.jl",),
+    ("./optim/UniformGridAbstraction/noisy_growth.jl",),
     ("./optim/UniformGridAbstraction/linearized.jl",),
     ("./optim/UniformGridAbstraction/user_defined.jl",),
     ("./optim/UniformGridAbstraction/reachability.jl",),

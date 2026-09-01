@@ -308,6 +308,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     # Only consulted when no `jacobian_bound` is supplied and one has to be derived.
     jacobian_bound_precision::ST.JacobianBoundPrecision
     jacobian_bound_nsplit::Int
+    # Only consulted for a noisy system whose disturbance is not additive: the per-dimension
+    # bound `z` on the disturbance's effect, see `ST.ContinuousTimeGrowthBound`'s noisy method.
+    noise_bound::Union{Nothing, Any}
 
     ### LINEARIZED
     DF_sys::Union{Nothing, Function}  # Jacobian function
@@ -368,6 +371,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
             5, #GROWTH
             ST.INPUT_BOUND,         # jacobian_bound_precision
             4,                      # jacobian_bound_nsplit
+            nothing,                # noise_bound
             nothing,
             nothing,
             nothing, #LINEARIZED
@@ -421,6 +425,21 @@ function build_continuous_approximation(
     system,
 )
     mode = optimizer.approx_mode
+
+    # A declared disturbance must reach the reachable-set computation or the controller is only
+    # valid at one disturbance value. GROWTH folds it (Reissig–Weber–Rungger); every other kernel
+    # would drop it silently, which is refused rather than warned about: the sampling modes
+    # under-approximate, LINEARIZED's error term has no derivation for the perturbed case yet,
+    # and a USER_DEFINED map owns the whole over-approximation — the caller who wants it must
+    # build the nominal system and account for every w ∈ W in the map.
+    if MS.isnoisy(system) === true && mode != GROWTH
+        error(
+            "The system declares a disturbance, and the $(mode) kernel cannot fold it into " *
+            "the reachable set; use GROWTH, or hand a nominal system plus a disturbance-aware " *
+            "over-approximation map.",
+        )
+    end
+
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
         return ST.ContinuousTimeOverApproximationMap(
@@ -428,6 +447,14 @@ function build_continuous_approximation(
             optimizer.overapproximation_map,
         )
     elseif mode == GROWTH
+        if MS.isnoisy(system) === true
+            return ST.ContinuousTimeGrowthBound(
+                system;
+                jacobian_bound = optimizer.jacobian_bound,
+                noise_bound = optimizer.noise_bound,
+                ngrowthbound = optimizer.ngrowthbound,
+            )
+        end
         if optimizer.growthbound_map !== nothing
             return ST.ContinuousTimeGrowthBound(system, optimizer.growthbound_map)
         end
@@ -498,7 +525,8 @@ function build_system_approximation!(optimizer::OptimizerAlternatingSimulationPr
     @assert optimizer.alternating_simulation_problem.system !== nothing "System must be set before building overapproximation."
 
     system = optimizer.alternating_simulation_problem.system
-    if isa(system, MS.ConstrainedBlackBoxControlContinuousSystem)
+    if isa(system, MS.ConstrainedBlackBoxControlContinuousSystem) ||
+       isa(system, MS.NoisyConstrainedBlackBoxControlContinuousSystem)
         _validate_model(optimizer, [:time_step])  # Ensure time step is provided
         optimizer.continuous_time_system_approximation =
             build_continuous_approximation(optimizer, system)
@@ -510,6 +538,19 @@ function build_system_approximation!(optimizer::OptimizerAlternatingSimulationPr
     elseif isa(system, MS.ConstrainedBlackBoxControlDiscreteSystem)
         optimizer.discrete_time_system_approximation =
             build_discrete_approximation(optimizer, system)
+    elseif isa(system, MS.NoisyConstrainedBlackBoxControlDiscreteSystem)
+        # The discrete twin of the continuous fold: GROWTH only, same reasoning as the gate in
+        # `build_continuous_approximation`.
+        optimizer.approx_mode == GROWTH || error(
+            "The system declares a disturbance, and the $(optimizer.approx_mode) kernel " *
+            "cannot fold it into the reachable set; use GROWTH.",
+        )
+        _validate_model(optimizer, [:growthbound_map])
+        optimizer.discrete_time_system_approximation = ST.DiscreteTimeGrowthBound(
+            system,
+            optimizer.growthbound_map;
+            noise_bound = optimizer.noise_bound,
+        )
     else
         error("Unknown system type: $(typeof(system))")
     end
@@ -661,13 +702,12 @@ end
 _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 
 function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
+    # A declared disturbance is folded into the growth bound at construction
+    # (`build_continuous_approximation` and the discrete twin), and every kernel that cannot
+    # fold it refuses there — so by the time this runs, noise is either handled or the build
+    # has already errored, and the old "not yet accounted for" warning has nothing left to
+    # warn about.
     concrete_system = optimizer.alternating_simulation_problem.system
-    # Only a system that actually carries noise loses anything here, so only that case is
-    # worth a warning — every abstraction build used to emit one, once per mode. `isnoisy`
-    # falls back to `nothing` on a type that declares no trait, hence the `=== true`.
-    if concrete_system isa MS.AbstractSystem && MS.isnoisy(concrete_system) === true
-        @warn("Noise is not yet accounted for in system abstraction.")
-    end
     return _vector_of_tuple(LazySets.dim(concrete_system.X))
 end
 
