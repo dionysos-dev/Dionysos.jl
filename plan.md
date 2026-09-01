@@ -793,3 +793,40 @@ Updated 2026-09-01, same session as the plan.
   fold measured exact to `w̄(1 − e^{−τ})`. Remaining within P5's scope: LINEARIZED's perturbed
   error term (derivation), tracing `w` in `compute_jacobian_bound` for non-additive systems, and
   the JuMP disturbance-role surface (§7).
+
+### Follow-up: the recorded future work, implemented
+
+Same session, after the phase log above.
+
+- **LINEARIZED's perturbed error term — derived, not guessed.** Decompose the perturbed
+  trajectory as the nominal one from the same start plus a deviation `η` with
+  `η̇ = f(x_nom + η, u) − f(x_nom, u) + w`; the Lipschitz bound gives `d‖η‖/dt ≤ a‖η‖ + w̄∞`
+  exactly — no positive term is dropped, the bound absorbs the nonlinearity — and Grönwall
+  closes it: `‖η(τ)‖ ≤ w̄∞ (e^{aτ} − 1)/a`, added to the second-order term the kernel already
+  carries (`BoundPerturbation`). Tested exact on the inflation and against 16 adversarial
+  corner trajectories of a perturbed pendulum; the LINEARIZED gate in the grid optimizer is
+  lifted.
+- **`w` traced symbolically.** `compute_jacobian_bound` gains a noisy method that ranges the
+  disturbance alongside the state — `∂f/∂x` of a non-additive system sees `w`, and freezing it
+  at the centre under-approximates — and `compute_noise_bound` derives
+  `zᵢ ≥ sup |fᵢ(x,u,w) − fᵢ(x,u,w_c)|` by tracing the *difference*, whose simplification makes
+  the additive case exact by symbolic cancellation. The growth-bound constructor now derives
+  both when the extension is loaded; without it the stubs refuse with the fix named.
+- **The JuMP surface is `set_role!(w, Dionysos.DISTURBANCE)`** — the mechanism that already
+  existed for un-inferable roles, unlocked rather than a new macro or set type: a disturbance
+  is *precisely* the un-inferable case (indistinguishable from an input by usage), which is
+  what the declared-role path was designed for. The lowering emits `Noisy…` systems from the
+  variable's bounds, both dynamics backends compile the `(x, u, w)` arity, a driven disturbance
+  and a hybrid disturbance are refused with the reason, and `src/wrapper/README.md` §3
+  documents the role, the semantics (who owns the signal), and the function-dynamics contract.
+
+Deliberately **not** implemented, and why:
+
+- **The upstream `switching` kwarg** is a change to `HybridSystems.jl`, a different repository;
+  `ST.with_switching` remains the interim spelling, and the upstream proposal is a one-line PR
+  when its maintainer wants it.
+- **Fixing the atol erosion itself** is a research question about the slice refinement's set
+  differences, not an implementation task: the insets exist because `atol = 0` diverges and
+  `1e-6` leaves degenerate pieces. It is measured and reported on every folded run
+  (`covered_fraction`), which turns it from a silent soundness hazard into a stated caveat —
+  the right state to leave a research question in.
