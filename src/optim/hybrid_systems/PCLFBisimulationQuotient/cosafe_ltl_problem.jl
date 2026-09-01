@@ -62,13 +62,18 @@ end
 
 from_autom_to_bis_state(Q::QuotientAutomaton, qs::Int) = Q.qids[qs]
 
+# Indices past `length(Q.qids)` are the pessimistic completion's sink (`SY.complete_with_sink`),
+# which corresponds to no quotient state; every translation back skips it.
+_is_bis_state(Q::QuotientAutomaton, qs::Int) = qs <= length(Q.qids)
+
 function from_autom_to_bis_states(Q::QuotientAutomaton, qs_list)
-    return [from_autom_to_bis_state(Q, qs) for qs in qs_list]
+    return [from_autom_to_bis_state(Q, qs) for qs in qs_list if _is_bis_state(Q, qs)]
 end
 
 function from_autom_to_bis_value_function(Q::QuotientAutomaton, V::AbstractDict)
     out = Dict{Int, Float64}()
     for (qs, v) in V
+        _is_bis_state(Q, qs) || continue
         out[from_autom_to_bis_state(Q, qs)] = Float64(v)
     end
     return out
@@ -77,6 +82,7 @@ end
 function from_autom_to_bis_value_function(Q::QuotientAutomaton, V::AbstractVector)
     out = Dict{Int, Float64}()
     for qs in eachindex(V)
+        _is_bis_state(Q, qs) || continue
         out[from_autom_to_bis_state(Q, qs)] = Float64(V[qs])
     end
     return out
@@ -130,6 +136,9 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     controllable_set::Union{Nothing, Vector{Int}}
     uncontrollable_set::Union{Nothing, Vector{Int}}
     value_fun_tab::Any
+    # Whether the modes were the environment's (`ST.environment_input`), i.e. the quotient was
+    # folded and the run answered the universal question. A folded run has no controller.
+    environment_folded::Bool
     success::Bool
     solve_time_sec::T
 
@@ -148,6 +157,7 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
             nothing,
             nothing,
             nothing,
+            false,
             false,
             zero(T),
         )
@@ -172,6 +182,29 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     optimizer.quotient_automaton = Q
 
     abstract_problem = build_abstract_problem(concrete_problem, Q, optimizer.ap_to_obs)
+
+    # Who owns the switching signal decides the question. `ControlledSwitching` (or any system
+    # declaring no environment) leaves the modes as the controller's alphabet — synthesis, as
+    # always. `AutonomousSwitching` hands them to the environment: the quotient is folded so the
+    # unchanged solver computes `∀` over the modes, after the pessimistic completion that keeps a
+    # missing environment move from being a vacuous win.
+    environment = ST.environment_input(concrete_problem.system)
+    optimizer.environment_folded = environment !== nothing
+    if optimizer.environment_folded
+        length(environment) == SY.get_n_input(Q) || error(
+            "The environment owns $(length(environment)) modes but the quotient carries " *
+            "$(SY.get_n_input(Q)); the quotient was built from a different system.",
+        )
+        completed, _, ncompleted = SY.complete_with_sink(Q)
+        if ncompleted > 0 && optimizer.print_level >= 1
+            println(
+                "Pessimistic completion: $ncompleted (state, mode) pairs had no successor " *
+                "and were routed to a losing sink.",
+            )
+        end
+        abstract_problem =
+            PR.remake(abstract_problem; system = SY.FoldedAutomaton(completed))
+    end
     optimizer.abstract_problem = abstract_problem
 
     abstract_optimizer = MOI.instantiate(OPDS.OptimizerCoSafeLTLProblem)
@@ -430,6 +463,14 @@ and the controller synthesised on it and hands both to [`build_concrete_controll
 Errors if the optimizer has not been run.
 """
 function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
+    opt.environment_folded && error(
+        "The modes were the environment's (the system declares autonomous switching), so this " *
+        "run answered the universal question: every switching sequence from the controllable " *
+        "set satisfies the specification. A verification returns that set, not a controller — " *
+        "read the \"controllable_set\" attribute. For synthesis, declare the switching " *
+        "controlled (`ST.with_switching(system, HybridSystems.ControlledSwitching())`).",
+    )
+
     Q = opt.quotient_automaton
     Cabs = opt.abstract_controller
 
@@ -489,6 +530,126 @@ function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     end
 
     return error("Initial concrete state belongs to quotient cells, but none is winning.")
+end
+
+"""
+    verification_counterexample(opt, x0; nmax = 200)
+
+The environment's winning play from `x0`, for a folded (verification) run in which `x0` was not
+verified: a switching word no controller survives, as evidence rather than a bare "no".
+
+The extraction walks the product of the folded quotient with the specification monitor. A state
+outside the verified set always has, by the fixed point's complement, a successor outside it, and
+a walk that follows such successors never reaches an accepting product state — so the emitted
+word never completes a good prefix, and the run it induces violates the specification. The walk
+ends when a product state repeats (a lasso: prefix + cycle, the environment repeating the cycle
+forever) or when it enters the pessimistic completion's sink, where the abstraction has no
+successor for some mode and the word beyond it is unmodelled.
+
+Returns `(; modes, qids, lasso_start, entered_sink, X)`:
+
+- `modes` — the switching word, one mode per step;
+- `qids` — the quotient state ids visited (the sink, having no quotient state, ends the list);
+- `lasso_start` — index into `modes` where the repeating cycle begins, or `0` if the walk ended
+  in the sink;
+- `entered_sink` — whether it did; such a counterexample shows where the abstraction's coverage
+  ends rather than a concrete violation, and `X` stops at that point;
+- `X` — the concrete replay of the word from `x0`, exact for a switched linear system since the
+  quotient is a bisimulation.
+"""
+function verification_counterexample(opt::OptimizerCoSafeLTLOnQuotient, x0; nmax::Int = 200)
+    opt.environment_folded || error(
+        "Counterexamples are extracted from a verification run; this run synthesised — its " *
+        "evidence is the controller, not an environment play.",
+    )
+
+    Q = opt.quotient_automaton
+    absopt = opt.abstract_optimizer
+    absprob = opt.abstract_problem
+    quotient = Q.quotient
+
+    product_automaton_opt = absopt.product_automaton_optimizer
+    P = product_automaton_opt.problem.system
+    W = product_automaton_opt.controllable_set
+
+    labeling =
+        absprob.labeling isa Function ? absprob.labeling :
+        OPDS.labeling_function_from_state_sets(absprob.labeling)
+    spec = absprob.spec
+
+    # The completed quotient automaton underneath the fold: its per-mode successors name the
+    # environment's move behind every folded edge.
+    completed = SY.inner(absprob.system)
+    nmodes = SY.get_n_input(completed)
+    nquotient = length(Q.qids)
+
+    # The product state x0 starts from. Boundary points sit in several cells; any unverified one
+    # carries a counterexample, so the first is taken.
+    p0 = nothing
+    for (qs, qid) in enumerate(Q.qids)
+        x0 ∈ quotient.states[qid].set || continue
+        qa = OPDS.step(spec, OPDS.init_state(spec), labeling(qs))
+        p = get(P.pid, (qs, qa), nothing)
+        if p !== nothing && !(p in W)
+            p0 = p
+            break
+        end
+    end
+    p0 === nothing && error(
+        "Every quotient cell containing x0 is verified; there is no counterexample to extract.",
+    )
+
+    modes = Int[]
+    qids = Int[quotient.states[Q.qids[P.rev[p0][1]]].id]
+    seen = Dict{Int, Int}(p0 => 1)
+    lasso_start = 0
+    entered_sink = false
+
+    p = p0
+    for _ in 1:nmax
+        qs = P.rev[p][1]
+        # The complement of the attractor: some successor also avoids the verified set.
+        p2 = nothing
+        for cand in SY.post(P, p, 1)
+            if !(cand in W)
+                p2 = cand
+                break
+            end
+        end
+        p2 === nothing && error(
+            "No unverified successor from an unverified product state; the fixed point and " *
+            "the product disagree, which indicates a bug rather than a property of the system.",
+        )
+
+        qs2 = P.rev[p2][1]
+        m = findfirst(m -> qs2 in SY.post(completed, qs, m), 1:nmodes)
+        push!(modes, m)
+
+        if qs2 > nquotient
+            entered_sink = true
+            break
+        end
+        push!(qids, Q.qids[qs2])
+
+        if haskey(seen, p2)
+            lasso_start = seen[p2]
+            break
+        end
+        seen[p2] = length(modes) + 1
+        p = p2
+    end
+
+    # Concrete replay: the word applied to x0. Exactness is the bisimulation's promise; the
+    # trajectory is returned so the violation can be inspected on the real system.
+    A = UT.mode_matrices(opt.concrete_problem.system)
+    x = collect(Float64, x0)
+    X = [copy(x)]
+    for m in modes
+        x = A[m] * x
+        push!(X, copy(x))
+    end
+
+    return (; modes, qids, lasso_start, entered_sink, X)
 end
 
 function simulate_closed_loop(

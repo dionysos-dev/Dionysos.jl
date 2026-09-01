@@ -26,8 +26,10 @@ const TEST_FILES = [
     ("./utils/incremental_stability.jl",),
     ("./utils/plotting.jl",),  # the DrawPoint/DrawArrow/DrawSegment recipes
     ("./symbolic/automaton.jl",),
+    ("./symbolic/folded_automaton.jl",),
     ("./system/vector_continuous_system.jl",),
     ("./system/reset_map.jl",),
+    ("./system/environment.jl",),
     ("./system/affine_approximation.jl",),
     ("./system/approximation.jl",),
     # The three precision levels of the derived Jacobian bound (needs Symbolics).
@@ -80,6 +82,7 @@ const TEST_FILES = [
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),
+    ("./optim/discrete_systems/cosafe_accepting.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
     ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
