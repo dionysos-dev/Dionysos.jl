@@ -765,8 +765,10 @@ Updated 2026-09-01, same session as the plan.
   runs the same problem under `AutonomousSwitching` and asserts `verified ⊊ synthesised` plus the
   controller refusal (14 assertions). `gol_lazar_belta_example.jl` asks 5.1 and 5.2 from one
   quotient, differing only in the switching declaration.
-- **P3 — partially absorbed by P2**: the sink is the coverage gate for empty pairs. The `atol`
-  volume accounting remains open.
+- **P3 — done.** The sink absorbs empty pairs (P2), and the atol erosion is now *measured*:
+  `covered_fraction` compares the cells' volume against the slice family's, a folded run given a
+  `coverage_backend` stores `uncovered_fraction` and says so, and the flagship reports it beside
+  its verified volume. The loss itself is not yet fixed — it is no longer silent.
 - **P4 — done.** `verification_counterexample` in the PCQ optimizer: walks the folded product
   along unverified successors to a lasso (or into the pessimistic sink), names the mode behind
   every step from the completed automaton, and replays the word concretely — exact, since the
