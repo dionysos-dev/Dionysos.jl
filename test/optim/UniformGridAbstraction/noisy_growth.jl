@@ -143,12 +143,6 @@ end
         AB.UniformGridAbstraction.RANDOM_SIMULATION;
         n_samples = 5,
     )
-    @test_throws ErrorException run(
-        AB.UniformGridAbstraction.LINEARIZED;
-        DF_sys = (x, u) -> SMatrix{1, 1}(-1.0),
-        bound_DF = u -> 1.0,
-        bound_DDF = u -> 0.0,
-    )
 
     # A hand-written growth-bound map owns the disturbance and must say so.
     @test_throws ErrorException ST.ContinuousTimeGrowthBound(
@@ -156,7 +150,10 @@ end
         (r, u, tstep) -> r,
     )
 
-    # A non-additive disturbance (noisedim ≠ statedim) has no readable bound; it must be given.
+    # A non-additive disturbance (noisedim ≠ statedim) has no readable bound: it is derived
+    # symbolically when the extension is loaded — which an earlier test file may have done —
+    # and refused otherwise, never guessed. Which branch runs depends on the process, so both
+    # are asserted for.
     skewed = MathematicalSystems.NoisyConstrainedBlackBoxControlContinuousSystem(
         (x, u, w) -> SVector(-x[1] + u[1] + w[1] * x[1]),
         1,
@@ -166,10 +163,15 @@ end
         U,
         LazySets.Hyperrectangle(; low = [-0.1, -0.1], high = [0.1, 0.1]),
     )
-    @test_throws ErrorException ST.ContinuousTimeGrowthBound(
-        skewed;
-        jacobian_bound = jacobian_bound,
-    )
+    if Base.get_extension(Dionysos, :DionysosSymbolicsExt) === nothing
+        @test_throws ErrorException ST.ContinuousTimeGrowthBound(
+            skewed;
+            jacobian_bound = jacobian_bound,
+        )
+    else
+        @test ST.ContinuousTimeGrowthBound(skewed; jacobian_bound = jacobian_bound) isa
+              ST.ContinuousTimeGrowthBound
+    end
     # ... and is accepted once it is.
     approx = ST.ContinuousTimeGrowthBound(
         skewed;
@@ -177,6 +179,73 @@ end
         noise_bound = SVector(0.2),
     )
     @test approx isa ST.ContinuousTimeGrowthBound
+end
+
+@testset "LINEARIZED folds the disturbance through the Grönwall term" begin
+    # A genuinely nonlinear plant, so the second-order term is live: the perturbed pendulum
+    #     ẋ₁ = x₂ + w₁,   ẋ₂ = -sin(x₁) + u₁ + w₂.
+    Xp = LazySets.Hyperrectangle(; low = [-3.0, -3.0], high = [3.0, 3.0])
+    Up = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
+    Wp = LazySets.Hyperrectangle(; low = [-0.1, -0.1], high = [0.1, 0.1])
+
+    f_nom(x, u) = SVector(x[2], -sin(x[1]) + u[1])
+    f_per(x, u, w) = SVector(x[2] + w[1], -sin(x[1]) + u[1] + w[2])
+    DF(x, u) = SMatrix{2, 2}(0.0, -cos(x[1]), 1.0, 0.0)
+    bDF(u) = 1.0
+    bDDF(u) = 1.0
+
+    nominal =
+        MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(f_nom, 2, 1, Xp, Up)
+    perturbed = MathematicalSystems.NoisyConstrainedBlackBoxControlContinuousSystem(
+        f_per,
+        2,
+        1,
+        2,
+        Xp,
+        Up,
+        Wp,
+    )
+
+    approx_nom = ST.ContinuousTimeLinearized(nominal, DF, bDF, bDDF)
+    approx_per = ST.ContinuousTimeLinearized(perturbed, DF, bDF, bDDF)
+
+    rect = LazySets.Hyperrectangle([0.4, -0.2], [0.05, 0.05])
+    u = SVector(0.3)
+    τp = 0.3
+
+    reach_nom = ST.get_over_approximation_map(approx_nom)(rect, u, τp)
+    reach_per = ST.get_over_approximation_map(approx_per)(rect, u, τp)
+
+    # The perturbed set contains the nominal one, inflated by exactly the Grönwall deviation
+    # bound w̄∞(e^{aτ} − 1)/a and nothing else.
+    @test reach_nom ⊆ reach_per
+    inflation =
+        LazySets.radius_hyperrectangle(reach_per) .-
+        LazySets.radius_hyperrectangle(reach_nom)
+    @test all(inflation .≈ 0.1 * (exp(bDF(u) * τp) - 1.0) / bDF(u))
+
+    # Soundness against the plant itself: trajectories from the cell's corners under
+    # constant-extreme disturbances — the adversary's simplest plays — must land inside.
+    rk4_step(g, x, τ) = begin
+        k1 = g(x)
+        k2 = g(x + k1 * (τ / 2))
+        k3 = g(x + k2 * (τ / 2))
+        k4 = g(x + k3 * τ)
+        return x + (k1 + 2k2 + 2k3 + k4) * (τ / 6)
+    end
+    integrate(x0, w) = begin
+        x = x0
+        nsub = 64
+        for _ in 1:nsub
+            x = rk4_step(y -> f_per(y, u, w), x, τp / nsub)
+        end
+        return x
+    end
+
+    for cx in (-0.05, 0.05), cy in (-0.05, 0.05), w1 in (-0.1, 0.1), w2 in (-0.1, 0.1)
+        x0 = SVector(0.4 + cx, -0.2 + cy)
+        @test integrate(x0, SVector(w1, w2)) ∈ reach_per
+    end
 end
 
 end # module TestMain

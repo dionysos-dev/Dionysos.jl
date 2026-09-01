@@ -427,16 +427,16 @@ function build_continuous_approximation(
     mode = optimizer.approx_mode
 
     # A declared disturbance must reach the reachable-set computation or the controller is only
-    # valid at one disturbance value. GROWTH folds it (Reissig–Weber–Rungger); every other kernel
-    # would drop it silently, which is refused rather than warned about: the sampling modes
-    # under-approximate, LINEARIZED's error term has no derivation for the perturbed case yet,
-    # and a USER_DEFINED map owns the whole over-approximation — the caller who wants it must
-    # build the nominal system and account for every w ∈ W in the map.
-    if MS.isnoisy(system) === true && mode != GROWTH
+    # valid at one disturbance value. GROWTH and LINEARIZED fold it (Reissig–Weber–Rungger's
+    # radius term and the Grönwall deviation term respectively); every other kernel would drop
+    # it silently, which is refused rather than warned about: the sampling modes
+    # under-approximate, and a USER_DEFINED map owns the whole over-approximation — the caller
+    # who wants it must build the nominal system and account for every w ∈ W in the map.
+    if MS.isnoisy(system) === true && !(mode == GROWTH || mode == LINEARIZED)
         error(
             "The system declares a disturbance, and the $(mode) kernel cannot fold it into " *
-            "the reachable set; use GROWTH, or hand a nominal system plus a disturbance-aware " *
-            "over-approximation map.",
+            "the reachable set; use GROWTH or LINEARIZED, or hand a nominal system plus a " *
+            "disturbance-aware over-approximation map.",
         )
     end
 
@@ -473,6 +473,16 @@ function build_continuous_approximation(
         )
     elseif mode == LINEARIZED
         _validate_model(optimizer, [:DF_sys, :bound_DF, :bound_DDF])
+        if MS.isnoisy(system) === true
+            return ST.ContinuousTimeLinearized(
+                system,
+                optimizer.DF_sys,
+                optimizer.bound_DF,
+                optimizer.bound_DDF;
+                noise_bound = optimizer.noise_bound,
+                num_substeps = optimizer.nsystem,
+            )
+        end
         return ST.ContinuousTimeLinearized(
             system,
             optimizer.DF_sys,

@@ -141,3 +141,61 @@ function ContinuousTimeLinearized(
     error_map = (r, u, tstep) -> BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep) * (r^2)
     return ContinuousTimeLinearized(system, linsys_map, error_map)
 end
+
+# ------------------------------------------------------------
+# Perturbed systems
+# ------------------------------------------------------------
+
+# The deviation a disturbance can build up over `tstep` against a Lipschitz-`a` field:
+# decompose the perturbed trajectory as the nominal one from the same start plus η with
+# η̇ = f(x_nom + η, u) − f(x_nom, u) + w and η(0) = 0. The Lipschitz bound gives
+# d‖η‖/dt ≤ a‖η‖ + w̄ exactly — no second-order term is dropped, the bound absorbs it — and
+# Grönwall integrates that to the closed form below. The nominal-vs-linearized error is bounded
+# separately by `BoundSecondOrder` and is untouched by the decomposition, so the two add.
+function BoundPerturbation(a, w̄, tstep)
+    return a ≈ 0.0 ? w̄ * tstep : w̄ * (exp(a * tstep) - 1.0) / a
+end
+
+"""
+    ContinuousTimeLinearized(system::MS.NoisyConstrainedBlackBoxControlContinuousSystem, DF_sys, bound_DF, bound_DDF; noise_bound = nothing, num_substeps = DEFAULT_NUM_SUBSTEPS)
+
+The linearized over-approximation for a perturbed system: the nominal trajectory and
+sensitivity are propagated at the centre of the disturbance set, and the error map gains the
+Grönwall term `w̄∞ (e^{aτ} − 1)/a` for the deviation a disturbance can build up against the
+Lipschitz bound `a = bound_DF(u)`, on top of the second-order term the unperturbed kernel
+already carries.
+
+`noise_bound` follows the growth-bound contract (`_fold_noise`): read off the disturbance set
+in the additive case, required otherwise; only its `∞`-norm enters, matching the kernel's
+scalar error style. `DF_sys` and the two bounds are over the nominal system, which is exact for
+an additive disturbance — the Jacobian does not see `w` — and the caller's obligation beyond it.
+"""
+function ContinuousTimeLinearized(
+    system::MS.NoisyConstrainedBlackBoxControlContinuousSystem,
+    DF_sys,
+    bound_DF,
+    bound_DDF;
+    noise_bound = nothing,
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
+    w_c, z = _fold_noise(system, noise_bound)
+    w∞ = LA.norm(z, Inf)
+
+    f = system.f
+    nominal = MS.ConstrainedBlackBoxControlContinuousSystem(
+        (x, u) -> f(x, u, w_c),
+        MS.statedim(system),
+        MS.inputdim(system),
+        MS.stateset(system),
+        MS.inputset(system),
+    )
+
+    linsys_map =
+        (x, dx, u, tstep) ->
+            RungeKutta4Linearized(nominal.f, DF_sys, x, dx, u, tstep, num_substeps)
+    error_map =
+        (r, u, tstep) ->
+            BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep) * (r^2) +
+            BoundPerturbation(bound_DF(u), w∞, tstep)
+    return ContinuousTimeLinearized(nominal, linsys_map, error_map)
+end
