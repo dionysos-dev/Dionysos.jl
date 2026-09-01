@@ -370,4 +370,141 @@ function ST.build_affine_approximation(
     )
 end
 
+# ----------------------------------------------------------------------------------------
+# Perturbed systems: the disturbance ranged like the state, never sampled.
+# ----------------------------------------------------------------------------------------
+
+function _noise_intervals(system)
+    LS = Dionysos.LazySets
+    W = MS.noiseset(system)
+    box = LS.box_approximation(W)
+    nw = MS.noisedim(system)
+    wint = [IA.interval(Float64(LS.low(box, i)), Float64(LS.high(box, i))) for i in 1:nw]
+    w_c = collect(Float64, LS.center(box))
+    return wint, w_c
+end
+
+# The perturbed twin of the method above: the Jacobian is bounded with `w` ranged over the
+# disturbance set alongside `x`, so a non-additive disturbance's effect on ∂f/∂x is inside the
+# bound rather than frozen at one disturbance value. `w` is never treated like the input — the
+# adversary picks it, so no per-`w` refinement level exists or would be sound.
+function ST.compute_jacobian_bound(
+    system::MS.NoisyConstrainedBlackBoxControlContinuousSystem;
+    precision::ST.JacobianBoundPrecision = ST.INPUT_BOUND,
+    nsplit::Int = 4,
+)
+    nx = MS.statedim(system)
+    X = MS.stateset(system)
+    X === nothing && error(
+        "compute_jacobian_bound requires the system to carry a bounded state set X; " *
+        "provide `jacobian_bound` explicitly otherwise.",
+    )
+
+    xs = [Symbolics.variable(:x, i) for i in 1:nx]
+    us = [Symbolics.variable(:u, i) for i in 1:MS.inputdim(system)]
+    ws = [Symbolics.variable(:w, i) for i in 1:MS.noisedim(system)]
+
+    f = try
+        collect(system.f(xs, us, ws))
+    catch err
+        error(
+            "compute_jacobian_bound: could not trace the dynamics symbolically " *
+            "($(sprint(showerror, err))). Provide `jacobian_bound` explicitly.",
+        )
+    end
+
+    J = Symbolics.jacobian(f, xs)
+
+    LS = Dionysos.LazySets
+    xint = [IA.interval(Float64(LS.low(X, i)), Float64(LS.high(X, i))) for i in 1:nx]
+    wint, _ = _noise_intervals(system)
+
+    entry_funs = Matrix{Any}(undef, nx, nx)
+    for j in 1:nx, i in 1:nx
+        bf = Symbolics.build_function(
+            J[i, j],
+            vcat(xs, us, ws)...;
+            expression = Val(false),
+            nanmath = false,
+        )
+        entry_funs[i, j] = bf isa Tuple ? bf[1] : bf
+    end
+
+    _diag_bound(v::IA.Interval) = IA.sup(v)
+    _diag_bound(v) = Float64(v)
+    _offdiag_bound(v::IA.Interval) = IA.mag(v)
+    _offdiag_bound(v) = abs(Float64(v))
+
+    function bound_over(xbox, ubox)
+        args = vcat(xbox, ubox, wint)
+        M = zeros(nx, nx)
+        for j in 1:nx, i in 1:nx
+            v = entry_funs[i, j](args...)
+            M[i, j] = i == j ? _diag_bound(v) : _offdiag_bound(v)
+        end
+        return ST.SMatrix{nx, nx}(M)
+    end
+
+    precision === ST.GLOBAL_BOUND && return _global_bound(system, bound_over, xint)
+    precision === ST.INPUT_BOUND &&
+        return u -> bound_over(xint, map(to_interval, collect(u)))
+    precision === ST.REGIONWISE_BOUND &&
+        return _regionwise_bound(system, bound_over, nsplit, to_interval)
+
+    return error("unhandled JacobianBoundPrecision $(precision).")
+end
+
+# The per-dimension disturbance bound zᵢ ≥ sup |fᵢ(x,u,w) − fᵢ(x,u,w_c)|, by tracing the
+# difference and bounding it with interval arithmetic. The simplification is what makes the
+# additive case exact: for f = g(x,u) + w the difference reduces to w − w_c symbolically, so
+# the interval dependency problem — g evaluated twice over the same ranges without cancelling —
+# never arises. A genuinely non-additive f may bound loosely; `noise_bound` overrides.
+function ST.compute_noise_bound(system::MS.NoisyConstrainedBlackBoxControlContinuousSystem)
+    nx = MS.statedim(system)
+    X = MS.stateset(system)
+    U = MS.inputset(system)
+    (X === nothing || U === nothing) && error(
+        "compute_noise_bound requires bounded X and U; provide `noise_bound` explicitly " *
+        "otherwise.",
+    )
+
+    xs = [Symbolics.variable(:x, i) for i in 1:nx]
+    us = [Symbolics.variable(:u, i) for i in 1:MS.inputdim(system)]
+    ws = [Symbolics.variable(:w, i) for i in 1:MS.noisedim(system)]
+
+    wint, w_c = _noise_intervals(system)
+
+    d = try
+        Symbolics.simplify.(collect(system.f(xs, us, ws)) .- collect(system.f(xs, us, w_c)))
+    catch err
+        error(
+            "compute_noise_bound: could not trace the dynamics symbolically " *
+            "($(sprint(showerror, err))). Provide `noise_bound` explicitly.",
+        )
+    end
+
+    LS = Dionysos.LazySets
+    xint = [IA.interval(Float64(LS.low(X, i)), Float64(LS.high(X, i))) for i in 1:nx]
+    uint = [
+        IA.interval(Float64(LS.low(U, i)), Float64(LS.high(U, i))) for
+        i in 1:MS.inputdim(system)
+    ]
+
+    _mag(v::IA.Interval) = IA.mag(v)
+    _mag(v) = abs(Float64(v))
+
+    z = zeros(nx)
+    for i in 1:nx
+        bf = Symbolics.build_function(
+            d[i],
+            vcat(xs, us, ws)...;
+            expression = Val(false),
+            nanmath = false,
+        )
+        fi = bf isa Tuple ? bf[1] : bf
+        z[i] = _mag(fi(vcat(xint, uint, wint)...))
+    end
+    return ST.SVector{nx}(z)
+end
+
 end # module
