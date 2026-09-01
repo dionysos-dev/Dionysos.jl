@@ -99,33 +99,7 @@ println("node sequence: ", join(string.(node_sequence), " → "))
 # Planar view
 # ---------------------------------------------------------
 
-fig = plot(; aspect_ratio = :equal, legend = false, title = string(φ))
-plot!(
-    fig,
-    quotient;
-    what = :states,
-    state_ids = result.controllable_set,
-    show_contours = false,
-    user_color = :seagreen,
-    fillalpha = 0.9,
-)
-plot!(
-    fig,
-    quotient;
-    what = :states,
-    state_ids = result.uncontrollable_set,
-    show_contours = false,
-    user_color = :indianred,
-    fillalpha = 0.9,
-)
-plot!(
-    fig,
-    problem;
-    region_alpha = 0.0,
-    observation_region_alpha = 0.35,
-    plot_region = false,
-)
-plot!(fig, ST.Trajectory(result.X); label = "trajectory")
+fig = plot_synthesis_result(quotient, result, problem, string(φ))
 savefig(fig, joinpath(@__DIR__, "lifted_showcase_planar.png"))
 println("wrote lifted_showcase_planar.png")
 

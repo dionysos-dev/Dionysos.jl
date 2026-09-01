@@ -60,10 +60,7 @@ println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 
 export_optimizer_jld2(optimizer, joinpath(@__DIR__, "gol_lazar_belta_pclf.jld2"))
 
-fig = plot(; aspect_ratio = :equal)
-plot!(fig, quotient; what = :states, node = (1,), show_contours = false)
-plot!(fig, problem; opacity = 0.2)
-display(fig)
+display(plot_quotient(quotient, problem, "Quotient cells of node (1,)"; node = (1,)))
 
 # ---------------------------------------------------------
 # Co-safe LTL synthesis
@@ -90,25 +87,5 @@ println(
 # Closed-loop trajectory over the winning region
 # ---------------------------------------------------------
 
-fig = plot(; aspect_ratio = :equal, legend = false, title = string(φ))
-plot!(
-    fig,
-    quotient;
-    what = :states,
-    state_ids = result.controllable_set,
-    show_contours = false,
-    user_color = :green,
-    fillalpha = 1.0,
-)
-plot!(
-    fig,
-    quotient;
-    what = :states,
-    state_ids = result.uncontrollable_set,
-    show_contours = false,
-    user_color = :red,
-    fillalpha = 1.0,
-)
-plot!(fig, problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
-plot!(fig, ST.Trajectory(result.X); label = "Trajectory")
+fig = plot_synthesis_result(quotient, result, problem, string(φ))
 display(fig)

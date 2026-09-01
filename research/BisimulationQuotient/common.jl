@@ -319,16 +319,61 @@ function plot_cells_by_node(quotient; nodes = quotient_nodes(quotient))
     return fig
 end
 
+# One colour scheme across every figure in this folder: green is what the controller wins, red is
+# what it does not. Scripts should use these rather than pick their own, so that two figures put
+# side by side in the paper mean the same thing.
+const WINNING_COLOR = :green
+const LOSING_COLOR = :red
+
+# The observation regions must not be drawn in green or red (which the recipe does by default), or
+# a region would read as a verdict. These five are disjoint from the scheme above.
+const OBSERVATION_COLORS = [:black, :navy, :darkorange, :purple, :brown]
+
+"""
+The quotient over the problem's regions: the structural figure every experiment starts from.
+
+`what = :slices` draws the sublevel-set family instead of the cells, and `node` restricts the
+drawing to one automaton node.
+
+The working set itself is not drawn: the cells already tile it, so the square would only add an
+outline over them. Pass `plot_region = true` to get it back.
+"""
+function plot_quotient(
+    quotient,
+    problem,
+    title;
+    what = :states,
+    node = nothing,
+    show_contours = false,
+    opacity = 0.25,
+    plot_region = false,
+)
+    fig = plot(; aspect_ratio = :equal, legend = false, title = title)
+    node_kw = isnothing(node) ? (;) : (; node = node)
+    plot!(fig, quotient; what = what, show_contours = show_contours, node_kw...)
+    plot!(
+        fig,
+        problem;
+        opacity = opacity,
+        observation_colors = OBSERVATION_COLORS,
+        plot_region = plot_region,
+    )
+    return fig
+end
+
 """
 The winning region alone, with the closed-loop trajectory over it.
+
+`xlims`/`ylims` default to the data: the working set differs by an order of magnitude between the
+benchmarks here, so fixed limits would crop most of them.
 """
 function plot_controllable_set(
     quotient,
     controllable_set,
     X_seq,
     title;
-    xlims = (-4.5, 4.5),
-    ylims = (-4.5, 4.5),
+    xlims = nothing,
+    ylims = nothing,
 )
     fig = plot(; aspect_ratio = :equal, legend = false, title = title)
     plot!(
@@ -337,12 +382,48 @@ function plot_controllable_set(
         what = :states,
         state_ids = controllable_set,
         show_contours = false,
-        user_color = :green,
+        user_color = WINNING_COLOR,
         fillalpha = 1.0,
     )
     plot!(fig, ST.Trajectory(X_seq); label = "Trajectory")
-    xlims!(fig, xlims...)
-    ylims!(fig, ylims...)
+    isnothing(xlims) || xlims!(fig, xlims...)
+    isnothing(ylims) || ylims!(fig, ylims...)
+    return fig
+end
+
+"""
+Winning cells over losing ones, with the observation regions and the closed-loop trajectory.
+
+The single figure every synthesis experiment in this folder produces, so that they are comparable.
+"""
+function plot_synthesis_result(
+    quotient,
+    result,
+    problem,
+    title;
+    xlims = nothing,
+    ylims = nothing,
+)
+    fig = plot(; aspect_ratio = :equal, legend = false, title = title)
+    _plot_winning_losing!(
+        fig,
+        quotient,
+        result.controllable_set,
+        result.uncontrollable_set,
+        result.X,
+    )
+    # Outlines only. A filled region would tint the cells underneath it and blur the very thing
+    # the figure is about, namely which of them the controller wins.
+    plot!(
+        fig,
+        problem;
+        plot_region = false,
+        observation_region_alpha = 0.0,
+        observation_colors = OBSERVATION_COLORS,
+        observation_linewidth = 2.0,
+    )
+    isnothing(xlims) || xlims!(fig, xlims...)
+    isnothing(ylims) || ylims!(fig, ylims...)
     return fig
 end
 
@@ -361,7 +442,7 @@ function _plot_winning_losing!(
         what = :states,
         state_ids = uncontrollable_set,
         show_contours = false,
-        user_color = :red,
+        user_color = LOSING_COLOR,
         fillalpha = 1.0,
         kw...,
     )
@@ -371,7 +452,7 @@ function _plot_winning_losing!(
         what = :states,
         state_ids = controllable_set,
         show_contours = false,
-        user_color = :green,
+        user_color = WINNING_COLOR,
         fillalpha = 1.0,
         kw...,
     )

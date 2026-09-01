@@ -25,8 +25,8 @@
 include(joinpath(@__DIR__, "common.jl"))
 
 using Printf
-using Random
 using Spot
+import HiGHS
 
 const RHO = 0.94        # their published contraction rate
 const GAMMA_X = 10.0    # their working set is {V ≤ Γ_X}
@@ -34,32 +34,6 @@ const GAMMA_D = 5.063   # their chosen terminal level
 
 (; f, problem, X, R1, R2, R3) = gol_lazar_belta_problem()
 const L = gol_lazar_belta_L()
-
-# ---------------------------------------------------------
-# Check their certificate before using it
-# ---------------------------------------------------------
-# The published rate is a claim about the data; verifying it separates a misreading of the paper
-# from an error in the construction that follows.
-
-function measured_rate(; nsample = 50_000, seed = 1)
-    modes = ST.mode_matrices(f)
-    V(x) = maximum(abs.(L * x))
-    rng = Random.MersenneTwister(seed)
-    worst = 0.0
-    for _ in 1:nsample
-        x = randn(rng, 2)
-        v = V(x)
-        v < 1e-12 && continue
-        worst = max(worst, maximum(V(A * x) for A in modes) / v)
-    end
-    return worst
-end
-
-# Covering [Γ_D, Γ_X] geometrically at ratio ρ takes ⌈log(Γ_X/Γ_D)/log(1/ρ)⌉ steps.
-expected_slices = ceil(Int, log(GAMMA_X / GAMMA_D) / log(1 / RHO))
-
-@printf("contraction rate: measured %.4f, paper states %.2f\n", measured_rate(), RHO)
-@printf("slice count:      expected %d, paper states 11\n", expected_slices)
 
 # ---------------------------------------------------------
 # Their certificate, as the single-node case of our construction
@@ -72,7 +46,6 @@ pclf = PCLF.PCLF(
     RHO,
 )
 
-println()
 println(
     "graph: ",
     length(graph.verts),
@@ -82,8 +55,30 @@ println(
     size(L, 1),
 )
 
+# ---------------------------------------------------------
+# Check their certificate before using it
+# ---------------------------------------------------------
+# The published rate is a claim about the data; verifying it separates a misreading of the paper
+# from an error in the construction that follows. The pieces are polyhedral, so the rate along an
+# edge is the maximum of a linear functional over a polytope and `certify_pclf` returns the exact
+# supremum rather than a sample of it.
+#
+# It comes out at 0.940008, marginally above the 0.94 printed in the paper: their figure is that
+# supremum rounded to two decimals, not a bound the certificate meets. Nothing here depends on the
+# difference — the slice recursion uses 0.94.
+
+certified = PCLF.certify_pclf(pclf, f, HiGHS.Optimizer)
+
+# Covering [Γ_D, Γ_X] geometrically at ratio ρ takes ⌈log(Γ_X/Γ_D)/log(1/ρ)⌉ steps.
+expected_slices = ceil(Int, log(GAMMA_X / GAMMA_D) / log(1 / RHO))
+
+println()
+@printf("contraction rate: exact %.6f, paper states %.2f\n", certified.rate, RHO)
+@printf("slice count:      expected %d, paper states 11\n", expected_slices)
+
 t0 = time()
-(; quotient, D) = build_quotient(problem, pclf; atol = 1e-3, max_slices = 40, print_level = 0)
+(; quotient, D) =
+    build_quotient(problem, pclf; atol = 1e-3, max_slices = 40, print_level = 0)
 build_s = time() - t0
 
 parts, faces = PCQ.cell_complexities(quotient)
@@ -137,8 +132,10 @@ winning_volume =
 println()
 @printf(
     "synthesis: %d of %d cells winning, volume %.4f, trajectory %d steps\n",
-    length(result.controllable_set), length(quotient.states),
-    winning_volume, length(result.X),
+    length(result.controllable_set),
+    length(quotient.states),
+    winning_volume,
+    length(result.X),
 )
 
 # ---------------------------------------------------------
@@ -147,29 +144,16 @@ println()
 # Their Figure 1 shows the working set, the terminal set and the sublevel sets; Figure 2 the
 # resulting quotient; Figure 3 the set of satisfying initial states with sample trajectories.
 
-fig = plot(; aspect_ratio = :equal, legend = false, title = "Sublevel sets and slices")
-plot!(fig, quotient; what = :slices, show_contours = true)
-plot!(fig, problem; opacity = 0.25)
+# `show_contours` stays off: a slice is a union of polytopes, so stroking it draws the internal
+# cuts of that union and the slice reads as several separate regions. The colours already separate
+# consecutive slices.
+fig = plot_quotient(quotient, problem, "Sublevel sets and slices"; what = :slices)
 savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_slices.png"))
 
-fig =
-    plot(; aspect_ratio = :equal, legend = false, title = "Bisimulation quotient, |S| = 1")
-plot!(fig, quotient; what = :states, show_contours = false)
-plot!(fig, problem; opacity = 0.25)
+fig = plot_quotient(quotient, problem, "Bisimulation quotient, |S| = 1")
 savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_quotient.png"))
 
-fig = plot(; aspect_ratio = :equal, legend = false, title = "Satisfying initial states")
-plot!(
-    fig,
-    quotient;
-    what = :states,
-    state_ids = result.controllable_set,
-    show_contours = false,
-    user_color = :mediumpurple,
-    fillalpha = 0.95,
-)
-plot!(fig, problem; region_alpha = 0.0, observation_region_alpha = 0.35, plot_region = false)
-plot!(fig, ST.Trajectory(result.X); label = "trajectory")
+fig = plot_synthesis_result(quotient, result, problem, "Satisfying initial states")
 savefig(fig, joinpath(@__DIR__, "gol_lazar_belta_satisfying.png"))
 
 println("wrote gol_lazar_belta_{slices,quotient,satisfying}.png")

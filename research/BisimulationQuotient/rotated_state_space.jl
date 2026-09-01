@@ -16,7 +16,11 @@ println("Computed JSR upper bound / contraction rate = ", pclf_poly.JSRapprox)
 (; quotient) =
     build_quotient(problem, pclf_poly; atol = 1e-4, level_tol = 1e-2, max_slices = 30)
 
-fig = plot(; aspect_ratio = :equal)
-plot!(fig, quotient; what = :states, node = 1, show_contours = false)
-plot!(fig, problem; opacity = 0.2)
-display(fig)
+display(
+    plot_quotient(
+        quotient,
+        problem,
+        "Quotient cells of node 1, state space rotated 10°";
+        node = 1,
+    ),
+)

@@ -112,16 +112,16 @@ single-node conic-order-1 certificate produces a quotient of **one cell**, becau
 absorbs almost the whole domain. A cell count against that is meaningless, which is why
 `gol_lazar_belta_example.jl` reproduces their certificate rather than benchmarking against it.
 
+**Figures.** Scripts do not roll their own plots: `plot_quotient` draws the structural figure (the
+cells, or the slice family, over the observation regions) and `plot_synthesis_result` the synthesis
+figure (winning cells over losing ones, plus the regions and the closed-loop trajectory). One
+colour scheme holds across the folder — **green** is what the controller wins, **red** is what it
+does not — so that two figures placed side by side in the paper mean the same thing. Three
+conventions follow from it: the observation regions are drawn as outlines in colours disjoint from
+green and red, so that a region neither reads as a verdict nor tints the cells beneath it; the
+working set is not outlined, since the cells already tile it; and slices are drawn without contours,
+because a slice is a union of polytopes and stroking it shows the internal cuts of that union.
+
 **3D figures.** The lifted views use the `DionysosMakieExt` recipes
 (`Dionysos.plot_lifted_bisimulation!` / `Dionysos.plot_lifted_trajectory!`); load a Makie backend
 (`using GLMakie` for an interactive window, `using CairoMakie` for a static figure) to enable them.
-
-## Analysis notes
-
-Longer write-ups, kept beside the scripts: [`complexity-vs-memory.md`](complexity-vs-memory.md)
-(the memory/geometry question and its measurements),
-[`paper-review-and-plan.md`](paper-review-and-plan.md) (technical review of the draft),
-[`paper-audit.md`](paper-audit.md) (mechanical audit),
-[`paper-narrative.md`](paper-narrative.md) (structure and length),
-[`paper-experiments.md`](paper-experiments.md) (experiment design, including the searches that
-found nothing).
