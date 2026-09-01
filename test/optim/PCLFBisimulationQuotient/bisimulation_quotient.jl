@@ -8,6 +8,7 @@ using JuMP
 import MathOptInterface as MOI
 import Clarabel
 import HybridSystems
+import CDDLib
 import Spot
 using LazySets
 
@@ -184,7 +185,18 @@ const PCLF = UT.PathCompleteFramework
     )
     MOI.set(verification_optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
     MOI.set(verification_optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
+    MOI.set(
+        verification_optimizer,
+        MOI.RawOptimizerAttribute("coverage_backend"),
+        CDDLib.Library(),
+    )
     MOI.optimize!(verification_optimizer)
+
+    # The atol-erosion caveat is measured, not assumed: a small sliver of the slice family is
+    # uncovered by the cells, and the verified set says nothing there.
+    uncovered = verification_optimizer.uncovered_fraction
+    @test uncovered !== nothing
+    @test 0.0 <= uncovered < 0.1
 
     verified_set =
         MOI.get(verification_optimizer, MOI.RawOptimizerAttribute("controllable_set"))

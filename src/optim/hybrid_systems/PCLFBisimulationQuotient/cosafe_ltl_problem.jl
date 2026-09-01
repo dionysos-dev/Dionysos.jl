@@ -127,6 +127,10 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
+    # Optional polyhedral backend (e.g. CDDLib.Library()). When set, a folded run measures how
+    # much of the slice family the quotient's cells cover and stores `uncovered_fraction` — the
+    # atol-erosion caveat every verification result owes; see `covered_fraction`.
+    coverage_backend::Any
 
     # outputs / internals
     quotient_automaton::Any
@@ -139,6 +143,9 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     # Whether the modes were the environment's (`ST.environment_input`), i.e. the quotient was
     # folded and the run answered the universal question. A folded run has no controller.
     environment_folded::Bool
+    # 1 − covered_fraction of the quotient, measured when `coverage_backend` is set on a folded
+    # run; `nothing` when not measured.
+    uncovered_fraction::Union{Nothing, Float64}
     success::Bool
     solve_time_sec::T
 
@@ -150,6 +157,7 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
             true,
             false,
             1,
+            nothing, # coverage_backend
             nothing,
             nothing,
             nothing,
@@ -158,6 +166,7 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
             nothing,
             nothing,
             false,
+            nothing, # uncovered_fraction
             false,
             zero(T),
         )
@@ -200,6 +209,18 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
             println(
                 "Pessimistic completion: $ncompleted (state, mode) pairs had no successor " *
                 "and were routed to a losing sink.",
+            )
+        end
+        # The atol-erosion caveat: the cells cover slightly less than the slices they were
+        # carved from, and a point the quotient does not cover is a point this universal answer
+        # says nothing about. Measured only on request — it costs a volume computation.
+        if optimizer.coverage_backend !== nothing
+            optimizer.uncovered_fraction =
+                1.0 - covered_fraction(quotient; backend = optimizer.coverage_backend)
+            optimizer.print_level >= 1 && println(
+                "Coverage: the quotient leaves ",
+                round(100 * optimizer.uncovered_fraction; digits = 3),
+                "% of the slice family uncovered; the verified set says nothing there.",
             )
         end
         abstract_problem =

@@ -169,6 +169,13 @@ function get_volume(
     isempty(S_by_node) && return 0.0
 
     node_parts = [Snode.array for Snode in values(S_by_node)]
+    return _volume_of_node_parts(node_parts; backend = backend)
+end
+
+# The inclusion–exclusion over nodes, shared by `get_volume` (over cells) and
+# `covered_fraction` (over cells and over slices): nodes overlap spatially — they are lifted
+# copies of the same plane — so their volumes cannot simply be summed.
+function _volume_of_node_parts(node_parts; backend)
     sum_volume(ps) =
         isempty(ps) ? 0.0 : sum(LazySets.volume(P; backend = backend) for P in ps)
 
@@ -203,4 +210,35 @@ function get_volume(
     end
 
     return total
+end
+
+"""
+    covered_fraction(T::PCBisimulationQuotient; backend) -> Float64
+
+How much of the region the slice family was built to tile the quotient's cells actually cover.
+
+The refinement's set differences inset every cut by `atol`, so each of the thousands of cuts
+erodes a sliver and the cells cover strictly less than the slices they were carved from. Under
+synthesis the loss is conservatism; under a folded (universal) run a point the quotient does not
+cover is a point about which the answer says nothing, so the fraction is the caveat every
+verification result must carry.
+
+Returns `vol(cells) / vol(slices)` — `1.0` is full coverage. Both volumes run the same
+inclusion–exclusion over nodes, so lifted copies of the plane are not double-counted.
+"""
+function covered_fraction(T::PCBisimulationQuotient; backend = nothing)
+    backend === nothing &&
+        error("No polyhedral backend provided. Example: backend = CDDLib.Library().")
+
+    covered = get_volume(T, keys(T.states); backend = backend)
+
+    slice_parts = [
+        UT.normalize_semilinear(
+            UT.semilinear_set(reduce(vcat, (S.array for S in slice_list))),
+        ).array for slice_list in values(T.slices)
+    ]
+    intended = _volume_of_node_parts(slice_parts; backend = backend)
+
+    intended > 0 || error("The slice family has no volume; nothing was tiled.")
+    return covered / intended
 end
