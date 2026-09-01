@@ -46,9 +46,28 @@ function _all_valuations(aps::Vector{Symbol})
     return vals
 end
 
-function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int = 1)
-    vals = _all_valuations(aps)
-
+# The good-prefix states of the monitor: those from which *every* infinite extension is accepted,
+# which for a co-safe formula is exactly "the prefix so far already satisfies φ".
+#
+# This replaces an absorbing-states heuristic that read a missing edge as a self-loop. A missing
+# edge is a step into the rejecting dead state, so that heuristic could declare a state accepting
+# although some extension from it violates φ. Under synthesis the resulting controller fails
+# visibly; under verification (a folded run) the mistake silently verifies violating states —
+# which is why this must be computed, not guessed.
+#
+# The computation is a pair of greatest fixed points over the explicit valuation alphabet:
+#
+#   1. `C` — the largest set of reachable states that is *total* (every valuation has an edge)
+#      and closed (every edge stays in `C`). A run entering `C` never dies.
+#   2. For each Rabin pair `(Fin, Inf)`: the largest closed subset of `C ∩ (Inf ∖ Fin)`. Every
+#      infinite run inside such a subset visits `Inf` forever and `Fin` never, so it is accepted
+#      whatever the word — the certificate that every extension is good.
+#
+# The union over pairs under-approximates the true good-prefix set in general and is exact on the
+# monitors spot produces for co-safe formulas, whose good prefixes end in a terminal accepting
+# component. Under-approximation is the sound direction for both quantifiers: a smaller accepting
+# set can only lose controllers or verified states, never invent them.
+function _good_prefix_states_dra(dra, vals; q0::Int = 1)
     reachable = Set{Int}([q0])
     queue = [q0]
     while !isempty(queue)
@@ -63,29 +82,56 @@ function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int = 1)
         end
     end
 
-    done = Set{Int}()
-    for q in reachable
-        ok = true
-        for v in vals
-            q2 = Spot.nextstate(dra, q, v)
-            if !(q2 === nothing || q2 == q)
-                ok = false
-                break
+    # Greatest fixed point: keep the states whose every valuation stays inside the kept set.
+    function largest_closed_subset(candidates::Set{Int})
+        S = copy(candidates)
+        changed = true
+        while changed
+            changed = false
+            for q in collect(S)
+                for v in vals
+                    q2 = Spot.nextstate(dra, q, v)
+                    if q2 === nothing || !(q2 in S)
+                        delete!(S, q)
+                        changed = true
+                        break
+                    end
+                end
             end
         end
-        ok && push!(done, q)
+        return S
     end
 
-    return done, reachable
+    C = largest_closed_subset(reachable)
+
+    good = Set{Int}()
+    for (fin, inf) in Spot.get_rabin_acceptance(dra)
+        candidates = Set(q for q in C if (q in inf) && !(q in fin))
+        union!(good, largest_closed_subset(candidates))
+    end
+
+    return good, reachable
 end
 
-OPDS.accepting_states(S::SpotDRAstepper) = begin
-    doneQ, _ = _cosafe_done_states_dra(S.dra; aps = S.aps, q0 = S.qa0)
-    isempty(doneQ) && error(
-        "Could not find any 'done' states with the co-safe heuristic. " *
-        "Try providing a FunctionMonitor with explicit accepting states.",
+# Without alphabet information the free powerset of the formula's atomic propositions is the only
+# safe assumption; the product passes the labels the system can actually emit, which is both the
+# correct notion of "every extension" and what keeps mutually exclusive observations from being
+# judged against conjunctions that can never occur.
+OPDS.accepting_states(S::SpotDRAstepper) = _checked_good_prefix(S, _all_valuations(S.aps))
+
+OPDS.accepting_states(S::SpotDRAstepper, used_labels) =
+    _checked_good_prefix(S, collect(Tuple{Vararg{Symbol}}, used_labels))
+
+function _checked_good_prefix(S::SpotDRAstepper, vals)
+    goodQ, _ = _good_prefix_states_dra(S.dra, vals; q0 = S.qa0)
+    isempty(goodQ) && error(
+        "No state of the monitor certifies a good prefix over the emitted labels: no closed, " *
+        "total, always-accepting component is reachable. Either the formula has no good prefix " *
+        "over this alphabet, or the monitor's acceptance is beyond the terminal certificate " *
+        "computed here — provide a FunctionMonitor with explicit accepting states rather than " *
+        "guessing.",
     )
-    doneQ
+    return goodQ
 end
 
 function spot_stepper(
