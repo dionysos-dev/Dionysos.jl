@@ -779,4 +779,15 @@ Updated 2026-09-01, same session as the plan.
   what the system can say. Conservative where it cannot certify (refuses; never guesses). Trap
   tests in `test/optim/discrete_systems/cosafe_accepting.jl`: the flagship formula still yields
   its true-sink, and `G(!a)` — which the heuristic would have declared accepting — is refused.
-- **P5 — not started.** The continuous-`W` kernel work (RWR'17) remains the open phase.
+- **P5 — done** for the GROWTH kernel. The perturbed growth bound of RWR'17 lands as a fold at
+  construction: a noisy system yields a *nominal* system plus a disturbed radius map
+  (`ṙ = L(u)·r + z`, nominal at the centre of `W`), so every downstream type, `discretize` and
+  the per-input hoist are untouched and the build cost is the nominal cost. `z` is read off the
+  disturbance set in the additive case and must be supplied otherwise — refused, not guessed.
+  The grid optimizer gains a `noise_bound` attribute and the §3 gates: CENTER/RANDOM/LINEARIZED
+  refuse a declared disturbance by name, a hand-written map must own it explicitly, and
+  `build_noise`'s warning is gone because every path now either folds or errors. Acceptance on
+  the contraction benchmark: robust winning ⊊ nominal winning from the same solver call, and the
+  fold measured exact to `w̄(1 − e^{−τ})`. Remaining within P5's scope: LINEARIZED's perturbed
+  error term (derivation), tracing `w` in `compute_jacobian_bound` for non-additive systems, and
+  the JuMP disturbance-role surface (§7).
