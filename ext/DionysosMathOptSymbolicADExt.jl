@@ -31,6 +31,7 @@ function Wrapper.compile_dynamics(
 )
     x_idx = Wrapper.state_indices(ir)
     u_idx = Wrapper.input_indices(ir)
+    w_idx = Wrapper.disturbance_indices(ir)
 
     nlp_model = MOI.Nonlinear.Model()
     for i in x_idx
@@ -42,24 +43,21 @@ function Wrapper.compile_dynamics(
     evaluator = MOI.Nonlinear.Evaluator(nlp_model, MathOptSymbolicAD.DefaultBackend(), vars)
     MOI.initialize(evaluator, Symbol[])
 
-    # System eq x' = F_sys(x, u)
-    Symbolics.@variables(x[1:length(x_idx)], u[1:length(u_idx)])
+    # System eq x' = F_sys(x, u) — or F_sys(x, u, w) when the environment owns part of the
+    # alphabet; the arity is what makes the lowered system a `Noisy…` type downstream.
+    Symbolics.@variables(x[1:length(x_idx)], u[1:length(u_idx)], w[1:length(w_idx)])
     xu = Vector{eltype(x)}(undef, length(ir.variables))
     xu[x_idx] = x
     xu[u_idx] = u
+    xu[w_idx] = w
     expr = [_symbolic(func, xu) for func in evaluator.backend.constraints]
 
     # The second returned function is the in-place version, which we don't want.
     # `expression = Val{false}` yields a Julia function directly; `cse = true` detects common
     # sub-expressions (like `α` in the path planning example), cf.
     # https://discourse.julialang.org/t/detecting-function-composition-in-symbolics-jl/115885/6
-    F_sys, _ = Symbolics.build_function(
-        expr,
-        collect(x),
-        collect(u);
-        expression = Val{false},
-        cse = true,
-    )
+    args = isempty(w_idx) ? (collect(x), collect(u)) : (collect(x), collect(u), collect(w))
+    F_sys, _ = Symbolics.build_function(expr, args...; expression = Val{false}, cse = true)
     return F_sys
 end
 

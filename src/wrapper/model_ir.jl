@@ -263,6 +263,7 @@ function infer_roles!(ir::ModelIR)
     unused = Int[]
     state_index = 0
     input_index = 0
+    disturbance_index = 0
     for (i, v) in enumerate(ir.variables)
         declared = v.declared_role
         v.role = declared !== nothing ? declared : (has_dynamics[i] ? STATE : INPUT)
@@ -279,6 +280,16 @@ function infer_roles!(ir::ModelIR)
             end
             input_index += 1
             v.index = input_index
+        elseif v.role === DISTURBANCE
+            # Only ever declared (a disturbance is indistinguishable from an input by usage),
+            # and never carries dynamics: a driven variable is a state, whoever perturbs it.
+            has_dynamics[i] && error(
+                "$(describe(v, i)) is declared a DISTURBANCE but carries dynamics; a driven " *
+                "variable is a state. Perturb a state by adding the disturbance to its " *
+                "right-hand side instead.",
+            )
+            disturbance_index += 1
+            v.index = disturbance_index
         else
             state_index += 1
             v.index = state_index
@@ -297,6 +308,17 @@ function infer_roles!(ir::ModelIR)
     # A clock is a state, but not a coordinate of the physical `x`, so it is re-labelled after
     # the state/input split and drops out of `state_indices`.
     detect_clock!(ir)
+
+    # The hybrid lowering does not thread a disturbance through its per-mode systems yet, and
+    # dropping one silently would synthesize a controller that is only valid at one disturbance
+    # value while claiming robustness.
+    if !isempty(ir.modes) && !isempty(disturbance_indices(ir))
+        error(
+            "Disturbances in hybrid models (`@mode`) are not supported yet; declare the " *
+            "disturbance on a single-mode model, or fold it into the per-mode dynamics " *
+            "yourself.",
+        )
+    end
 
     _validate_bounds(ir)
     _validate_objective(ir)
@@ -367,6 +389,15 @@ MOI indices of the input variables, in declaration order.
 """
 input_indices(ir::ModelIR) =
     findall(i -> ir.variables[i].role === INPUT, eachindex(ir.variables))
+
+"""
+    disturbance_indices(ir) -> Vector{Int}
+
+MOI indices of the disturbance variables, in declaration order — the order of `w` in the
+lowered noisy system.
+"""
+disturbance_indices(ir::ModelIR) =
+    findall(i -> ir.variables[i].role === DISTURBANCE, eachindex(ir.variables))
 
 function Base.show(io::IO, ir::ModelIR)
     nstate = count(!isnothing, ir.dynamics)

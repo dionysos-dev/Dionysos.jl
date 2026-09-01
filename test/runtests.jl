@@ -71,6 +71,7 @@ const TEST_FILES = [
     ("./optim/optimizer_common.jl",),
     ("./optim/jump_frontend.jl",),  # canonical JuMP entry (∂/final on Dionysos.Optimizer)
     ("./wrapper/lowering.jl",),        # JuMP model → (system, problem)
+    ("./wrapper/disturbance.jl",),
     ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./wrapper/solver_selection.jl",),  # solver choice + attribute replay
     ("./wrapper/dynamics.jl",),          # supplied dynamics (#510) + the evaluator backend
