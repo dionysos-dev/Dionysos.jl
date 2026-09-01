@@ -28,6 +28,7 @@ include("automata/automaton.jl")
 include("automata/sorted_automaton_list.jl")
 include("automata/indexed_automaton_list.jl")
 include("automata/fast_indexed_automaton_list.jl")
+include("automata/folded_automaton.jl")
 include("automata/closed_loop.jl")
 
 include("metadata.jl")
