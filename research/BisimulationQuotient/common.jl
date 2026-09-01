@@ -278,6 +278,7 @@ function synthesize_cosafe_ltl(
     early_stop::Bool = false,
     print_level::Int = 1,
     N::Int = 50,
+    coverage_backend = nothing,
 )
     initial_set = LazySets.Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
     problem = PR.CoSafeLTLProblem(
@@ -294,6 +295,8 @@ function synthesize_cosafe_ltl(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("ap_to_obs"), ap_to_obs)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), early_stop)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), print_level)
+    coverage_backend === nothing ||
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("coverage_backend"), coverage_backend)
     MOI.optimize!(optimizer)
 
     controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))

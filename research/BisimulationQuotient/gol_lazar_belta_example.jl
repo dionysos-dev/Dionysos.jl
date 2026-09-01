@@ -124,12 +124,15 @@ spec = (
 
 result = synthesize_cosafe_ltl(f, quotient, spec..., x0; N = 50)
 
+# `coverage_backend` makes the run measure its own caveat: the fraction of the slice family the
+# quotient's cells fail to cover (atol erosion), about which the verified set says nothing.
 verification = synthesize_cosafe_ltl(
     ST.with_switching(f, HybridSystems.AutonomousSwitching()),
     quotient,
     spec...,
     x0;
     print_level = 0,
+    coverage_backend = CDDLib.Library(),
 )
 
 winning_volume =
@@ -155,6 +158,10 @@ println()
     length(verification.controllable_set),
     length(quotient.states),
     verified_volume,
+)
+@printf(
+    "coverage caveat:    %.3f%% of the slice family is uncovered by the quotient (atol erosion)\n",
+    100 * verification.optimizer.uncovered_fraction,
 )
 
 # ---------------------------------------------------------
