@@ -13,8 +13,8 @@ optional dependency is loaded, and calling it before that raises an error saying
 ```@docs
 Dionysos.animate_trajectory_dashboard
 Dionysos.animate_mechanism_trajectory
-Dionysos.plot_lifted_bisimulation!
-Dionysos.plot_lifted_trajectory!
+Dionysos.plot_augmented_bisimulation!
+Dionysos.plot_augmented_trajectory!
 ```
 
 ## Import and export

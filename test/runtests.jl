@@ -119,7 +119,7 @@ const TEST_FILES = [
     # Package extensions (load Plots / CSV+DataFrames / Makie; render/precompile is heavy).
     ("./ext/plots_dashboard.jl", :slow),
     ("./ext/csv_controller.jl", :slow),
-    ("./ext/makie_lifted.jl", :slow),
+    ("./ext/makie_augmented.jl", :slow),
 ]
 
 const _timings = Tuple{String, Float64}[]

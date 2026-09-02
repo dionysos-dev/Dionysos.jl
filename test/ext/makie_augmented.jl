@@ -8,9 +8,9 @@ using CairoMakie   # loads Makie, activating DionysosMakieExt (headless software
 
 const PCLFBQ = AB.PCLFBisimulationQuotient
 
-# Build a tiny two-node bisimulation quotient by hand: one square set per node. The lifted
+# Build a tiny two-node bisimulation quotient by hand: one square set per node. The augmented
 # recipes only read `part_ids`, `states`, and each state's `node`/`set.array`, so this is
-# enough to exercise `plot_lifted_bisimulation!` / `plot_lifted_trajectory!` end to end.
+# enough to exercise `plot_augmented_bisimulation!` / `plot_augmented_trajectory!` end to end.
 function _toy_quotient()
     box1 = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [1.0, 1.0])
     box2 = LazySets.Hyperrectangle(; low = [1.0, 0.0], high = [2.0, 1.0])
@@ -26,7 +26,7 @@ function _toy_quotient()
     return bisim, q1, q2
 end
 
-@testset "Lifted bisimulation Makie recipes" begin
+@testset "Augmented bisimulation Makie recipes" begin
     bisim, q1, q2 = _toy_quotient()
     node_z = Dict((1,) => 1.0, (2,) => 2.0)
 
@@ -34,7 +34,7 @@ end
     ax = Axis3(fig[1, 1])
 
     # States: explicit z-map plus each `color_by` branch and the contour outlines.
-    @test Dionysos.plot_lifted_bisimulation!(
+    @test Dionysos.plot_augmented_bisimulation!(
         ax,
         bisim;
         node_z = node_z,
@@ -42,7 +42,7 @@ end
         show_contours = true,
     ) === ax
     for cb in (:node, :slice, :obs)
-        @test Dionysos.plot_lifted_bisimulation!(
+        @test Dionysos.plot_augmented_bisimulation!(
             ax,
             bisim;
             node_z = node_z,
@@ -50,7 +50,7 @@ end
         ) === ax
     end
     # Default `node_z` (the extension's internal node-z map) is exercised too.
-    @test Dionysos.plot_lifted_bisimulation!(ax, bisim) === ax
+    @test Dionysos.plot_augmented_bisimulation!(ax, bisim) === ax
 
     # Batching: two states of different colours become two meshes plus one stroke for both
     # outlines, where drawing them separately gives one mesh and one stroke each. Both must
@@ -60,7 +60,7 @@ end
         p in a.scene.plots if p isa Makie.Mesh
     )
     merged = Axis3(Figure()[1, 1])
-    Dionysos.plot_lifted_bisimulation!(
+    Dionysos.plot_augmented_bisimulation!(
         merged,
         bisim;
         node_z = node_z,
@@ -68,7 +68,7 @@ end
         show_contours = true,
     )
     split = Axis3(Figure()[1, 1])
-    Dionysos.plot_lifted_bisimulation!(
+    Dionysos.plot_augmented_bisimulation!(
         split,
         bisim;
         node_z = node_z,
@@ -82,7 +82,7 @@ end
 
     # One colour for every state collapses to a single mesh.
     single = Axis3(Figure()[1, 1])
-    Dionysos.plot_lifted_bisimulation!(
+    Dionysos.plot_augmented_bisimulation!(
         single,
         bisim;
         node_z = node_z,
@@ -92,13 +92,14 @@ end
     @test length(single.scene.plots) == 1
     @test ntris(single) == ntris(split)
 
-    # Trajectory lifted onto the node layers.
+    # Trajectory augmented onto the node layers.
     X_seq = [[0.5, 0.5], [1.5, 0.5]]
     M_seq = [(0, q1), (0, q2)]
-    @test Dionysos.plot_lifted_trajectory!(ax, bisim, X_seq, M_seq; node_z = node_z) === ax
+    @test Dionysos.plot_augmented_trajectory!(ax, bisim, X_seq, M_seq; node_z = node_z) ===
+          ax
 
     # A length mismatch of more than one between states and memory is rejected.
-    @test_throws ErrorException Dionysos.plot_lifted_trajectory!(
+    @test_throws ErrorException Dionysos.plot_augmented_trajectory!(
         ax,
         bisim,
         [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]],

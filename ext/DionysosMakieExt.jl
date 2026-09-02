@@ -1,7 +1,7 @@
 module DionysosMakieExt
 
-# 3D "lifted" visualisation of a PCLF bisimulation quotient: quotient states are drawn as
-# stacked polygons, one z-layer per automaton node, with the closed-loop trajectory lifted
+# 3D "augmented" visualisation of a PCLF bisimulation quotient: quotient states are drawn as
+# stacked polygons, one z-layer per automaton node, with the closed-loop trajectory augmented
 # onto the layer of the node it currently sits in. Backend-agnostic — the trigger is `Makie`,
 # so any backend (`GLMakie` for interaction, `CairoMakie` for figures, …) activates it.
 
@@ -21,6 +21,8 @@ end
 
 # Planar outline of a (possibly lazy) set as x/y vertex vectors.
 function _vertices2d(P)
+    # A degenerate (vertexless) part has nothing to draw.
+    isempty(LazySets.vertices_list(P)) && return Float64[], Float64[]
     VP = LazySets.overapproximate(P, LazySets.VPolygon)
     verts = LazySets.vertices_list(VP)
     xs = [v[1] for v in verts]
@@ -73,7 +75,7 @@ end
 # The controller memory is a `(mode, quotient_state_id)` tuple.
 _memory_to_qid(mem) = mem[2]
 
-function Dionysos.plot_lifted_bisimulation!(
+function Dionysos.plot_augmented_bisimulation!(
     ax,
     bisimulation::PCLFBQ.PCBisimulationQuotient;
     state_ids = nothing,
@@ -115,6 +117,7 @@ function Dionysos.plot_lifted_bisimulation!(
 
             for part in q.set.array
                 xs, ys = _vertices2d(part)
+                length(xs) < 3 && continue
                 Makie.mesh!(ax, _polygon_mesh3d(xs, ys, z); color = (c, alpha))
                 if show_contours
                     pts = GB.Point3f[(xs[i], ys[i], z) for i in eachindex(xs)]
@@ -166,7 +169,7 @@ function Dionysos.plot_lifted_bisimulation!(
     return ax
 end
 
-function Dionysos.plot_lifted_trajectory!(
+function Dionysos.plot_augmented_trajectory!(
     ax,
     bisimulation::PCLFBQ.PCBisimulationQuotient,
     state_seq,
