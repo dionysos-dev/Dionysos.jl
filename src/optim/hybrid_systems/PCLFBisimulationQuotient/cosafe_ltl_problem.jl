@@ -5,10 +5,20 @@ const SY = DI.Symbolic
 # Quotient automaton wrapper
 # ============================================================
 
+# The abstract input alphabet is the *edge choice* `(mode, destination node)`, not the bare
+# mode. On a deterministic graph the two coincide up to renaming and nothing changes. On a
+# nondeterministic path-complete graph — an incomplete one necessarily is — a mode has several
+# destination nodes, and that choice is the controller's own (it is the controller announcing
+# its future), not the environment's: an alphabet of bare modes would fold it into the
+# ∀-successor position of the fixed points and synthesis would be needlessly conservative. The
+# concrete boundary translates back: actuation uses `mode_of_input`, the announcement steers the
+# controller's memory.
 struct QuotientAutomaton{QT} <: SY.AbstractAutomatonList
     quotient::QT
     qids::Vector{Int}
     id2idx::Dict{Int, Int}
+    inputs::Vector{Tuple{Int, Any}}          # symbol -> (mode, destination node)
+    input_index::Dict{Tuple{Int, Any}, Int}
     post_tab::Vector{Vector{Vector{Int}}}
     pre_tab::Vector{Vector{Tuple{Int, Int}}}
     ninput::Int
@@ -18,6 +28,12 @@ SY.get_n_state(Q::QuotientAutomaton) = length(Q.qids)
 SY.get_n_input(Q::QuotientAutomaton) = Q.ninput
 SY.post(Q::QuotientAutomaton, s::Int, u::Int) = Q.post_tab[s][u]
 SY.pre(Q::QuotientAutomaton, t::Int) = Q.pre_tab[t]
+
+"The concrete mode actuated by abstract input symbol `u`."
+mode_of_input(Q::QuotientAutomaton, u::Int) = Q.inputs[u][1]
+
+"The distinct concrete modes appearing in the alphabet, sorted."
+modes_of(Q::QuotientAutomaton) = sort(unique(first.(Q.inputs)))
 
 function SY.enum_transitions(Q::QuotientAutomaton)
     trans = Tuple{Int, Int, Int}[]
@@ -33,11 +49,14 @@ function QuotientAutomaton(quotient::PCBisimulationQuotient)
     qids = sort(collect(keys(quotient.states)))
     id2idx = Dict(qid => i for (i, qid) in enumerate(qids))
 
-    modes = Int[]
-    for q in values(quotient.states), (m, _) in q.next
-        push!(modes, m)
+    pairs = Set{Tuple{Int, Any}}()
+    for q in values(quotient.states), (m, dst_qid) in q.next
+        haskey(quotient.states, dst_qid) || continue
+        push!(pairs, (m, quotient.states[dst_qid].node))
     end
-    ninput = isempty(modes) ? 0 : maximum(modes)
+    inputs = Vector{Tuple{Int, Any}}(sort!(collect(pairs); by = string))
+    input_index = Dict{Tuple{Int, Any}, Int}(p => k for (k, p) in enumerate(inputs))
+    ninput = length(inputs)
 
     n = length(qids)
     post_tab = [[Int[] for _ in 1:ninput] for _ in 1:n]
@@ -48,8 +67,9 @@ function QuotientAutomaton(quotient::PCBisimulationQuotient)
         for (m, dst_qid) in q.next
             haskey(id2idx, dst_qid) || continue
             j = id2idx[dst_qid]
-            push!(post_tab[i][m], j)
-            push!(pre_tab[j], (i, m))
+            k = input_index[(m, quotient.states[dst_qid].node)]
+            push!(post_tab[i][k], j)
+            push!(pre_tab[j], (i, k))
         end
     end
 
@@ -57,7 +77,16 @@ function QuotientAutomaton(quotient::PCBisimulationQuotient)
         post_tab[i][u] = unique(post_tab[i][u])
     end
 
-    return QuotientAutomaton(quotient, qids, id2idx, post_tab, pre_tab, ninput)
+    return QuotientAutomaton(
+        quotient,
+        qids,
+        id2idx,
+        inputs,
+        input_index,
+        post_tab,
+        pre_tab,
+        ninput,
+    )
 end
 
 from_autom_to_bis_state(Q::QuotientAutomaton, qs::Int) = Q.qids[qs]
@@ -200,11 +229,17 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     environment = ST.environment_input(concrete_problem.system)
     optimizer.environment_folded = environment !== nothing
     if optimizer.environment_folded
-        length(environment) == SY.get_n_input(Q) || error(
+        length(environment) == length(modes_of(Q)) || error(
             "The environment owns $(length(environment)) modes but the quotient carries " *
-            "$(SY.get_n_input(Q)); the quotient was built from a different system.",
+            "$(length(modes_of(Q))); the quotient was built from a different system.",
         )
-        completed, _, ncompleted = SY.complete_with_sink(Q)
+        # Missing behaviour is judged per MODE: the alphabet's edge symbols are finer than the
+        # environment's choices, and a layer that never carried some announcement is a
+        # structural non-edge, not a dropped behaviour.
+        modes = modes_of(Q)
+        mode_group =
+            [findfirst(==(mode_of_input(Q, k)), modes) for k in 1:SY.get_n_input(Q)]
+        completed, _, ncompleted = SY.complete_with_sink(Q; groups = mode_group)
         if ncompleted > 0 && optimizer.print_level >= 1
             println(
                 "Pessimistic completion: $ncompleted (state, mode) pairs had no successor " *
@@ -421,7 +456,12 @@ function build_concrete_controller(
 
         qs_dense = qid_to_qs(qid_use)
         us = ST.output_control(abstract_controller, qa, qs_dense)
-        return us
+        # The abstract symbols are edge choices (mode, announced node); the plant is actuated
+        # with the mode alone — the announcement lives on in the controller's memory.
+        us === nothing && return nothing
+        syms = us isa AbstractVector ? us : [us]
+        isempty(syms) && return nothing
+        return [mode_of_input(Q, s) for s in syms]
     end
 
     g_conc = function (mem, x_for_update)
@@ -429,7 +469,29 @@ function build_concrete_controller(
 
         haskey(quotient.states, qid) || return mem
 
-        qid_next = _find_successor_qid(quotient, qid, x_for_update)
+        # Under a nondeterministic announcement the next point lies in one cell of *several*
+        # layers, and only the announced one continues the winning strategy — so among the
+        # successors that contain the point, prefer one where the abstract controller stays
+        # live, and only then fall back to the first geometric match.
+        candidates = Int[]
+        for (_, dst) in quotient.states[qid].next
+            haskey(quotient.states, dst) || continue
+            if x_for_update ∈ quotient.states[dst].set && !(dst in candidates)
+                push!(candidates, dst)
+            end
+        end
+        qid_next = nothing
+        for cand in candidates
+            qa_cand = ST.update_state(abstract_controller, qa, qid_to_qs(cand))
+            out = ST.output_control(abstract_controller, qa_cand, qid_to_qs(cand))
+            if out !== nothing && !(out isa AbstractVector && isempty(out))
+                qid_next = cand
+                break
+            end
+        end
+        if qid_next === nothing && !isempty(candidates)
+            qid_next = first(candidates)
+        end
 
         if isnothing(qid_next)
             qid_next = _find_qid_same_node(quotient, qid, x_for_update)
@@ -598,10 +660,10 @@ function verification_counterexample(opt::OptimizerCoSafeLTLOnQuotient, x0; nmax
         OPDS.labeling_function_from_state_sets(absprob.labeling)
     spec = absprob.spec
 
-    # The completed quotient automaton underneath the fold: its per-mode successors name the
-    # environment's move behind every folded edge.
+    # The completed quotient automaton underneath the fold: its per-symbol successors name the
+    # environment's move behind every folded edge, and the symbol's mode is the word letter.
     completed = SY.inner(absprob.system)
-    nmodes = SY.get_n_input(completed)
+    nsymbols = SY.get_n_input(completed)
     nquotient = length(Q.qids)
 
     # The product state x0 starts from. Boundary points sit in several cells; any unverified one
@@ -643,8 +705,8 @@ function verification_counterexample(opt::OptimizerCoSafeLTLOnQuotient, x0; nmax
         )
 
         qs2 = P.rev[p2][1]
-        m = findfirst(m -> qs2 in SY.post(completed, qs, m), 1:nmodes)
-        push!(modes, m)
+        k = findfirst(k -> qs2 in SY.post(completed, qs, k), 1:nsymbols)
+        push!(modes, mode_of_input(Q, k))
 
         if qs2 > nquotient
             entered_sink = true
