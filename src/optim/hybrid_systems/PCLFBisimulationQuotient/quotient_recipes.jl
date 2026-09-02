@@ -42,7 +42,10 @@ const PALETTE = [
 # individually — a single-colour figure comes out byte-identical to the per-cell version.
 function _append_polygons!(X::Vector{Float64}, Y::Vector{Float64}, parts)
     for P in parts
-        x, y = LazySets.plot_recipe(P)
+        # A degenerate (vertexless) part yields an empty return, not an (x, y) pair.
+        xy = LazySets.plot_recipe(P)
+        length(xy) == 2 || continue
+        x, y = xy
         isempty(x) && continue
         append!(X, x)
         append!(Y, y)
