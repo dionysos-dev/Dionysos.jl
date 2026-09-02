@@ -46,27 +46,43 @@ function _all_valuations(aps::Vector{Symbol})
     return vals
 end
 
-# The good-prefix states of the monitor: those from which *every* infinite extension is accepted,
-# which for a co-safe formula is exactly "the prefix so far already satisfies φ".
+# The accepting states of the monitor under the FINITE-TRACE reading the solvers implement: a
+# closed loop stops the moment it reaches acceptance, so a state accepts iff the run stopped
+# there — padded with the empty valuation forever, since nothing further is emitted — is an
+# accepted word. Obligations (`F`, `U`) must already be discharged, prohibitions (`G(!p)`) hold
+# vacuously over the padding.
 #
 # This replaces an absorbing-states heuristic that read a missing edge as a self-loop. A missing
 # edge is a step into the rejecting dead state, so that heuristic could declare a state accepting
-# although some extension from it violates φ. Under synthesis the resulting controller fails
-# visibly; under verification (a folded run) the mistake silently verifies violating states —
-# which is why this must be computed, not guessed.
+# although the prefix does not satisfy the formula. Under synthesis the resulting controller
+# fails visibly; under verification (a folded run) the mistake silently verifies violating
+# states — which is why this must be computed, not guessed.
 #
-# The computation is a pair of greatest fixed points over the explicit valuation alphabet:
+# On genuinely co-safe formulas this coincides with the good-prefix set (the padding lands in
+# the monitor's terminal accepting component); its added reach is the reach-avoid shape
+# `F(goal) & G(!hazard)`, whose "goal seen, hazard never" state accepts under the stop reading
+# although no finite prefix certifies the infinite `G`. The caller guards the degenerate end of
+# that spectrum: a formula whose EMPTY continuation is already accepted from the initial state
+# is pure safety, has no finite-trace content, and is refused (`_checked_good_prefix`).
 #
-#   1. `C` — the largest set of reachable states that is *total* (every valuation has an edge)
-#      and closed (every edge stays in `C`). A run entering `C` never dies.
-#   2. For each Rabin pair `(Fin, Inf)`: the largest closed subset of `C ∩ (Inf ∖ Fin)`. Every
-#      infinite run inside such a subset visits `Inf` forever and `Fin` never, so it is accepted
-#      whatever the word — the certificate that every extension is good.
-#
-# The union over pairs under-approximates the true good-prefix set in general and is exact on the
-# monitors spot produces for co-safe formulas, whose good prefixes end in a terminal accepting
-# component. Under-approximation is the sound direction for both quantifiers: a smaller accepting
-# set can only lose controllers or verified states, never invent them.
+# The empty-valuation lasso from `q`: accepted iff its cycle meets some Rabin pair.
+function _pad_lasso_accepted(dra, q0pad::Int)
+    seen = Int[]
+    q = q0pad
+    while !(q in seen)
+        push!(seen, q)
+        q2 = Spot.nextstate(dra, q, ())
+        q2 === nothing && return false
+        q = q2
+    end
+    cycle = seen[findfirst(==(q), seen):end]
+    for (fin, inf) in Spot.get_rabin_acceptance(dra)
+        any(qc -> qc in fin, cycle) && continue
+        any(qc -> qc in inf, cycle) && return true
+    end
+    return false
+end
+
 function _good_prefix_states_dra(dra, vals; q0::Int = 1)
     reachable = Set{Int}([q0])
     queue = [q0]
@@ -82,34 +98,7 @@ function _good_prefix_states_dra(dra, vals; q0::Int = 1)
         end
     end
 
-    # Greatest fixed point: keep the states whose every valuation stays inside the kept set.
-    function largest_closed_subset(candidates::Set{Int})
-        S = copy(candidates)
-        changed = true
-        while changed
-            changed = false
-            for q in collect(S)
-                for v in vals
-                    q2 = Spot.nextstate(dra, q, v)
-                    if q2 === nothing || !(q2 in S)
-                        delete!(S, q)
-                        changed = true
-                        break
-                    end
-                end
-            end
-        end
-        return S
-    end
-
-    C = largest_closed_subset(reachable)
-
-    good = Set{Int}()
-    for (fin, inf) in Spot.get_rabin_acceptance(dra)
-        candidates = Set(q for q in C if (q in inf) && !(q in fin))
-        union!(good, largest_closed_subset(candidates))
-    end
-
+    good = Set{Int}(q for q in reachable if _pad_lasso_accepted(dra, q))
     return good, reachable
 end
 
@@ -123,13 +112,19 @@ OPDS.accepting_states(S::SpotDRAstepper, used_labels) =
     _checked_good_prefix(S, collect(Tuple{Vararg{Symbol}}, used_labels))
 
 function _checked_good_prefix(S::SpotDRAstepper, vals)
+    _pad_lasso_accepted(S.dra, S.qa0) && error(
+        "The empty continuation already satisfies the formula from its initial state: this is " *
+        "a safety property with no finite-trace content, and declaring everything accepting " *
+        "would be unsound under verification. State it as a `SafetyProblem` (or add a " *
+        "reachability obligation) instead.",
+    )
     goodQ, _ = _good_prefix_states_dra(S.dra, vals; q0 = S.qa0)
     isempty(goodQ) && error(
-        "No state of the monitor certifies a good prefix over the emitted labels: no closed, " *
-        "total, always-accepting component is reachable. Either the formula has no good prefix " *
-        "over this alphabet, or the monitor's acceptance is beyond the terminal certificate " *
-        "computed here — provide a FunctionMonitor with explicit accepting states rather than " *
-        "guessing.",
+        "No state of the monitor accepts under the finite-trace reading over the emitted " *
+        "labels: no reachable state has its obligations discharged. Either the formula's " *
+        "obligations cannot be met over this alphabet, or its acceptance is beyond the " *
+        "stop-and-pad reduction computed here — provide a FunctionMonitor with explicit " *
+        "accepting states rather than guessing.",
     )
     return goodQ
 end
