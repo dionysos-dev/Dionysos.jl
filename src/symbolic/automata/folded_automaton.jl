@@ -97,24 +97,35 @@ HybridSystems.add_state!(::FoldedAutomaton) = error(_FOLDED_READ_ONLY)
 Base.empty!(::FoldedAutomaton) = error(_FOLDED_READ_ONLY)
 
 """
-    complete_with_sink(autom) -> (completed, sink, ncompleted)
+    complete_with_sink(autom; groups = collect(1:get_n_input(autom))) -> (completed, sink, ncompleted)
 
-The automaton extended so that every `(state, symbol)` pair has a successor, by routing the empty
-pairs to a fresh absorbing `sink` state.
+The automaton extended so that every `(state, symbol group)` has a successor, by routing the
+groups with none to a fresh absorbing `sink` state.
 
-An empty pair in an abstraction is a *missing behaviour*, and missing behaviour is precisely what a
-fold must not tolerate: under `∀` a state whose environment move was dropped is vacuously easier,
-so a quotient with empty pairs would report verified states it has no right to. Routing those
-pairs to a sink that satisfies nothing is the pessimistic repair — the unmodelled move is assumed
-to lose — which restores soundness at the price of conservatism, and `ncompleted` says how much
-was repaired so the caller can report it.
+An empty group in an abstraction is a *missing behaviour*, and missing behaviour is precisely
+what a fold must not tolerate: under `∀` a state whose environment move was dropped is vacuously
+easier, so a quotient with empty pairs would report verified states it has no right to. Routing
+those pairs to a sink that satisfies nothing is the pessimistic repair — the unmodelled move is
+assumed to lose — which restores soundness at the price of conservatism, and `ncompleted` says
+how much was repaired so the caller can report it.
+
+`groups[s]` names the environment move symbol `s` realises. The default puts every symbol in its
+own group. The distinction matters when the alphabet is finer than the environment's choices —
+edge symbols `(mode, announcement)` over a lifted quotient, say: a layer that never carried some
+announcement is a *structural non-edge*, not a dropped behaviour, and completing it per symbol
+would poison the fold; only a **mode** with no successor at all is genuinely missing.
 
 The sink is state `get_n_state(autom) + 1` of `completed`; it carries every symbol as a self-loop
 and corresponds to no state of the original automaton, so translations back must skip it.
 """
-function complete_with_sink(autom::AbstractAutomatonList)
+function complete_with_sink(
+    autom::AbstractAutomatonList;
+    groups::Vector{Int} = collect(1:get_n_input(autom)),
+)
     n = get_n_state(autom)
     m = get_n_input(autom)
+    length(groups) == m ||
+        throw(ArgumentError("`groups` maps every symbol: expected length $m."))
     sink = n + 1
 
     completed = IndexedAutomatonList(sink, m)
@@ -122,10 +133,12 @@ function complete_with_sink(autom::AbstractAutomatonList)
         add_transition!(completed, q, q′, u)
     end
 
+    group_ids = unique(groups)
     ncompleted = 0
-    for q in 1:n, u in 1:m
-        if isempty(post(autom, q, u))
-            add_transition!(completed, q, sink, u)
+    for q in 1:n, g in group_ids
+        symbols = findall(==(g), groups)
+        if all(u -> isempty(post(autom, q, u)), symbols)
+            add_transition!(completed, q, sink, first(symbols))
             ncompleted += 1
         end
     end
