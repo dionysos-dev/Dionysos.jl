@@ -5,7 +5,7 @@
 # The point of the comparison is that a graph chosen by hand can be smaller than the De Bruijn
 # graph of the same order and still be path-complete.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 using Spot
 
 gr()

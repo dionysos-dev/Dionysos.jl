@@ -4,7 +4,7 @@
 # M = 2 modes a De Bruijn graph of order k has 2^k nodes, so this sweeps 1, 2 and 4 nodes: more
 # nodes means a richer path-complete family, a tighter contraction rate, and a finer quotient.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 using Spot
 
 gr()

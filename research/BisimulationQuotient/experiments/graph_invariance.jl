@@ -13,7 +13,7 @@
 # at a different outer level for each certificate, so the graphs do not cover the same region and
 # raw volumes differ for reasons unrelated to the graph. A pointwise test has no such confound.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 
 using Spot
 using Printf
@@ -29,7 +29,7 @@ const PROBES = vcat([SVector(x, y) for x in -1.9:0.4:1.9 for y in -1.9:0.4:1.9],
 """
 Whether `x` lies in some winning cell of `quotient`.
 
-This is the existential semantics: a concrete state is controllable when *some* lifted copy of it
+This is the existential semantics: a concrete state is controllable when *some* augmented copy of it
 is. Under a complete graph the choice is immaterial, since all copies of a state are bisimilar.
 """
 function is_winning(quotient, controllable_set, x)

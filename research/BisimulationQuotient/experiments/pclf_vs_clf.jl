@@ -7,7 +7,7 @@
 #
 # Building both takes minutes, so each is cached in a `*.jld2` beside this script and reused.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 
 gr()
 

@@ -11,16 +11,16 @@
 # difference) are superlinear in the facet count of the cells involved, so the same total spread
 # over simpler cells is cheaper to manipulate.
 #
-# Produces the figure comparing the two distributions, written to JCVD/Figures/.
+# Produces the figure comparing the two distributions, written beside the script.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 
 using Statistics
 using Printf
 
 const PCLF_FILE = joinpath(@__DIR__, "pclf_case.jld2")
 const CLF_FILE = joinpath(@__DIR__, "clf_case.jld2")
-const FIGURE_DIR = joinpath(@__DIR__, "JCVD", "Figures")
+const FIGURE_DIR = @__DIR__
 
 function load_quotient(filename)
     isfile(filename) || error(
@@ -149,5 +149,5 @@ fig = plot(
 mkpath(FIGURE_DIR)
 savefig(fig, joinpath(FIGURE_DIR, "complexity_distribution.pdf"))
 savefig(fig, joinpath(FIGURE_DIR, "complexity_distribution.png"))
-println("\nwrote $(joinpath("JCVD", "Figures", "complexity_distribution")).{pdf,png}")
+println("\nwrote complexity_distribution.{pdf,png}")
 display(fig)

@@ -4,7 +4,7 @@
 # 10°, so the sublevel sets no longer line up with it. The figure shows the resulting cells over
 # the problem geometry.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 
 gr()
 

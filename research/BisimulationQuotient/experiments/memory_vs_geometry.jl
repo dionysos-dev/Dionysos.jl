@@ -23,7 +23,7 @@
 # claim; `verify_pclf_rate` checks it by sampling. The single-node side is searched over many
 # template orientations, since under-searching it would manufacture the separation.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 
 using Random
 using Printf

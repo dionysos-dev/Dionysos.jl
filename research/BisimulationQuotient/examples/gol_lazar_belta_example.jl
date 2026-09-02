@@ -22,7 +22,7 @@
 # counts across such certificates measure the terminal set, not the abstraction. The regime where
 # memory does pay is exhibited by `memory_vs_geometry.jl` instead.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 
 using Printf
 using Spot

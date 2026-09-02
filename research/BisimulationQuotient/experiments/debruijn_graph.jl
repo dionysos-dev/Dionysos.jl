@@ -2,9 +2,9 @@
 #
 # Two contracting modes, a De Bruijn graph of order 1 (two nodes), and a rotated template per
 # node. Builds the quotient, synthesises a co-safe LTL controller on it, and draws the winning
-# region per node and lifted into 3D.
+# region per node and augmented into 3D.
 
-include(joinpath(@__DIR__, "common.jl"))
+include(joinpath(dirname(@__DIR__), "common.jl"))
 using Spot
 
 gr()
@@ -74,9 +74,9 @@ display(
 )
 
 # ---------------------------------------------------------
-# Lifted 3D view
+# Augmented 3D view
 # ---------------------------------------------------------
-# Loading a Makie backend activates DionysosMakieExt, which provides the lifted recipes.
+# Loading a Makie backend activates DionysosMakieExt, which provides the augmented recipes.
 # GLMakie gives an interactive view; swap in `using CairoMakie` for a static figure.
 
 using GLMakie
@@ -90,9 +90,9 @@ ax = GLMakie.Axis3(
     ylabel = "x₂",
     zlabel = "node",
     zticks = (collect(values(node_z)), string.(collect(keys(node_z)))),
-    title = "Lifted quotient states and closed-loop trajectory",
+    title = "Augmented quotient states and closed-loop trajectory",
 )
-DI.plot_lifted_bisimulation!(
+DI.plot_augmented_bisimulation!(
     ax,
     quotient;
     node_z = node_z,
@@ -100,5 +100,5 @@ DI.plot_lifted_bisimulation!(
     alpha = 0.2,
     show_contours = false,
 )
-DI.plot_lifted_trajectory!(ax, quotient, result.X, result.M; node_z = node_z)
+DI.plot_augmented_trajectory!(ax, quotient, result.X, result.M; node_z = node_z)
 display(fig)
