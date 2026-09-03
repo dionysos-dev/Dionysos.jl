@@ -112,7 +112,11 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     end
     isempty(product_initial_set) && error("Empty product initial set.")
 
-    accQ = accepting_states(spec)
+    # The alphabet the acceptance is judged against is what the system can emit, not the free
+    # powerset of atomic propositions — the labels of every abstract state, whether or not the
+    # product reached it, since an extension can.
+    used_labels = unique(labeling(qs) for qs in 1:SY.get_n_state(autom))
+    accQ = accepting_states(spec, used_labels)
     product_target_set =
         [p for p in 1:SY.get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
     isempty(product_target_set) &&
@@ -233,6 +237,13 @@ init_state(::AbstractSpecStepper) = 1
 
 # Optional: return the set of "done/accepting" spec states for co-safe reduction.
 accepting_states(::AbstractSpecStepper) = error("accepting_states not implemented")
+
+# A state is "done" only relative to what the system can say: a good prefix must survive every
+# extension over the labels the product actually emits, not over the free powerset of atomic
+# propositions — mutually exclusive observations, for instance, never emit conjunctions. Steppers
+# that can exploit the restriction (the spot-backed one does) override this two-argument form; the
+# fallback ignores the alphabet.
+accepting_states(spec::AbstractSpecStepper, used_labels) = accepting_states(spec)
 
 # --------------------------
 # User-defined deterministic monitor

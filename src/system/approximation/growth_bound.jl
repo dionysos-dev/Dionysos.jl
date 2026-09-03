@@ -238,3 +238,144 @@ function compute_jacobian_bound(system; kwargs...)
         "`ContinuousTimeGrowthBound(system; jacobian_bound = jacobian_bound)`.",
     )
 end
+
+# ------------------------------------------------------------
+# Perturbed systems
+# ------------------------------------------------------------
+# Reissig, Weber & Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic
+# Controllers" (IEEE TAC 2017) define the growth bound for the perturbed system
+# `ẋ ∈ f(x, u) + [-w̄, w̄]` from the start: the nominal trajectory is simulated at the centre of
+# the disturbance set and the radius dynamics gain a constant, `ṙ = L(u)·r + z`. The disturbance
+# is folded into the successor set here, at construction — it never becomes part of the input
+# alphabet, and it costs no extra reach-set computations: the same one nominal and one radius
+# integration per (cell, input) as the unperturbed kernel.
+#
+# The folding produces a *nominal* system plus a disturbed radius map, so everything downstream —
+# `discretize`, the abstraction loop, the per-input hoisting — sees the types it always saw, and
+# the unperturbed path is untouched.
+
+function _fold_noise(system, noise_bound)
+    W = MS.noiseset(system)
+    box = LazySets.box_approximation(W)
+    w_c = LazySets.center(box)
+
+    z = if noise_bound !== nothing
+        noise_bound
+    else
+        # The additive reading `ẋ = f(x, u) + w` — the RWR'17 setting — where the disturbance's
+        # effect on the radius is exactly the disturbance set's half-width. A non-additive
+        # `f(x, u, w)` needs `zᵢ ≥ sup |fᵢ(x, u, w) − fᵢ(x, u, w_c)|`, which cannot be read off
+        # a black box; it is derived symbolically when the extension is loaded
+        # (`compute_noise_bound`), and must be supplied otherwise.
+        if MS.noisedim(system) == MS.statedim(system)
+            LazySets.radius_hyperrectangle(box)
+        else
+            compute_noise_bound(system)
+        end
+    end
+    return w_c, z
+end
+
+"""
+    ContinuousTimeGrowthBound(system::MS.NoisyConstrainedBlackBoxControlContinuousSystem; jacobian_bound = nothing, noise_bound = nothing, ngrowthbound = DEFAULT_NUM_SUBSTEPS)
+
+The perturbed growth bound of Reissig–Weber–Rungger: the nominal trajectory at the centre `w_c`
+of the disturbance set, and the radius dynamics `ṙ = jacobian_bound(u)·r + z`.
+
+`z` bounds the disturbance's effect per state dimension. When `noise_bound` is not given it is
+the half-width of the disturbance set's box approximation, which is exact for an additive
+disturbance `ẋ = f(x, u) + w` and requires `noisedim == statedim`; a non-additive disturbance
+must supply it. A `jacobian_bound` given explicitly must hold over `w ∈ W`, not only at `w_c` —
+for an additive disturbance the two coincide, which is why deriving it from the nominal system
+is sound there.
+
+Robust abstraction at the cost of nominal abstraction: `w` is never enumerated, and the folded
+kernel runs the same two integrations per (cell, input) as the unperturbed one.
+"""
+function ContinuousTimeGrowthBound(
+    system::MS.NoisyConstrainedBlackBoxControlContinuousSystem;
+    jacobian_bound = nothing,
+    noise_bound = nothing,
+    ngrowthbound::Int = DEFAULT_NUM_SUBSTEPS,
+)
+    w_c, z = _fold_noise(system, noise_bound)
+
+    f = system.f
+    nominal = MS.ConstrainedBlackBoxControlContinuousSystem(
+        (x, u) -> f(x, u, w_c),
+        MS.statedim(system),
+        MS.inputdim(system),
+        MS.stateset(system),
+        MS.inputset(system),
+    )
+
+    if jacobian_bound === nothing
+        # Derived from the *noisy* system, so the extension bounds ∂f/∂x over w ∈ W as well —
+        # for a non-additive disturbance the Jacobian sees w, and a bound taken at w_c alone
+        # would under-approximate it.
+        jacobian_bound = compute_jacobian_bound(system)
+    end
+    jacobian_bound isa RegionwiseBound && error(
+        "A regionwise Jacobian bound with a disturbance is not implemented; use an input-only " *
+        "bound, or fold the disturbance into a hand-written growthbound_map.",
+    )
+
+    disturbed_radius_dynamics = (r, u) -> jacobian_bound(u) * r .+ z
+    growthbound_map =
+        (r, u, tstep) -> runge_kutta4(disturbed_radius_dynamics, r, u, tstep, ngrowthbound)
+    return ContinuousTimeGrowthBound(nominal, growthbound_map)
+end
+
+function ContinuousTimeGrowthBound(
+    ::MS.NoisyConstrainedBlackBoxControlContinuousSystem,
+    growthbound_map,
+)
+    return error(
+        "A hand-written growthbound_map owns the whole over-approximation, disturbance " *
+        "included — build the nominal system yourself and make the map account for every " *
+        "w ∈ W, or drop the map and let the keyword constructor fold the disturbance.",
+    )
+end
+
+"""
+    DiscreteTimeGrowthBound(system::MS.NoisyConstrainedBlackBoxControlDiscreteSystem, growthbound_map; noise_bound = nothing)
+
+The discrete-time twin of the perturbed growth bound: for `x⁺ ∈ f(x, u) + [-w̄, w̄]`, the nominal
+map at the centre of the disturbance set and the inflated radius `growthbound_map(r, u) .+ z`.
+"""
+function DiscreteTimeGrowthBound(
+    system::MS.NoisyConstrainedBlackBoxControlDiscreteSystem,
+    growthbound_map;
+    noise_bound = nothing,
+)
+    w_c, z = _fold_noise(system, noise_bound)
+
+    f = system.f
+    nominal = MS.ConstrainedBlackBoxControlDiscreteSystem(
+        (x, u) -> f(x, u, w_c),
+        MS.statedim(system),
+        MS.inputdim(system),
+        MS.stateset(system),
+        MS.inputset(system),
+    )
+
+    return DiscreteTimeGrowthBound(nominal, (r, u) -> growthbound_map(r, u) .+ z)
+end
+
+"""
+    compute_noise_bound(system; precision = INPUT_BOUND)
+
+Derive the per-dimension disturbance bound `zᵢ ≥ sup_{x, u, w ∈ W} |fᵢ(x, u, w) − fᵢ(x, u, w_c)|`
+of a noisy system symbolically, instead of writing it by hand: the extension traces the
+difference, simplifies it — for an additive disturbance the dynamics cancel and the bound is
+exact — and bounds what remains with interval arithmetic, which is a proof rather than a guess.
+Requires Symbolics.jl (`using Symbolics`); dependency-heavy expressions may bound loosely, and
+an explicit `noise_bound` always overrides.
+"""
+function compute_noise_bound(system; kwargs...)
+    return error(
+        "Automatic disturbance-bound computation requires Symbolics.jl " *
+        "(load it with `using Symbolics`), or provide the bound explicitly via " *
+        "`noise_bound = z` with zᵢ ≥ sup over x, u, w ∈ W of |fᵢ(x, u, w) − fᵢ(x, u, w_c)|.",
+    )
+end

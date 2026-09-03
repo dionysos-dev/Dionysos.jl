@@ -19,14 +19,17 @@ const TEST_FILES = [
     ("./utils/sets/ellipsoid.jl",),
     ("./utils/sets/ellipsoid_intersection.jl",),
     ("./utils/sets/semilinear_set.jl",),
+    ("./utils/pclf.jl",),
     ("./utils/sets/set_algebra.jl",),
     ("./utils/periodic.jl",),
     ("./utils/pclf.jl",),
     ("./utils/incremental_stability.jl",),
     ("./utils/plotting.jl",),  # the DrawPoint/DrawArrow/DrawSegment recipes
     ("./symbolic/automaton.jl",),
+    ("./symbolic/folded_automaton.jl",),
     ("./system/vector_continuous_system.jl",),
     ("./system/reset_map.jl",),
+    ("./system/environment.jl",),
     ("./system/affine_approximation.jl",),
     ("./system/approximation.jl",),
     # The three precision levels of the derived Jacobian bound (needs Symbolics).
@@ -68,6 +71,7 @@ const TEST_FILES = [
     ("./optim/optimizer_common.jl",),
     ("./optim/jump_frontend.jl",),  # canonical JuMP entry (∂/final on Dionysos.Optimizer)
     ("./wrapper/lowering.jl",),        # JuMP model → (system, problem)
+    ("./wrapper/disturbance.jl",),
     ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./wrapper/solver_selection.jl",),  # solver choice + attribute replay
     ("./wrapper/dynamics.jl",),          # supplied dynamics (#510) + the evaluator backend
@@ -79,6 +83,7 @@ const TEST_FILES = [
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),
+    ("./optim/discrete_systems/cosafe_accepting.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
     ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
@@ -86,6 +91,7 @@ const TEST_FILES = [
     ("./optim/discrete_systems/bounded_input_variation.jl",),
     # UniformGridAbstraction: abstraction-build modes + end-to-end control specs.
     ("./optim/UniformGridAbstraction/growth_bound.jl",),
+    ("./optim/UniformGridAbstraction/noisy_growth.jl",),
     ("./optim/UniformGridAbstraction/linearized.jl",),
     ("./optim/UniformGridAbstraction/user_defined.jl",),
     ("./optim/UniformGridAbstraction/reachability.jl",),
@@ -113,7 +119,7 @@ const TEST_FILES = [
     # Package extensions (load Plots / CSV+DataFrames / Makie; render/precompile is heavy).
     ("./ext/plots_dashboard.jl", :slow),
     ("./ext/csv_controller.jl", :slow),
-    ("./ext/makie_lifted.jl", :slow),
+    ("./ext/makie_augmented.jl", :slow),
 ]
 
 const _timings = Tuple{String, Float64}[]

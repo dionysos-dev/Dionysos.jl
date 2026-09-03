@@ -2,6 +2,7 @@ module System
 
 import MathematicalSystems as MS
 import HybridSystems
+import FillArrays
 
 import StaticArrays: SVector, SMatrix
 import LinearAlgebra as LA
@@ -18,6 +19,9 @@ include("vector_continuous_system.jl")
 
 # Hybrid transitions: the guard/reset pair stored on a HybridSystems transition
 include("reset_map.jl")
+
+# Who owns which input signal (control vs environment)
+include("environment.jl")
 
 # Time discretization
 include("time_discretization.jl")

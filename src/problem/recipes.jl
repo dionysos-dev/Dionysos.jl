@@ -25,6 +25,7 @@ end
     region_alpha = 0.15,
     observation_region_alpha = 0.4,
     observation_colors = [:red, :green, :orange, :purple, :brown],
+    observation_linewidth = 1.0,
     plot_region = true,
 )
     if plot_region
@@ -40,6 +41,7 @@ end
             label := "O $i"
             color := observation_colors[mod1(i, length(observation_colors))]
             fillalpha := observation_region_alpha
+            linewidth := observation_linewidth
             R
         end
     end

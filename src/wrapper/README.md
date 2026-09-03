@@ -73,7 +73,7 @@ Rule I4 catches a leftover or mistyped variable, which would otherwise be discre
 and enlarge the abstraction for nothing.
 
 There is **no mode "role"** — a mode is a scope you write constraints on (§6), not a variable.
-`PARAMETER` and `DISTURBANCE` roles are not supported yet.
+The `PARAMETER` role is not supported yet.
 
 Declare a role yourself when there is nothing to infer from — which is the case when the dynamics
 are a Julia function rather than equations:
@@ -82,8 +82,33 @@ are a Julia function rather than equations:
 set_role!(x, Dionysos.STATE)      # a single variable or a whole array
 ```
 
-Takes `Dionysos.STATE`, `Dionysos.INPUT` or `Dionysos.CLOCK`. Anything left undeclared is an
-input.
+Takes `Dionysos.STATE`, `Dionysos.INPUT`, `Dionysos.CLOCK` or `Dionysos.DISTURBANCE`. Anything
+left undeclared is an input.
+
+### Disturbances — who owns the signal
+
+A **disturbance** is a variable on a right-hand side that the *environment* chooses, not the
+controller. By usage it is indistinguishable from an input — rule I3 would label it one — so it
+is the one role that must always be declared:
+
+```julia
+@variable(model, -1 <= u <= 1)                 # inferred INPUT      — the controller chooses
+@variable(model, -0.1 <= w <= 0.1)             # declared DISTURBANCE — the environment chooses
+set_role!(w, Dionysos.DISTURBANCE)
+@constraint(model, ∂(x) == -x + u + w)
+```
+
+The declaration changes the question being solved, not just a label: the model lowers to a
+`MathematicalSystems.Noisy…` system whose disturbance set `W` is the variable's bounds, the
+abstraction folds `W` into its reachable sets (the perturbed growth bound of Reissig–Weber–Rungger
+— same build cost as without the disturbance, `w` is never enumerated), and the synthesized
+controller is valid for **every** disturbance signal in `W`. Robust synthesis, not synthesis that
+happens to mention `w`.
+
+Bounds are mandatory (they *are* `W`), a disturbance must not carry dynamics (a driven variable is
+a state — perturb the state's right-hand side instead), and disturbances in hybrid models (`@mode`)
+are not supported yet. When the dynamics are supplied as a Julia function, give it the three-place
+signature `(x, u, w) -> …` and declare the roles of all three groups.
 
 **Ordering.** The state vector `x[i]` follows *declaration order*. Check it with
 `get_attribute(model, "state_variables")` rather than guessing.

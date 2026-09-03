@@ -58,26 +58,42 @@ end
 @testset "PCBisimulationQuotient recipe: states" begin
     T = build_quotient()
 
-    # Three states, four polytopes between them: one series per polytope.
-    @test length(plot(T).series_list) == 4
+    # One series per polytope, the unmerged layout. `merge_series = false` is what a caller
+    # passes when the drawing order of individual cells matters.
+    @test length(plot(T; merge_series = false).series_list) == 4
 
     # Filters select a subset. Each is an independent predicate.
-    @test length(plot(T; node = 1).series_list) == 2
-    @test length(plot(T; node = 2).series_list) == 2   # one state, two polytopes
-    @test length(plot(T; slice = 1).series_list) == 3
-    @test length(plot(T; obs = 0).series_list) == 1
-    @test length(plot(T; state_ids = [1]).series_list) == 1
-    @test length(plot(T; state_ids = [1, 2]).series_list) == 2
+    unmerged(; kw...) = plot(T; merge_series = false, kw...).series_list
+    @test length(unmerged(; node = 1)) == 2
+    @test length(unmerged(; node = 2)) == 2   # one state, two polytopes
+    @test length(unmerged(; slice = 1)) == 3
+    @test length(unmerged(; obs = 0)) == 1
+    @test length(unmerged(; state_ids = [1])) == 1
+    @test length(unmerged(; state_ids = [1, 2])) == 2
+    @test isempty(unmerged(; node = 1, obs = 0, slice = 1))
+
+    # Merged is the default: cells sharing a colour become one NaN-separated series, so the
+    # count follows the number of distinct colours rather than the number of polytopes. Three
+    # states coloured by state give three; the two obs-1 states share one when coloured by obs.
+    @test length(plot(T).series_list) == 3
+    @test length(plot(T; by = :obs).series_list) == 2
+    @test length(plot(T; user_color = :black).series_list) == 1
+    @test length(plot(T; node = 2).series_list) == 1   # two polytopes, one colour
     @test isempty(plot(T; node = 1, obs = 0, slice = 1).series_list)
 
+    # Merging must not drop geometry: the same polytopes are still there, as NaN-separated runs.
+    @test count(isnan, plot(T; node = 2).series_list[1][:x]) == 2
+
     # Labels are off by default — with one entry per abstract state the legend would swamp the
-    # figure — and switching them on gives one per state, not one per polytope.
+    # figure. Switching them on needs a series per state, so it turns merging off by itself and
+    # still gives one entry per state, not one per polytope.
     @test all(s -> isempty(s[:label]), plot(T).series_list)
     @test count(s -> !isempty(s[:label]), plot(T; show_labels = true).series_list) == 3
+    @test length(plot(T; show_labels = true).series_list) == 4
 
     # `by` chooses what the colouring means. Colouring by observation must give the two obs-1
     # states the same colour, which colouring by state must not.
-    colours(; kw...) = [s[:fillcolor] for s in plot(T; kw...).series_list]
+    colours(; kw...) = [s[:fillcolor] for s in unmerged(; kw...)]
     @test colours(; by = :obs)[1] == colours(; by = :obs)[3]
     @test colours(; by = :state)[1] != colours(; by = :state)[2]
     @test length(unique(colours(; by = :slice))) == 2
@@ -96,10 +112,16 @@ end
     T = build_quotient()
 
     # The slices are the partition the quotient was refined over, independent of its states.
-    @test length(plot(T; what = :slices).series_list) == 4
+    slices(; kw...) = plot(T; what = :slices, merge_series = false, kw...).series_list
+    @test length(slices()) == 4
+    @test length(slices(; node = 1)) == 2
+    @test length(slices(; node = 2)) == 2
+    @test length(slices(; slice = 2)) == 1
+
+    # Merged, slices sharing a colour (same index, different node) become one series.
+    @test length(plot(T; what = :slices).series_list) == 2
     @test length(plot(T; what = :slices, node = 1).series_list) == 2
-    @test length(plot(T; what = :slices, node = 2).series_list) == 2
-    @test length(plot(T; what = :slices, slice = 2).series_list) == 1
+    @test length(plot(T; what = :slices, node = 2).series_list) == 1
 
     @test all(s -> isempty(s[:label]), plot(T; what = :slices).series_list)
     labelled = plot(T; what = :slices, show_labels = true)

@@ -179,6 +179,19 @@ function set_difference_decompose(
     return current
 end
 
+# Vertices of `P`, or `nothing` when they are not cheaply available. Enumeration is only
+# attempted in low dimension, where it is cheap; above that the caller simply goes
+# unscreened rather than risk an exponential vertex count.
+function _screen_vertices(P::LazySets.HPolytope)
+    LazySets.dim(P) <= 3 || return nothing
+    V = try
+        LazySets.vertices_list(P)
+    catch
+        return nothing
+    end
+    return isempty(V) ? nothing : V
+end
+
 function set_difference_decompose(
     P::LazySets.HPolytope,
     Q::LazySets.HPolytope;
@@ -190,7 +203,18 @@ function set_difference_decompose(
     pieces = LazySets.HPolytope[]
     prefix = LazySets.HalfSpace[]
 
+    # Piece `k` lies in `P ∩ {a⋅x ≥ b}`, so it is empty as soon as `P` never reaches `b`
+    # along `a`. Screening on that bound is what keeps the decomposition affordable: on a
+    # refinement sweep it retires the large majority of candidate pieces before any LP is
+    # spent building and pruning them. The vertices are enumerated once and give the exact
+    # maximum, so the screen never discards a piece that had anything in it.
+    verts = _screen_vertices(P)
+
     for c in qcons
+        if verts !== nothing && maximum(v -> dot(c.a, v), verts) < c.b + atol
+            push!(prefix, c)
+            continue
+        end
         comp = LazySets.HalfSpace(-c.a, -(c.b + atol))
         piece = clean_poly(LazySets.HPolytope(vcat(pcons, prefix, [comp])))
         if !isempty(piece)

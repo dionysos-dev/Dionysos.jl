@@ -73,6 +73,7 @@ function compile_dynamics(
 )
     x_idx = state_indices(ir)
     u_idx = input_indices(ir)
+    w_idx = disturbance_indices(ir)
 
     nlp_model = MOI.Nonlinear.Model()
     for i in x_idx
@@ -84,17 +85,33 @@ function compile_dynamics(
 
     nvars = length(ir.variables)
     nstates = length(x_idx)
-    return function (x, u)
-        point = zeros(nvars)
+
+    eval_at = function (point)
+        out = zeros(nstates)
+        MOI.eval_constraint(evaluator, out, point)
+        return out
+    end
+
+    fill_xu! = function (point, x, u)
         for (j, i) in enumerate(x_idx)
             point[i] = x[j]
         end
         for (j, i) in enumerate(u_idx)
             point[i] = u[j]
         end
-        out = zeros(nstates)
-        MOI.eval_constraint(evaluator, out, point)
-        return out
+        return point
+    end
+
+    # The compiled arity says who the model answers to: `(x, u)` when the controller owns every
+    # input, `(x, u, w)` when the environment owns some — which is what makes the lowered system
+    # a `Noisy…` type and the synthesis robust.
+    isempty(w_idx) && return (x, u) -> eval_at(fill_xu!(zeros(nvars), x, u))
+    return function (x, u, w)
+        point = fill_xu!(zeros(nvars), x, u)
+        for (j, i) in enumerate(w_idx)
+            point[i] = w[j]
+        end
+        return eval_at(point)
     end
 end
 

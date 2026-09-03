@@ -117,12 +117,41 @@ function build_system(ir::ModelIR, f)
     check_time_domain(ir)
     x_idx = state_indices(ir)
     u_idx = input_indices(ir)
+    w_idx = disturbance_indices(ir)
     lower = _lower_vector(ir)
     upper = _upper_vector(ir)
 
     X = state_box(ir, x_idx)
     X = UT.set_minus(X, UT.set_union(obstacle_sets(ir, x_idx)))
     U = LazySets.Hyperrectangle(; low = _svec(lower, u_idx), high = _svec(upper, u_idx))
+
+    # A declared disturbance makes the lowered system a `Noisy…` type, and that type is the
+    # whole declaration: the abstraction folds `W` into its reachable sets and the synthesized
+    # controller is valid for every disturbance in it, not free to choose one.
+    if !isempty(w_idx)
+        W = LazySets.Hyperrectangle(; low = _svec(lower, w_idx), high = _svec(upper, w_idx))
+        if ir.time_domain == CONTINUOUS
+            return MS.NoisyConstrainedBlackBoxControlContinuousSystem(
+                f,
+                LazySets.dim(X),
+                LazySets.dim(U),
+                LazySets.dim(W),
+                X,
+                U,
+                W,
+            )
+        else
+            return MS.NoisyConstrainedBlackBoxControlDiscreteSystem(
+                (x, u, w) -> f(x, u, w),
+                LazySets.dim(X),
+                LazySets.dim(U),
+                LazySets.dim(W),
+                X,
+                U,
+                W,
+            )
+        end
+    end
 
     if ir.time_domain == CONTINUOUS
         return MS.ConstrainedBlackBoxControlContinuousSystem(

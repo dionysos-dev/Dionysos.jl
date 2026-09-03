@@ -127,14 +127,22 @@ function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.HPolytope)
         wi > 0 || error("Expected strictly positive weight w[$i], got $wi.")
 
         gi = vec(Float64.(G[i, :]))
-        #worst = _support_abs_row_on_hyperrectangle(gi, X)
-        worst = _support_abs_row_on_hpolytope(gi, X)
+        worst = _support_abs_row(gi, X)
         push!(vals, worst / wi)
     end
 
     return isempty(vals) ? 0.0 : maximum(vals)
 end
 
+"""
+    gamma_cover_set(piece::PCLF.ObserverCLFPiece, X)
+
+The smallest level at which some observer state of `piece` covers `X`.
+
+The two reductions are not symmetric and the difference is the point: within one observer state
+every base piece has to cover `X`, so the level is their `maximum`; across observer states only
+one has to, so the answer is the `minimum` over them.
+"""
 function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
     vals = Float64[]
 
@@ -156,19 +164,17 @@ function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
     return minimum(vals)
 end
 
-# Compute max_{x ∈ X} |g' x| for a hyperrectangle `X`.
-function _support_abs_row_on_hyperrectangle(g::AbstractVector, X::LazySets.Hyperrectangle)
+# The largest |g ⋅ x| over `X`. A box answers in closed form, any other polytope costs two
+# support evaluations, and the caller should not have to know which: the two are methods of
+# one function so that widening a caller to accept a box picks up the cheap one for free.
+function _support_abs_row(g::AbstractVector, X::LazySets.Hyperrectangle)
     c = LazySets.center(X)
-    r = radius_hyperrectangle(X)
+    r = LazySets.radius_hyperrectangle(X)
     return abs(LA.dot(g, c)) + sum(abs.(g) .* r)
 end
 
-function _support_abs_row_on_hpolytope(g::AbstractVector, X::LazySets.HPolytope)
+function _support_abs_row(g::AbstractVector, X::LazySets.HPolytope)
     return max(LazySets.ρ(g, X), LazySets.ρ(-g, X))
-end
-
-function radius_hyperrectangle(X::LazySets.Hyperrectangle)
-    return LazySets.radius_hyperrectangle(X)
 end
 
 # ============================================================
@@ -217,17 +223,16 @@ function piece_intersects_region_at_level(
     for S in piece.observer_states
         isempty(S) && continue
 
+        # An observer state holds simultaneously, so its sublevel set is the intersection of
+        # the base pieces' -- stacking their constraint lists is that intersection. The pieces
+        # are asked for their own sublevel sets rather than rebuilt here, so the definition of
+        # one lives in `get_sublevel_set` alone.
         cons = LazySets.HalfSpace[]
 
         for i in S
             Pi = piece.base_pieces[i]
             @assert Pi isa PCLF.PolyhedralPiece
-
-            for k in 1:size(Pi.G, 1)
-                gk = vec(Pi.G[k, :])
-                push!(cons, LazySets.HalfSpace(gk, τeff * Pi.w[k]))
-                push!(cons, LazySets.HalfSpace(-gk, τeff * Pi.w[k]))
-            end
+            append!(cons, LazySets.constraints_list(PCLF.get_sublevel_set(Pi, τeff)))
         end
 
         Pτ = LazySets.HPolytope(cons)

@@ -171,26 +171,31 @@ function animate_mechanism_trajectory end
 # ----- Makie functions for optional dependencies ---------
 
 """
-    plot_lifted_bisimulation!(ax, bisimulation; kwargs...)
+    plot_augmented_bisimulation!(ax, bisimulation; kwargs...)
 
-Draw the lifted quotient states of a PCLF bisimulation quotient as stacked 3D polygons on a
+Draw the node-augmented quotient states of a PCLF bisimulation quotient as stacked 3D polygons on a
 Makie 3D axis `ax`, one horizontal layer per automaton node (its z-height given by `node_z`).
 
 Available only when a Makie backend is loaded (`using GLMakie`, `using CairoMakie`, …); the
 method is provided by `DionysosMakieExt`. Keyword arguments select which states to draw
 (`state_ids`), how to colour them (`color_by`, `node_colors`), and the outline/opacity style.
+
+By default the cells are batched into one mesh per colour and a single stroke for every
+outline, since a quotient of a few thousand states would otherwise become as many plot
+objects. `merge_plots = false` restores one mesh per polytope, which matters only when the
+drawing order of individual overlapping cells does.
 """
-function plot_lifted_bisimulation! end
+function plot_augmented_bisimulation! end
 
 """
-    plot_lifted_trajectory!(ax, bisimulation, state_seq, memory_seq; kwargs...)
+    plot_augmented_trajectory!(ax, bisimulation, state_seq, memory_seq; kwargs...)
 
-Overlay a closed-loop trajectory on the lifted 3D quotient view drawn by
-`plot_lifted_bisimulation!`: each planar state in `state_seq` is lifted to the z-height of the
+Overlay a closed-loop trajectory on the augmented 3D quotient view drawn by
+`plot_augmented_bisimulation!`: each planar state in `state_seq` is raised to the z-height of the
 quotient node named by the corresponding entry of `memory_seq`.
 
 Available only when a Makie backend is loaded; the method is provided by `DionysosMakieExt`.
 """
-function plot_lifted_trajectory! end
+function plot_augmented_trajectory! end
 
 end

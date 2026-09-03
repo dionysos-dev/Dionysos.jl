@@ -67,21 +67,34 @@ describe(v::VariableInfo, i::Int) = isempty(v.name) ? "variable #$i" : "`$(v.nam
     set_role!(x, role)
 
 Declare what `x` is, instead of letting the wrapper infer it. `x` may be a single variable or
-an array of them, and `role` one of `Dionysos.STATE`, `Dionysos.INPUT`, `Dionysos.CLOCK`.
+an array of them, and `role` one of `Dionysos.STATE`, `Dionysos.INPUT`, `Dionysos.CLOCK`,
+`Dionysos.DISTURBANCE`.
 
-Needed when the dynamics are supplied as a Julia function rather than written as equations —
-there are no expressions to infer from, so the states have to be named:
+Needed in two situations where inference cannot see the truth. When the dynamics are supplied
+as a Julia function there are no expressions to infer from, so the states have to be named:
 
 ```julia
 set_role!(x, Dionysos.STATE)
 set_attribute(model, "dynamics", (x, u) -> [x[2], -sin(x[1]) + u[1]])
 ```
 
+And a **disturbance** is indistinguishable from an input by usage — both merely appear on a
+dynamics right-hand side — so it must always be said. Declaring it changes who owns the signal:
+the synthesized controller must then work for *every* value the disturbance takes in its bounds,
+rather than being free to choose it:
+
+```julia
+@variable(model, -0.1 <= w <= 0.1)
+set_role!(w, Dionysos.DISTURBANCE)
+@constraint(model, ∂(x) == -x + u + w)
+```
+
 Variables left undeclared are inputs.
 """
 function set_role!(x::JuMP.GenericVariableRef, role::VariableRole)
-    role in (STATE, INPUT, CLOCK) || error(
-        "`set_role!` takes STATE, INPUT or CLOCK; $(role) has no meaning for the lowering yet.",
+    role in (STATE, INPUT, CLOCK, DISTURBANCE) || error(
+        "`set_role!` takes STATE, INPUT, CLOCK or DISTURBANCE; $(role) has no meaning for " *
+        "the lowering yet.",
     )
     JuMP.set_attribute(JuMP.owner_model(x), "role[$(JuMP.index(x).value)]", role)
     return role
