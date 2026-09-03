@@ -222,6 +222,33 @@ end
         Dionysos,
         :DionysosSymbolicsExt,
     )
+    # Split the divergence: the map's input, the kernel called on a hand-made input, and a pure
+    # in-test integration of the same field — whichever disagrees names the broken layer.
+    let
+        rk4ref = SVector(0.4, -0.2)
+        h = τp / 5
+        for _ in 1:5
+            k1 = f_nom(rk4ref, u)
+            k2 = f_nom(rk4ref + k1 * (h / 2), u)
+            k3 = f_nom(rk4ref + k2 * (h / 2), u)
+            k4 = f_nom(rk4ref + k3 * h, u)
+            rk4ref += (k1 + 2k2 + 2k3 + k4) * (h / 6)
+        end
+        H = SMatrix{2, 2}(0.05, 0.0, 0.0, 0.05)
+        Fx_direct, _ = approx_nom.linsys_map(SVector(0.4, -0.2), H, u, τp)
+        println("PROBE center(rect) = ", repr(LazySets.center(rect)))
+        println("PROBE rk4ref       = ", repr(rk4ref))
+        println("PROBE Fx_direct    = ", repr(Fx_direct))
+        println("PROBE parentmodule = ", parentmodule(typeof(approx_nom.linsys_map)))
+        println(
+            "PROBE versions     = LazySets ",
+            pkgversion(LazySets),
+            ", StaticArrays ",
+            pkgversion(StaticArrays),
+            ", MathematicalSystems ",
+            pkgversion(MathematicalSystems),
+        )
+    end
 
     # The perturbed set contains the nominal one, inflated by exactly the Grönwall deviation
     # bound w̄∞(e^{aτ} − 1)/a and nothing else.
