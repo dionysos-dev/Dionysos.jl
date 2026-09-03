@@ -216,6 +216,13 @@ end
     reach_nom = ST.get_over_approximation_map(approx_nom)(rect, u, τp)
     reach_per = ST.get_over_approximation_map(approx_per)(rect, u, τp)
 
+    # The computed boxes and the environment, printed so that a failure in CI carries its own
+    # diagnosis: this suite once diverged between environments and the log was the only witness.
+    @info "LINEARIZED Grönwall diagnostics" VERSION reach_nom reach_per Base.get_extension(
+        Dionysos,
+        :DionysosSymbolicsExt,
+    )
+
     # The perturbed set contains the nominal one, inflated by exactly the Grönwall deviation
     # bound w̄∞(e^{aτ} − 1)/a and nothing else.
     @test reach_nom ⊆ reach_per
