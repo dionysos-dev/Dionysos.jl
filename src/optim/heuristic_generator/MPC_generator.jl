@@ -12,6 +12,7 @@ mutable struct MPCGenerator <: AbstractHeuristicGenerator
     optimizer
 
     trajectory::Union{Nothing, ST.Trajectory}
+    Utrajectory::Union{Nothing, ST.Trajectory}
     success::Bool
     solve_time::Float64
 end
@@ -64,6 +65,10 @@ function is_discrete(system)
     return system isa MathematicalSystems.AbstractDiscreteSystem
 end 
 
+function wrap_angle(theta)
+    return mod(theta + pi, 2pi) - pi
+end 
+
 # Run the heuristic and store results internally.
 function generate!(gen::MPCGenerator)
 
@@ -111,11 +116,10 @@ function solve_MPC!(gen::MPCGenerator)
     dynamics = MS.mapping(system)
 
     # Get initial state by sampling in the initial set 
-    x0  = Dionysos.Utils.sample(problem.initial_set)
+    x0  = Dionysos.Utils.get_center(problem.initial_set)
+    x0 in problem.initial_set || error("Sampled initial state is not in the initial set.")
     nx = system.statedim
     nu = system.inputdim
-
-    println("Solving MPC with horizon = $N and dt = $dt, nx = $nx, nu = $nu...")
 
     model = Model(gen.optimizer)
 
@@ -129,31 +133,42 @@ function solve_MPC!(gen::MPCGenerator)
 
     # Dynamics constraints
     for k in 1:N 
-        for i in 1:nx
-            @NLconstraint(model, x[i, k+1] == dynamics(x[:, k], u[:, k])[i])
-        end
+        @constraint(model, x[:, k+1] == dynamics(x[:, k], u[:, k]))
     end
 
     # Domain constraints
-    for k in 1:N+1
-        @constraint(model, -pi <= x[1,k] <= pi)
-        @constraint(model, -5.0 <= x[2,k] <= 5.0)
-    end
+    # for k in 1:N+1
+    #     @constraint(model, -5.0 <= x[2,k] <= 5.0)
+    # end
 
     # Input set constraints 
     for k in 1:N
         for i in 1:nu
-             @constraint(model, -4.0 <= u[i, k] <= 4.0)
+            @constraint(model, -6.0 <= u[i, k] <= 6.0)
         end
     end
 
-    # Target set constraint at final time: for now hard constraint
-    @constraint(model, pi - 15.0 * pi / 180.0 <= x[1, N+1] <= pi + 15.0 * pi / 180.0) # have to check how we could automate this
-    @constraint(model, -1.0 <= x[2, N+1] <= 1.0)
+    # # Target set constraint at final time: for now hard constraint
+    # @constraint(model, π - 15.0 * π / 180.0 <= x[1, N+1] <= π + 15.0 * π / 180.0) # have to check how we could automate this
+    # @constraint(model, -1.0 <= x[2, N+1] <= 1.0)
 
-    # Objective : 0 function just checks feasibility, can be replaced with actual cost function if desired
-    @objective(model, Min, 0)
+    @objective(model, Min,
+        sum(u[i,k]^2 for i in 1:nu, k in 1:N) # transition cost
+        +
+        1e4 * (atan(sin(x[1,N+1] - pi), cos(x[1,N+1] - pi)))^2 # state cost at final time
+        +
+        1e4  * (x[2,N+1])^2 # state cost at final time
+        )
 
+    for k in 1:N 
+        for i in 1:nx
+            set_start_value(x[i,k+1], dynamics(x0, zeros(nu))[i]) # initialize with one step of zero input dynamics
+        end
+        for i in 1:nu
+            set_start_value(u[i,k], 0.0)
+        end
+    end 
+    
     # Solve the optimization problem
     optimize!(model)
 
@@ -164,9 +179,8 @@ function solve_MPC!(gen::MPCGenerator)
         println("value of x at final time: ", [value(x[i, N+1]) for i in 1:nx])
         # Extract the trajectory
         gen.trajectory = ST.Trajectory{SVector{nx, Float64}}([
-            SVector{nx}(JuMP.value.(x[:,k]))
-            for k in 1:N+1
-        ])
+            SVector{nx}([wrap_angle(JuMP.value.(x[1,k])), JuMP.value.(x[2,k])]) for k in 1:N+1
+         ])
     else
         gen.success = false
         error("MPC optimization did not find a solution. Status: $(JuMP.termination_status(model))")

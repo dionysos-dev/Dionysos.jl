@@ -23,7 +23,7 @@ end
 function system(;
     l = 1.0,
     g = 9.81,
-    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0)),
+    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(2π, 5.0)),
     _U_ = UT.HyperRectangle(SVector(-6), SVector(6)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(

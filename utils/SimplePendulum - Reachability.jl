@@ -1,5 +1,7 @@
 using StaticArrays, JuMP, Plots
 import Dionysos
+using Ipopt
+
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -9,12 +11,14 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
+const SC = OP.SymbolicCertifier
+
 include("../problems/simple_pendulum.jl");
 
 concrete_problem =
-    SimplePendulum.optimal_control_problem(; objective = "reachability_up_low_power") # reachability_up_high_power, reachability_up_medium_power, reachability_up_low_power, _O_ = nothing
+    SimplePendulum.optimal_control_problem(; objective = "reachability_up_medium_power") # reachability_up_high_power, reachability_up_medium_power, reachability_up_low_power, _O_ = nothing
 transition_cost(x, u) = exp(10*abs(u[1]))
-# concrete_problem.transition_cost = transition_cost
+concrete_problem.transition_cost = transition_cost
 
 hx = SVector(3*(pi/180.0), 0.05)
 
@@ -27,44 +31,70 @@ periodic_start = SVector(-pi)
 
 tstep = 0.1
 
-using Dionysos.Optim.heuristic
+# using Dionysos.Optim.heuristic
 
-println("\n=== Generating candidate trajectory with MPC heuristic ===")
+# println("\n=== Generating candidate trajectory with MPC heuristic ===")
 
-MPC_gen = OP.heuristic.MPCGenerator(concrete_problem, horizon = 25, dt = tstep, optimizer = Ipopt.Optimizer)
-generate!(MPC_gen)
-candidate_x_traj = get_trajectory(MPC_gen)
+# N = 30
+# dt = 0.2
 
-println(candidate_x_traj)
+# println("Solving MPC with horizon = $N and dt = $dt ($(N*dt) seconds)...")
 
-# optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+# MPC_gen = OP.heuristic.MPCGenerator(concrete_problem, horizon = N, dt = dt, optimizer = Ipopt.Optimizer)
+# generate!(MPC_gen)
+# candidate_x_traj = get_trajectory(MPC_gen)
 
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), DO.GridFree(u0, hu))
-# MOI.set(
-#     optimizer,
-#     MOI.RawOptimizerAttribute("jacobian_bound"),
-#     SimplePendulum.jacobian_bound(),
-# )
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
-# MOI.set(
-#     optimizer,
-#     MOI.RawOptimizerAttribute("approx_mode"),
-#     AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
-# )
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
-# MOI.set(
-#     optimizer,
-#     MOI.RawOptimizerAttribute("automaton_constructor"),
-#     (n, m) -> SY.NewIndexedAutomatonList(n, m),
-# )
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+# println(candidate_x_traj)
+
+using CSV, DataFrames
+
+df = CSV.read("utils/mpc_solution.csv", DataFrame)
+
+traj_states = [
+    SVector{2}(row.angle, row.angular_velocity)
+    for row in eachrow(df)
+]
+
+candidate_x_traj = ST.Trajectory{SVector{2,Float64}}(traj_states)
+
+# candidate_x_traj = ST.Trajectory{SVector{2, Float64}}(SVector{2, Float64}[[0.0, -3.239781409242463e-34], [0.05810522839449339, 0.56193430343461], [0.22860712537179495, 1.0875443408936682], [0.45564842333175637, 1.112583998827898], [0.6137231559231431, 0.42365260049624104], [0.5710164028710789, -0.8391732101736182], [0.2558881120756671, -2.218013664653406], [-0.2830535443255555, -2.9953228935209277], [-0.8638726666355607, -2.654174431859745], [-1.2713192781886218, -1.3576443653744459], [-1.3577003264254, 0.5004930028915415], [-1.0365161038199027, 2.6751690082764017], [-0.29372827574564564, 4.566190576891728], [0.6939900665020482, 4.999952624742547], [1.5984433853203672, 3.9278439467529225], [2.239660445986285, 2.557657722292241], [2.6405800867746088, 1.5516242957939457], [2.881788701673239, 0.9333322059696278], [3.027037668040755, 0.5655372107248106], [3.111532795559465, 0.30679559704429915], [3.14125667354607, 9.976817174646896e-5]])
+
+fig1 = plot(; aspect_ratio = :equal, title = "MPC candidate trajectory")
+plot!(concrete_problem.system.X; color = :grey, opacity = 0.15, label = "X")
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.25, label = "Initial set")
+plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target set")
+plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "MPC candidate trajectory")
+display(fig1)
+
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), DO.GridFree(u0, hu))
+
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("jacobian_bound"),
+    SimplePendulum.jacobian_bound(),
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("approx_mode"),
+    AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("automaton_constructor"),
+    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 # MOI.optimize!(optimizer);
 
@@ -89,16 +119,16 @@ println(candidate_x_traj)
 # # Closed loop simulation
 # # ------------------------------------------------------------
 
-# target_set =
-#     UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
-# nstep = 100
-# function reached(x)
-#     if x ∈ target_set
-#         return true
-#     else
-#         return false
-#     end
-# end
+target_set =
+    UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
+nstep = 100
+function reached(x)
+    if x ∈ target_set
+        return true
+    else
+        return false
+    end
+end
 
 # x0 = SVector(UT.sample(concrete_problem.initial_set)...)
 # x_traj, u_traj = ST.get_closed_loop_trajectory(
@@ -193,6 +223,8 @@ println("time (sec): ", SC.get_solve_time(cert))
 controller = SC.get_controller(cert)
 
 nstep = 300
+x0 = SVector(UT.get_center(concrete_problem.initial_set)...)
+
 x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     controller,
@@ -205,7 +237,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 # Plot 
 # ------------------------------------------------------------
 
-fig = plot(; aspect_ratio = :equal, title = "ToyExample: candidate traj + sets")
+fig = plot(; aspect_ratio = :equal, title = "Simple Pendulum: candidate traj + sets")
 plot!(concrete_problem.system.X; color = :grey, opacity = 0.15, label = "X")
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.25, label = "Initial set")
 plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target set")
