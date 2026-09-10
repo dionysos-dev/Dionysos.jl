@@ -36,6 +36,35 @@ We always show the prompt you should see for every command as well as the output
 
 The purpose of this is to clone Dionysos at the location `~/.julia/dev/Dionysos` where `~` is your home folder.
 
+!!! tip "Clone only the branch you need"
+    A default `git clone` of Dionysos transfers about 1 GB: it fetches every branch,
+    including `gh-pages`, which stores the built documentation site. Passing
+    `--single-branch` fetches only `master` and brings the download down to roughly
+    45 MB. Prefer the Git bash method below over `Pkg.develop(url = ...)`, which
+    always performs a full clone.
+
+    This only concerns developers. Users installing the package with
+    `Pkg.add("Dionysos")` download a source tarball of a few MB and never clone the
+    repository.
+
+### Git bash (recommended)
+
+See [Start Git bash](@ref).
+
+```sh
+$ git clone --single-branch --branch master \
+    https://github.com/dionysos-dev/Dionysos.jl.git ~/.julia/dev/Dionysos
+```
+
+Add `--filter=blob:none` to fetch file contents on demand instead of up front, which
+is faster still on a slow connection.
+
+Then tell Julia to use that checkout (see [Start the Julia REPL](@ref)):
+
+```julia
+julia> using Pkg; Pkg.develop(path = joinpath(Pkg.devdir(), "Dionysos"))
+```
+
 ### VSCode
 
 Switch to Source Control by pressing `Ctrl+Shift+G` then on the three horizontal dots on the top right of the left pane then "clone"
