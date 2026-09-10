@@ -10,6 +10,12 @@ on:
 
 jobs:
   build:
+    # Explicit, stable check name. Without it a matrix job is reported as
+    # `build (1, x64, ubuntu-latest)`, which is what a branch ruleset has to
+    # name as a required status check -- brittle, since it changes whenever the
+    # matrix does. The matrix has a single combination, so this yields exactly
+    # one check called `format_check`.
+    name: format_check
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

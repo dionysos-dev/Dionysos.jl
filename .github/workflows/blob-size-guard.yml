@@ -1,0 +1,64 @@
+name: Blob size guard
+
+# Rejects pull requests that introduce a file larger than LIMIT_MB.
+#
+# Why this exists: a blob committed once lives in the history of every clone
+# forever, even if a later commit deletes it. That is how this repository grew
+# to a 1 GB clone -- solver results (*.jld2) and benchmark plot dumps pushed to
+# feature branches. `.gitignore` covers the known extensions; this catches the
+# rest at the only moment the mistake is still free to fix.
+#
+# It inspects every blob introduced by the PR's commits, not just the files
+# present at its head, because a file added in one commit and deleted in the
+# next still ships in every clone.
+on:
+  pull_request:
+
+jobs:
+  blob-size-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject oversized blobs
+        env:
+          LIMIT_MB: 5
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # A fork PR may not have the base commit locally.
+          git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null \
+            || git fetch --quiet --depth=1 origin "${BASE_SHA}"
+
+          limit=$(( LIMIT_MB * 1024 * 1024 ))
+
+          offenders=$(
+            git rev-list --objects "${BASE_SHA}..${HEAD_SHA}" \
+              | git cat-file --batch-check='%(objecttype) %(objectsize) %(rest)' \
+              | awk -v lim="$limit" '$1 == "blob" && $2 > lim {
+                    size = $2; $1 = ""; $2 = ""; sub(/^  /, "")
+                    printf "  %8.2f MB  %s\n", size / 1048576, $0
+                }' \
+              | sort -u
+          )
+
+          if [ -n "$offenders" ]; then
+            echo "::error::This pull request adds files larger than ${LIMIT_MB} MB."
+            echo ""
+            echo "Oversized blobs introduced by this PR:"
+            echo "$offenders"
+            echo ""
+            echo "These would stay in every clone of the repository forever, even if"
+            echo "a later commit removes them. Options:"
+            echo "  * keep the file out of git -- add it to .gitignore"
+            echo "  * ship it as a GitHub Release asset, or on Zenodo with a DOI"
+            echo "  * if it genuinely belongs in the source tree, raise LIMIT_MB here"
+            echo "    in the same PR, so the decision is reviewed"
+            exit 1
+          fi
+
+          echo "OK - no blob over ${LIMIT_MB} MB introduced by this pull request."

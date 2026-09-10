@@ -44,3 +44,19 @@ examples/BipedRobot/*.gif
 # Regenerable outputs of the adaptive-cruise-control driver
 examples/AdaptiveCruiseControl/*.png
 examples/AdaptiveCruiseControl/*.gif
+
+# --- Large binaries and experiment output -------------------------------
+# These are what bloated the repository: solver results and plot dumps
+# committed by reflex. `*.jld2` is already covered above. A blob committed
+# once is in the history of every clone forever, even if deleted later --
+# see .github/workflows/blob-size-guard.yml, which rejects them in CI.
+*.jld
+*.bson
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.bundle
+
+# Experiment/benchmark output directories, wherever they appear
+outputs/
