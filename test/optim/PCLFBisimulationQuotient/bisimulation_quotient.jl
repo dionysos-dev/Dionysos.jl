@@ -2,7 +2,6 @@ module TestMain
 
 import Dionysos
 
-
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 const PCQ = AB.PCLFBisimulationQuotient
@@ -102,8 +101,7 @@ const PCLF = UT.PathCompleteFramework
         Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER),
     )
 
-    cosafe_optimizer =
-        MOI.instantiate(PCQ.OptimizerCoSafeLTLOnQuotient)
+    cosafe_optimizer = MOI.instantiate(PCQ.OptimizerCoSafeLTLOnQuotient)
     MOI.set(cosafe_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), cosafe_problem)
     MOI.set(
         cosafe_optimizer,
@@ -119,8 +117,7 @@ const PCLF = UT.PathCompleteFramework
     MOI.set(cosafe_optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
     MOI.optimize!(cosafe_optimizer)
 
-    concrete_controller =
-        PCQ.solve_concrete_problem(cosafe_optimizer)
+    concrete_controller = PCQ.solve_concrete_problem(cosafe_optimizer)
     controllable_set =
         MOI.get(cosafe_optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     @test concrete_controller !== nothing
@@ -138,8 +135,7 @@ const PCLF = UT.PathCompleteFramework
 
     # ... and it must not depend on `early_stop`, which only changes how much of the domain
     # the controller is constructed over.
-    early_stop_optimizer =
-        MOI.instantiate(PCQ.OptimizerCoSafeLTLOnQuotient)
+    early_stop_optimizer = MOI.instantiate(PCQ.OptimizerCoSafeLTLOnQuotient)
     MOI.set(
         early_stop_optimizer,
         MOI.RawOptimizerAttribute("concrete_problem"),
@@ -170,8 +166,7 @@ const PCLF = UT.PathCompleteFramework
         system = ST.with_switching(f, HybridSystems.AutonomousSwitching()),
     )
 
-    verification_optimizer =
-        MOI.instantiate(PCQ.OptimizerCoSafeLTLOnQuotient)
+    verification_optimizer = MOI.instantiate(PCQ.OptimizerCoSafeLTLOnQuotient)
     MOI.set(
         verification_optimizer,
         MOI.RawOptimizerAttribute("concrete_problem"),
@@ -213,9 +208,7 @@ const PCLF = UT.PathCompleteFramework
 
     # Verification returns a set, never a controller.
     @test verification_optimizer.environment_folded
-    @test_throws ErrorException PCQ.solve_concrete_problem(
-        verification_optimizer,
-    )
+    @test_throws ErrorException PCQ.solve_concrete_problem(verification_optimizer)
 
     # ------------------------------------------------------------------
     # A failed verification owes evidence: from a state that synthesis wins but verification
@@ -237,10 +230,7 @@ const PCLF = UT.PathCompleteFramework
     x0_gap = find_point(gap)
     @test x0_gap !== nothing
 
-    cex = PCQ.verification_counterexample(
-        verification_optimizer,
-        x0_gap,
-    )
+    cex = PCQ.verification_counterexample(verification_optimizer, x0_gap)
     @test !isempty(cex.modes)
     @test all(m -> m in 1:2, cex.modes)
     # Either the environment loops forever outside the verified set, or it drives the run to
@@ -261,10 +251,7 @@ const PCLF = UT.PathCompleteFramework
     end
 
     # And none from a synthesis run.
-    @test_throws ErrorException PCQ.verification_counterexample(
-        cosafe_optimizer,
-        x0_gap,
-    )
+    @test_throws ErrorException PCQ.verification_counterexample(cosafe_optimizer, x0_gap)
 end
 
 @testset "num_slices" begin
@@ -276,10 +263,7 @@ end
 
     # For a non-empty quotient, `num_slices` returns the number of slices
     # stored for the first node.
-    slices = Dict(
-        1 => [1, 2, 3],
-        2 => [4, 5],
-    )
+    slices = Dict(1 => [1, 2, 3], 2 => [4, 5])
     T = PCQ.PCBisimulationQuotient{Int, Int}(slices)
 
     @test PCQ.num_slices(T) == 2
@@ -302,26 +286,18 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 2, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 2, 1, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 3, 1, Tuple{Int, Int}[],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 2, 1, Tuple{Int, Int}[])
+    T.states[2] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 1, 1, Tuple{Int, Int}[])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 2, 1, Tuple{Int, Int}[])
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 3, 1, Tuple{Int, Int}[])
 
     result = AB.PCLFBisimulationQuotient.states_by_obs(T)
 
-    @test result == Dict(
-        1 => 1,
-        2 => 2,
-        3 => 1,
-    )
+    @test result == Dict(1 => 1, 2 => 2, 3 => 1)
 end
 @testset "states_by_slice" begin
     # ------------------------------------------------------------------
@@ -340,25 +316,18 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 2, 1, Tuple{Int, Int}[],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 2, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 3, 2, Tuple{Int, Int}[],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, Tuple{Int, Int}[])
+    T.states[2] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 2, 1, Tuple{Int, Int}[])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 2, Tuple{Int, Int}[])
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 3, 2, Tuple{Int, Int}[])
 
     result = AB.PCLFBisimulationQuotient.states_by_slice(T)
 
-    @test result == Dict(
-        1 => 2,
-        2 => 2,
-    )
+    @test result == Dict(1 => 2, 2 => 2)
 end
 @testset "states_by_node" begin
     # ------------------------------------------------------------------
@@ -368,18 +337,14 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 2, 1, Tuple{Int, Int}[],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 2, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 3, 2, Tuple{Int, Int}[],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, Tuple{Int, Int}[])
+    T.states[2] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 2, 1, Tuple{Int, Int}[])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 2, Tuple{Int, Int}[])
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 3, 2, Tuple{Int, Int}[])
 
     # `part_ids` is used to determine the node key type.
     T.part_ids[1] = [1, 2]
@@ -387,10 +352,7 @@ end
 
     result = AB.PCLFBisimulationQuotient.states_by_node(T)
 
-    @test result == Dict(
-        1 => 2,
-        2 => 2,
-    )
+    @test result == Dict(1 => 2, 2 => 2)
 end
 @testset "transitions_by_mode" begin
     # ------------------------------------------------------------------
@@ -409,22 +371,15 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, [(1, 2), (2, 3)],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 2, 1, [(1, 3), (2, 4)],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 2, [(1, 4)],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, [(1, 2), (2, 3)])
+    T.states[2] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 2, 1, [(1, 3), (2, 4)])
+    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 2, [(1, 4)])
 
     result = AB.PCLFBisimulationQuotient.transitions_by_mode(T)
 
-    @test result == Dict(
-        1 => 3,
-        2 => 2,
-    )
+    @test result == Dict(1 => 3, 2 => 2)
 end
 @testset "outgoing_degree_stats" begin
     # ------------------------------------------------------------------
@@ -434,12 +389,8 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    @test AB.PCLFBisimulationQuotient.outgoing_degree_stats(T) == Dict(
-        :min => 0,
-        :max => 0,
-        :mean => 0.0,
-        :median => 0.0,
-    )
+    @test AB.PCLFBisimulationQuotient.outgoing_degree_stats(T) ==
+          Dict(:min => 0, :max => 0, :mean => 0.0, :median => 0.0)
 
     # ------------------------------------------------------------------
     # Outgoing degree statistics are computed from the transitions of
@@ -449,18 +400,13 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 1, 1, [(1, 3)],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 1, [(1, 4), (2, 4)],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 1, 1, [(1, 1), (2, 2), (3, 3)],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, Tuple{Int, Int}[])
+    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 1, 1, [(1, 3)])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 1, [(1, 4), (2, 4)])
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 1, 1, [(1, 1), (2, 2), (3, 3)])
 
     result = AB.PCLFBisimulationQuotient.outgoing_degree_stats(T)
 
@@ -478,18 +424,14 @@ end
         Dict{Int, Vector{Int}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 1, 1, Tuple{Int, Int}[],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, Tuple{Int, Int}[])
+    T.states[2] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 1, 1, Tuple{Int, Int}[])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 1, Tuple{Int, Int}[])
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 1, 1, Tuple{Int, Int}[])
 
     @test Set(AB.PCLFBisimulationQuotient.state_ids_in_node(T, 1)) == Set([1, 2])
     @test Set(AB.PCLFBisimulationQuotient.state_ids_in_node(T, 2)) == Set([3, 4])
@@ -498,24 +440,14 @@ end
     # ------------------------------------------------------------------
     # An explicit collection of state IDs can be supplied.
     # ------------------------------------------------------------------
-    @test Set(
-        AB.PCLFBisimulationQuotient.state_ids_in_node(
-            T,
-            1;
-            state_ids = [1, 3, 4],
-        ),
-    ) == Set([1])
+    @test Set(AB.PCLFBisimulationQuotient.state_ids_in_node(T, 1; state_ids = [1, 3, 4])) ==
+          Set([1])
 
     # ------------------------------------------------------------------
     # State IDs that no longer exist are ignored.
     # ------------------------------------------------------------------
-    @test Set(
-        AB.PCLFBisimulationQuotient.state_ids_in_node(
-            T,
-            1;
-            state_ids = [1, 99],
-        ),
-    ) == Set([1])
+    @test Set(AB.PCLFBisimulationQuotient.state_ids_in_node(T, 1; state_ids = [1, 99])) ==
+          Set([1])
 end
 @testset "deadend_states" begin
     # ------------------------------------------------------------------
@@ -530,18 +462,13 @@ end
     # ------------------------------------------------------------------
     # States with no outgoing transitions are identified as deadends.
     # ------------------------------------------------------------------
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 1, 1, [(1, 3)],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 1, 1, [(1, 1), (2, 2)],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, Tuple{Int, Int}[])
+    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 1, 1, [(1, 3)])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 1, Tuple{Int, Int}[])
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 1, 1, [(1, 1), (2, 2)])
 
     result = AB.PCLFBisimulationQuotient.deadend_states(T)
 
@@ -560,24 +487,19 @@ end
     # ------------------------------------------------------------------
     # Self-loops are counted when a transition targets its own state.
     # ------------------------------------------------------------------
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, [(1, 1), (2, 2)],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 1, 1, [(1, 3)],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 1, [(1, 3), (2, 1)],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, [(1, 1), (2, 2)])
+    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 1, 1, [(1, 3)])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 1, [(1, 3), (2, 1)])
 
     @test AB.PCLFBisimulationQuotient.self_loop_count(T) == 2
 
     # ------------------------------------------------------------------
     # Adding a state with two self-loops increases the count by two.
     # ------------------------------------------------------------------
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 1, 1, [(1, 4), (2, 4), (3, 2)],
-    )
+    T.states[4] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 1, 1, [(1, 4), (2, 4), (3, 2)])
 
     @test AB.PCLFBisimulationQuotient.self_loop_count(T) == 4
 end
@@ -585,12 +507,7 @@ end
     # ------------------------------------------------------------------
     # A semilinear set with one part has one part.
     # ------------------------------------------------------------------
-    S = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-    ])
+    S = UT.semilinear_set([LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0])])
 
     @test AB.PCLFBisimulationQuotient.num_parts(S) == 1
 
@@ -598,18 +515,9 @@ end
     # The number of parts is the number of sets in the semilinear set.
     # ------------------------------------------------------------------
     S = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-        LazySets.Hyperrectangle(
-            low = [2.0, 2.0],
-            high = [3.0, 3.0],
-        ),
-        LazySets.Hyperrectangle(
-            low = [4.0, 4.0],
-            high = [5.0, 5.0],
-        ),
+        LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0]),
+        LazySets.Hyperrectangle(low = [2.0, 2.0], high = [3.0, 3.0]),
+        LazySets.Hyperrectangle(low = [4.0, 4.0], high = [5.0, 5.0]),
     ])
 
     @test AB.PCLFBisimulationQuotient.num_parts(S) == 3
@@ -618,12 +526,7 @@ end
     # ------------------------------------------------------------------
     # A semilinear set with one rectangular part has four faces.
     # ------------------------------------------------------------------
-    S = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-    ])
+    S = UT.semilinear_set([LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0])])
 
     @test AB.PCLFBisimulationQuotient.num_faces(S) == 4
 
@@ -631,14 +534,8 @@ end
     # The total number of faces is the sum over all parts.
     # ------------------------------------------------------------------
     S = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-        LazySets.Hyperrectangle(
-            low = [2.0, 2.0],
-            high = [3.0, 3.0],
-        ),
+        LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0]),
+        LazySets.Hyperrectangle(low = [2.0, 2.0], high = [3.0, 3.0]),
     ])
 
     @test AB.PCLFBisimulationQuotient.num_faces(S) == 8
@@ -647,12 +544,7 @@ end
     # ------------------------------------------------------------------
     # An empty quotient has no cell complexities.
     # ------------------------------------------------------------------
-    S = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-    ])
+    S = UT.semilinear_set([LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0])])
 
     T = AB.PCLFBisimulationQuotient.PCBisimulationQuotient{typeof(S), Int}(
         Dict{Int, Vector{typeof(S)}}(),
@@ -664,34 +556,21 @@ end
     # Cell complexities contain the number of parts and faces for each
     # state.
     # ------------------------------------------------------------------
-    S1 = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-    ])
+    S1 = UT.semilinear_set([LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0])])
 
     S2 = UT.semilinear_set([
-        LazySets.Hyperrectangle(
-            low = [0.0, 0.0],
-            high = [1.0, 1.0],
-        ),
-        LazySets.Hyperrectangle(
-            low = [2.0, 2.0],
-            high = [3.0, 3.0],
-        ),
+        LazySets.Hyperrectangle(low = [0.0, 0.0], high = [1.0, 1.0]),
+        LazySets.Hyperrectangle(low = [2.0, 2.0], high = [3.0, 3.0]),
     ])
 
     T = AB.PCLFBisimulationQuotient.PCBisimulationQuotient{typeof(S1), Int}(
         Dict{Int, Vector{typeof(S1)}}(),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, S1, 1, 1, Tuple{Int, Int}[],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 2, S2, 1, 1, Tuple{Int, Int}[],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, S1, 1, 1, Tuple{Int, Int}[])
+    T.states[2] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(2, 2, S2, 1, 1, Tuple{Int, Int}[])
 
     n_parts, n_faces = AB.PCLFBisimulationQuotient.cell_complexities(T)
 
@@ -703,24 +582,15 @@ end
     # A populated quotient combines all individual statistics.
     # ------------------------------------------------------------------
     T = AB.PCLFBisimulationQuotient.PCBisimulationQuotient{Int, Int}(
-        Dict(
-            1 => [1, 2],
-            2 => [3, 4],
-        ),
+        Dict(1 => [1, 2], 2 => [3, 4]),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, [(1, 1), (2, 2)],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 2, 1, [(1, 3)],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 2, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 3, 2, [(2, 4)],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, [(1, 1), (2, 2)])
+    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 2, 1, [(1, 3)])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 2, Tuple{Int, Int}[])
+    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 3, 2, [(2, 4)])
 
     T.part_ids[1] = [1, 2]
     T.part_ids[2] = [3, 4]
@@ -732,33 +602,16 @@ end
     @test stats[:num_states] == 4
     @test stats[:num_transitions] == 4
 
-    @test stats[:states_by_obs] == Dict(
-        1 => 2,
-        2 => 1,
-        3 => 1,
-    )
+    @test stats[:states_by_obs] == Dict(1 => 2, 2 => 1, 3 => 1)
 
-    @test stats[:states_by_slice] == Dict(
-        1 => 2,
-        2 => 2,
-    )
+    @test stats[:states_by_slice] == Dict(1 => 2, 2 => 2)
 
-    @test stats[:states_by_node] == Dict(
-        1 => 2,
-        2 => 2,
-    )
+    @test stats[:states_by_node] == Dict(1 => 2, 2 => 2)
 
-    @test stats[:transitions_by_mode] == Dict(
-        1 => 2,
-        2 => 2,
-    )
+    @test stats[:transitions_by_mode] == Dict(1 => 2, 2 => 2)
 
-    @test stats[:outgoing_degree_stats] == Dict(
-        :min => 0,
-        :max => 2,
-        :mean => 1.0,
-        :median => 1,
-    )
+    @test stats[:outgoing_degree_stats] ==
+          Dict(:min => 0, :max => 2, :mean => 1.0, :median => 1)
 
     @test Set(stats[:deadend_states]) == Set([3])
     @test stats[:num_deadend_states] == 1
@@ -769,24 +622,15 @@ end
     # Create a populated quotient with known statistics.
     # ------------------------------------------------------------------
     T = AB.PCLFBisimulationQuotient.PCBisimulationQuotient{Int, Int}(
-        Dict(
-            1 => [1, 2],
-            2 => [3, 4],
-        ),
+        Dict(1 => [1, 2], 2 => [3, 4]),
     )
 
-    T.states[1] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        1, 1, 1, 1, 1, [(1, 1), (2, 2)],
-    )
-    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        2, 1, 2, 2, 1, [(1, 3)],
-    )
-    T.states[3] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        3, 2, 3, 1, 2, Tuple{Int, Int}[],
-    )
-    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(
-        4, 2, 4, 3, 2, [(2, 4)],
-    )
+    T.states[1] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(1, 1, 1, 1, 1, [(1, 1), (2, 2)])
+    T.states[2] = AB.PCLFBisimulationQuotient.PCAbstractState(2, 1, 2, 2, 1, [(1, 3)])
+    T.states[3] =
+        AB.PCLFBisimulationQuotient.PCAbstractState(3, 2, 3, 1, 2, Tuple{Int, Int}[])
+    T.states[4] = AB.PCLFBisimulationQuotient.PCAbstractState(4, 2, 4, 3, 2, [(2, 4)])
 
     T.part_ids[1] = [1, 2]
     T.part_ids[2] = [3, 4]
