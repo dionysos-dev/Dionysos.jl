@@ -1,0 +1,15 @@
+# Rendered outputs: `quarto render slides.qmd` rebuilds them from slides.qmd
+# and the assets, so they do not belong in the repository.
+slides.html
+slides_files/
+slides-standalone.html
+.quarto/
+
+# The PDF of the Lipschitz note, rebuilt by
+# `quarto render lipschitz-margin.md --to pdf`
+lipschitz-margin.pdf
+lipschitz-margin.tex
+
+# Layout-checking screenshots
+_shot_*.png
+_cmp_*.png
