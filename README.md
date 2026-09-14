@@ -1,7 +1,7 @@
 # Dionysos
 <picture>
-  <source srcset="assets/images/logo-dark.png" media="(prefers-color-scheme: dark)">
-  <img src="assets/images/logo.png"  height="240">
+  <source srcset="docs/src/assets/logo-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="docs/src/assets/logo.png"  height="240">
 </picture>
 
 | **Documentation** | **Build Status** | **Citation** | **Community** |
