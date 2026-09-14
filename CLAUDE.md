@@ -71,7 +71,7 @@ correct-by-construction controller on it, then *concretize* it back to the origi
 | [`examples/`](examples/) (root) | **Runnable example drivers** (user-facing), one folder per problem, mirroring `problems/` — **not** library code. |
 | [`research/`](research/) (root) | Our **paper / experiment sims** (`CDC2024/`, `BisimulationQuotient/` = HSCC 2027, …), superseded work under `research/Deprecated/`. |
 | [`bench/`](bench/) | Benchmarks (BenchmarkTools). |
-| `control_server/`, `BipedRobot/`, `paper/`, `assets/` | Auxiliary app, robot demo, paper artifacts, images. |
+| `control_server/`, `BipedRobot/`, `paper/` | Auxiliary app, robot demo, paper artifacts. |
 
 > ⚠️ Top-level `examples/` and `research/` hold runnable driver scripts (they were a single
 > `scripts/` folder before, and `utils/` before that) — **not** library code. Don't confuse them with
