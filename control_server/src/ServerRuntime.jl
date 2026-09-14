@@ -25,6 +25,9 @@ Starts a server that listens for incoming measurement vectors.
   observed packet rate is checked once over the first samples and a mismatch beyond
   `dt_tolerance` (relative) is warned about: a per-step limit such as a slew bound is
   only the intended per-second limit when the client holds each command that long.
+- `serve_forever = true` keeps listening for further clients after one disconnects,
+  which then needs an interrupt to stop and holds the port until it gets one. The
+  default serves a single session and returns, releasing the port.
 
 Returns:
 - `nothing` if `log_data=false`
@@ -40,6 +43,7 @@ function start_control_server(
     state_to_vector = nothing,
     expected_dt = nothing,
     dt_tolerance = 0.25,
+    serve_forever = false,
 )
     server = listen(port)
     println("Server listening on port $port...")
@@ -176,9 +180,12 @@ function start_control_server(
             finally
                 close(sock)
                 println("Client disconnected.")
-                # I think we need here:
-                # keep_running = false
-                # Otherwise, the server keeps running
+                # Stop after the session unless asked to keep listening. Without
+                # this the loop returns to `accept` and holds the port until the
+                # process is killed, and everything a caller wrote after
+                # `start_control_server` -- the summary, the plots -- is
+                # unreachable except through a manual interrupt.
+                serve_forever || (keep_running = false)
             end
         end
     catch e
