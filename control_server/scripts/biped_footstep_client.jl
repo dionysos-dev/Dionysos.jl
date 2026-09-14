@@ -4,22 +4,22 @@
 # Float64s in network byte order, both ways -- and plays the plant the 4-D biped
 # model describes: velocity control, so one step of the loop is
 #
-#     x⁺ = x + tstep * u        (tstep = 0.1 s)
+#     x⁺ = x + TSTEP * u
 #
 # which is exact for this model, the same property that makes the abstraction a
-# bisimulation. Use it to check a deployment end to end before the real robot:
-# the certified footstep is 30 steps for the slew controller (27 for plain),
-# ending with the swing foot on the foothold.
+# bisimulation. Use it to check a deployment end to end before the real robot.
 #
 #   julia --project=control_server control_server/scripts/deploy_biped_footstep.jl   # terminal 1
 #   julia --project=control_server control_server/scripts/biped_footstep_client.jl   # terminal 2
 #
-# Environment: BIPED_PORT (default 5000), BIPED_STEPS (default 400 max).
+# The certified footstep is 30 steps for the slew-limited controller (27 for the
+# plain one), ending with the swing foot on the foothold at
+# [-0.55, 0.0, 0.5, -1.15], and the server closes the session once it is reached.
 
 using Sockets
 
-const PORT = parse(Int, get(ENV, "BIPED_PORT", "5000"))
-const MAXSTEPS = parse(Int, get(ENV, "BIPED_STEPS", "400"))
+const PORT = 5000
+const MAXSTEPS = 400
 const TSTEP = 0.1
 const X0 = [0.2, 0.0, -0.2, 0.0]      # θ1..θ4, the example's initial posture
 
