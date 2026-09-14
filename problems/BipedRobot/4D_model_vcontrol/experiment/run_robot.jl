@@ -14,7 +14,8 @@ import .ControlServer
 server = ControlServer.ServerRuntime
 
 if !@isdefined(concrete_controller)
-    const concrete_controller = JLD2.load("./4D_model_vcontrol/controller.jld2", "controller")
+    # const concrete_controller = JLD2.load("./4D_model_vcontrol/controller.jld2", "controller")
+    const concrete_controller = JLD2.load("./4D_model_vcontrol/experiment/pid_controller.jld2")
     println("Controller loaded from JLD2 file")
 else
     println("Controller already in memory, skipping reload")
