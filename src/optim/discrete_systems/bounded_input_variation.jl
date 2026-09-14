@@ -115,6 +115,30 @@ _compatible(constraint::TabulatedInputVariation, u_prev::Int, u::Int) =
 
 _compatible(constraint::TabulatedInputVariation, ::Nothing, u::Int) = true
 
+# Per-state candidate inputs, cheapest first, flat (CSR): state `q` owns
+# `inputs[offsets[q] : offsets[q+1]-1]`. Internal to this solver -- the
+# controller captures it, so it is also what a saved controller carries.
+#
+# A `Dict{Int, Vector{Tuple{Int, Float64}}}` costs a heap object per state plus
+# the dict, and keeps a cost per candidate that nothing reads once the lists are
+# sorted. Both go: 743 MB -> a flat pair of arrays on the 4-D biped.
+# `inputs` is Int32: abstract input symbols index the model's input mapping, so
+# they are far below 2^31, and this array is the dominant allocation. `select`
+# widens the one symbol it returns, so nothing downstream sees the narrow type --
+# unlike `ControlTable`, which hands out its storage wholesale and so has to stay
+# `Int` for `get_coord_by_state`.
+struct _RankedCandidates
+    offsets::Vector{Int32}
+    inputs::Vector{Int32}
+end
+
+function (C::_RankedCandidates)(q::Int)
+    # Out of range reads as "no candidate", matching a state the table was never
+    # sized for rather than throwing.
+    1 <= q < length(C.offsets) || return view(C.inputs, 1:0)
+    return @inbounds view(C.inputs, C.offsets[q]:(C.offsets[q + 1] - 1))
+end
+
 """
     compute_bounded_input_variation_controller(
         autom::SY.AbstractAutomatonList,
@@ -212,20 +236,49 @@ function compute_bounded_input_variation_controller(
         end
     end
 
-    # Candidate inputs per state, cheapest first — the controller's lookup table.
-    candidates = Dict{Int, Vector{Tuple{Int, Float64}}}()
-    for ((q, u), v) in value
-        push!(get!(candidates, q, Tuple{Int, Float64}[]), (u, v))
+    # Candidate inputs per state, cheapest first — the controller's lookup table,
+    # and the whole size of a saved controller. Stored flat (CSR) rather than as a
+    # `Dict{Int, Vector{Tuple{Int, Float64}}}`: that costs a heap-allocated inner
+    # vector per state plus the dict itself, 743 MB of a 745 MB controller on the
+    # 4-D biped. The cost only orders each list — `select` below discards it — so
+    # it is dropped once the ordering is baked in, halving what remains.
+    counts = zeros(Int32, nstates)
+    for ((q, _), _) in value
+        counts[q] += 1
     end
-    for list in values(candidates)
-        sort!(list; by = last)
+    offsets = Vector{Int32}(undef, nstates + 1)
+    let k = Int32(1)
+        for q in 1:nstates
+            offsets[q] = k
+            k += counts[q]
+        end
+        offsets[nstates + 1] = k
     end
+    total = Int(offsets[nstates + 1]) - 1
+    cand_inputs = Vector{Int32}(undef, total)
+    cand_values = Vector{Float64}(undef, total)   # temporary: ordering only
+    let fill_at = copy(offsets)
+        for ((q, u), v) in value
+            i = fill_at[q]
+            cand_inputs[i] = u
+            cand_values[i] = v
+            fill_at[q] = i + Int32(1)
+        end
+    end
+    for q in 1:nstates
+        lo, hi = Int(offsets[q]), Int(offsets[q + 1]) - 1
+        hi > lo || continue
+        perm = sortperm(view(cand_values, lo:hi))
+        cand_inputs[lo:hi] = cand_inputs[lo:hi][perm]
+    end
+    candidates = _RankedCandidates(offsets, cand_inputs)
 
     # Deterministic selection shared by output and memory update: cheapest
     # compatible input at `q` given the previously played input (0 = none yet).
     select = function (q::Int, u_prev::Int)
         target_bits[q] && return nothing # reached: the controller is done
-        for (u, _) in get(candidates, q, Tuple{Int, Float64}[])
+        for u32 in candidates(q)
+            u = Int(u32)   # widen here so callers only ever see `Int` symbols
             if u_prev == 0
                 _compatible(constraint, constraint.initial_input, u) && return u
             else
@@ -258,9 +311,11 @@ function compute_bounded_input_variation_controller(
     for q in 1:nstates
         if target_bits[q] && safe_bits[q]
             push!(controllable_set, q)
-        elseif haskey(candidates, q) && any(
-            u_v -> _compatible(constraint, constraint.initial_input, u_v[1]),
-            candidates[q],
+            # `candidates(q)` is empty for a state with no finite-value input, so
+            # `any` already answers false — no membership test needed.
+        elseif any(
+            u -> _compatible(constraint, constraint.initial_input, Int(u)),
+            candidates(q),
         )
             push!(controllable_set, q)
         end
