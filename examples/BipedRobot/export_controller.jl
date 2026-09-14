@@ -12,81 +12,61 @@
 # `control_server/src/ControlServerDeployment.jl` reads via
 # `JLD2.load(filename, "controller")`.
 #
-# Usage — the scenario is selected exactly as in the example itself, and the
-# state-grid / input-grid sizes make the run take several minutes:
+# Run it with:
 #
 # ```
 # julia -t auto --project=test examples/BipedRobot/export_controller.jl
-# BIPED_SCENARIO=wall julia -t auto --project=test examples/BipedRobot/export_controller.jl
 # ```
 #
-# `-t auto` matters: the example asks for `SY.ThreadedBackend()`, but that falls
-# back to a sequential build when Julia runs single-threaded, which roughly
-# doubles the abstraction time.
+# `-t auto` is not optional in practice: the example asks for
+# `SY.ThreadedBackend()`, which silently falls back to a sequential build on one
+# thread — 116 s against 28 s for the abstraction here. Expect several minutes
+# either way; the grid is ≈ 2.5 M cells.
+#
+# To export a different scenario, change `SCENARIO` below — `step`, `riccardo`,
+# `wall`, `limbo` or `window`, described at the top of `biped_4d_velocity.jl`.
 #
 # The `.jld2` files are deliberately untracked (`*.jld2` is in `.gitignore`) —
 # they are regenerable artifacts, and committing them is what bloated this
-# repository's history in the first place.
+# repository's history in the first place. Copy them next to
+# `control_server/scripts/deploy_biped_footstep.jl` to deploy.
 
 import JLD2
 
-# Runs the whole example, including its `.png` / `.gif` output.
+# ---------------------------------------------------------------------------
+SCENARIO = :step   # step, riccardo, wall, limbo, window
+SLEW = true        # true: |Δu| ≤ 0.5, 30 steps, the one to deploy
+# ---------------------------------------------------------------------------
+
+RUN_SLEW = SLEW    # read by the example: skip that pass (≈ 165 s) when unwanted
+RUN_PLOTS = false  # its .png / .gif are the example's job, not this script's
+
 include(joinpath(@__DIR__, "biped_4d_velocity.jl"))
 
-# `controller`, `slew_controller`, `scenario_name`, `disc`, `x0` and
-# `discrete_time_system` all come from the example.
-plain_file = joinpath(@__DIR__, "biped_4d_footstep_$(scenario_name)_controller.jld2")
-slew_file = joinpath(@__DIR__, "biped_4d_footstep_$(scenario_name)_controller_slew.jld2")
-
-# `disc` is a NamedTuple of (state_grid, input_grid, tstep, u_max, du).
-metadata = (;
-    scenario = String(scenario_name),
-    tstep = disc.tstep,
-    du = disc.du,
-    u_max = disc.u_max,
-    source = "examples/BipedRobot/biped_4d_velocity.jl",
-)
+suffix = SLEW ? "_controller_slew" : "_controller"
+file = joinpath(@__DIR__, "biped_4d_footstep_$(SCENARIO)$(suffix).jld2")
 
 # `compact_controller` drops the abstraction's transition relation, which a
 # finished controller never reads again -- ~39 M transitions here, and the
 # difference between a file you can ship and one you cannot.
 JLD2.jldsave(
-    plain_file;
-    controller = SY.compact_controller(controller),
-    metadata = metadata,
-    variant = "plain",
+    file;
+    controller = SY.compact_controller(SLEW ? slew_controller : controller),
+    variant = SLEW ? "slew_rate_limited" : "plain",
+    metadata = (;
+        scenario = String(SCENARIO),
+        tstep = disc.tstep,
+        du = disc.du,
+        u_max = disc.u_max,
+        source = "examples/BipedRobot/biped_4d_velocity.jl",
+    ),
 )
-JLD2.jldsave(
-    slew_file;
-    controller = SY.compact_controller(slew_controller),
-    metadata = metadata,
-    variant = "slew_rate_limited",
-)
+println("saved ", file, " (", round(filesize(file) / 1024 / 1024; digits = 2), " MB)")
 
-for file in (plain_file, slew_file)
-    println("saved ", file, " (", round(filesize(file) / 1024 / 1024; digits = 2), " MB)")
-end
-
-# Round-trip the files: one that cannot be read back is not a controller. The
-# closed loop is the real consumer, so replay it rather than poking the
-# controller protocol directly.
-for (file, reference) in ((plain_file, controller), (slew_file, slew_controller))
-    loaded = JLD2.load(file, "controller")
-    traj = ST.get_closed_loop_trajectory(
-        discrete_time_system,
-        loaded,
-        x0,
-        400;
-        stopping = reached,
-    )
-    xs = collect(ST.states(traj))
-    println(
-        basename(file),
-        ": type round-trips = ",
-        typeof(loaded) === typeof(reference),
-        ", replayed ",
-        length(xs) - 1,
-        " steps, reached = ",
-        reached(xs[end]),
-    )
-end
+# A file that cannot be read back is not a controller, and the closed loop is its
+# real consumer -- so replay it rather than poking the protocol directly.
+loaded = JLD2.load(file, "controller")
+replay =
+    ST.get_closed_loop_trajectory(discrete_time_system, loaded, x0, 400; stopping = reached)
+replay_xs = collect(ST.states(replay))
+println("replayed ", length(replay_xs) - 1, " steps, reached = ", reached(replay_xs[end]))
