@@ -92,13 +92,18 @@ while retaining a common global `Rset`.
 - `h` (optional):  
   Grid spacing vector used to construct the state grid if `state_grid` is not provided.
 
-- `use_implicit_mapping` (optional, default = `true`):
+- `use_implicit_mapping` (optional, default = `false`):
   Build the state mapping implicitly — cell ids are computed by row-major
   linearization of a rectangular ambient box, so the mapping is a handful of
   tuples whatever the cell count. An explicit mapping stores every cell twice
   (`Dict` position→id plus a `Vector` id→position): on the 4-D biped that is
-  239 MB of a 408 MB controller, against ~200 bytes implicitly.
-  Set `false` for a domain that is not a bounded box, or for a lazy/adaptive
+  239 MB of a 408 MB controller, against ~200 bytes implicitly. Worth turning on
+  for any abstraction whose controller will be serialized.
+
+  It is not the default because it changes what `get_n_state` counts: ids then
+  span the whole ambient box rather than only the covered cells, so anything
+  sized by the state count grows in proportion (on path planning, 26 285 → 32 585).
+  Leave it off for a domain that is not a bounded box, or for a lazy/adaptive
   abstraction where the reachable cells are a minuscule fraction of the box and
   are discovered rather than known up front.
 
@@ -357,7 +362,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
             nothing,
             nothing,
             nothing,
-            true, # use implicit mapping
+            false, # use implicit mapping
             nothing,
             nothing,
             nothing,
