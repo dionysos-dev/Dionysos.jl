@@ -48,6 +48,10 @@ result = SR.start_control_server(
     log_data = true,
     received_data_size = 4,
     state_to_vector = nothing,
+    # The controller commands a velocity to hold for one `tstep`. Its slew bound
+    # is `du` per call, so it is the intended acceleration limit only if the
+    # client keeps that rate -- warn early if it does not.
+    expected_dt = 0.1,
 )
 
 if result !== nothing

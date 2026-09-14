@@ -46,8 +46,10 @@ println("connected to the control server on port $PORT")
 
 x = copy(X0)
 us = Vector{Vector{Float64}}()
+dts = Float64[]
 
 for k in 1:MAXSTEPS
+    tick = time()
     send_vec(sock, x)
     local u
     try
@@ -60,6 +62,15 @@ for k in 1:MAXSTEPS
     end
     push!(us, u)
     global x = x + TSTEP * u
+
+    # Hold each command for TSTEP, as the robot must. The slew bound is `du` per
+    # *call*, so it is only the acceleration limit the controller was
+    # synthesized for when the calls are TSTEP apart: running the loop 10x
+    # faster ramps the input 10x faster in rad/s², while `max |Δu|` still reads
+    # 0.5 and looks fine.
+    elapsed = time() - tick
+    elapsed < TSTEP && sleep(TSTEP - elapsed)
+    push!(dts, time() - tick)
 end
 close(sock)
 
@@ -70,3 +81,12 @@ if length(us) > 1
     println("max |Δu|        : ", round(slew; digits = 3), " rad/s")
 end
 println("max |u|         : ", isempty(us) ? 0.0 : maximum(maximum(abs.(u)) for u in us))
+if !isempty(dts)
+    println(
+        "loop dt         : ",
+        round(sum(dts) / length(dts); digits = 4),
+        " s (target ",
+        TSTEP,
+        ")",
+    )
+end

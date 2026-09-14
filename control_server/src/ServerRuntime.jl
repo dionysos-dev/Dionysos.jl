@@ -21,6 +21,10 @@ Starts a server that listens for incoming measurement vectors.
 - If `log_data=true` and `state_to_vector !== nothing`, controller states are also logged
   through `state_to_vector(controller.x)`.
 - Control outputs are logged whenever `log_data=true`.
+- `expected_dt` is the time step the controller was synthesized for. When given, the
+  observed packet rate is checked once over the first samples and a mismatch beyond
+  `dt_tolerance` (relative) is warned about: a per-step limit such as a slew bound is
+  only the intended per-second limit when the client holds each command that long.
 
 Returns:
 - `nothing` if `log_data=false`
@@ -34,6 +38,8 @@ function start_control_server(
     log_data = false,
     received_data_size = 1,
     state_to_vector = nothing,
+    expected_dt = nothing,
+    dt_tolerance = 0.25,
 )
     server = listen(port)
     println("Server listening on port $port...")
@@ -62,6 +68,16 @@ function start_control_server(
             idx = 1
             start_time = time()
 
+            # A controller synthesized for a fixed time step is only correct if
+            # the client actually holds each command that long. It is easy to
+            # miss: a loop running 10x too fast still reports the right per-call
+            # numbers -- a slew bound of `du` per call is the intended
+            # acceleration limit only at `du / expected_dt`. Check the observed
+            # rate once, early, rather than after the session.
+            dt_checked = expected_dt === nothing
+            dt_samples = Float64[]
+            last_packet = 0.0
+
             try
                 while isopen(sock)
                     # 1. Read header (4 bytes)
@@ -81,6 +97,21 @@ function start_control_server(
 
                     payload_bytes = Vector{UInt8}(undef, nbytes)
                     read!(sock, payload_bytes)
+
+                    if !dt_checked
+                        now = time()
+                        last_packet > 0 && push!(dt_samples, now - last_packet)
+                        last_packet = now
+                        if length(dt_samples) >= 10
+                            observed = sum(dt_samples) / length(dt_samples)
+                            if abs(observed - expected_dt) > dt_tolerance * expected_dt
+                                @warn "Client packet rate does not match the controller's time step; " *
+                                      "per-step limits are being applied over the wrong interval." observed_dt =
+                                    round(observed; digits = 4) expected_dt
+                            end
+                            dt_checked = true
+                        end
+                    end
 
                     # 3. Convert network-order bytes to Float64 vector
                     payload_u64 = reinterpret(UInt64, payload_bytes)
