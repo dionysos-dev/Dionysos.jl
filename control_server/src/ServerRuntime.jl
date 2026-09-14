@@ -87,10 +87,29 @@ function start_control_server(
                     measurements = reinterpret(Float64, ntoh.(payload_u64))
                     println("Received vector: $measurements")
 
-                    # 4. Update the controller state and compute control output
-                    x_plus = controller.f(controller.x, measurements)
-                    controller.x = x_plus
+                    # 4. Read the control at the CURRENT memory, then advance it.
+                    #
+                    # The order matters for any controller with memory. A
+                    # slew-rate-limited controller remembers the input it last
+                    # played and admits only inputs within one notch of it;
+                    # advancing the memory first picks the control against the
+                    # *next* memory instead. That still reaches the target, so it
+                    # looks fine — while commanding twice the permitted velocity
+                    # jump, which is the acceleration limit the controller was
+                    # synthesized to respect. Matches `System/trajectories/closed_loop.jl`.
                     control = controller.g(controller.x, measurements)
+                    x_plus = controller.f(controller.x, measurements)
+
+                    # `nothing` from either is the protocol's "not defined here":
+                    # the state left the controlled region, and no certificate
+                    # covers what happens next. Stop rather than send a garbage
+                    # command — and note `controller.x` is typed from the initial
+                    # memory, so assigning `nothing` to it would throw anyway.
+                    if control === nothing || x_plus === nothing
+                        @error "Controller undefined at the measured state; closing the session." measurements
+                        break
+                    end
+                    controller.x = x_plus
 
                     # Ensure control is a Float64 vector for transmission/logging
                     control_vec = Float64[control...]
