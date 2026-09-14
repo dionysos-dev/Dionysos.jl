@@ -18,11 +18,13 @@
 include(joinpath(@__DIR__, "..", "ControlServer.jl"))
 
 using .ControlServer
+import JLD2
 
 const CSD = ControlServer.ControlServerDeployment
 const SR = ControlServer.ServerRuntime
 
 const PORT = 5000
+const DEGREES = true  # units on the wire. Dionysos is radians throughout
 const controller_file = joinpath(@__DIR__, "biped_4d_footstep_step_controller_slew.jld2")
 
 isfile(controller_file) || error(
@@ -31,15 +33,48 @@ isfile(controller_file) || error(
     "then copy the .jld2 next to this script.",
 )
 
+# Loading is ~166 MB and a robot session re-includes this file often. Keep the
+# controller across reloads -- but cache the *Dionysos* controller, not the
+# server wrapper: the server mutates the wrapper's `.x` as the session runs and
+# takes its initial memory from whatever it holds at startup, so reusing a
+# wrapper would silently start the next session from the last one's memory.
+if !@isdefined(concrete_controller)
+    println(
+        "loading ",
+        basename(controller_file),
+        " (",
+        round(filesize(controller_file) / 1024 / 1024; digits = 1),
+        " MB)",
+    )
+    const concrete_controller = JLD2.load(controller_file, "controller")
+else
+    println("controller already in memory, skipping the reload")
+end
+
+server_controller = CSD.to_server_controller(concrete_controller)
+
+# The controller is in radians -- joint angles in, rad/s out -- but LabVIEW
+# speaks degrees. Convert at the boundary, leaving the memory to the server:
+# `f` and `g` take it as their first argument, so wrapping them does not touch
+# it.
+if DEGREES
+    inner = server_controller
+    server_controller = ControlServer.Controller4Server.Controller(
+        inner.x,
+        (mem, y) -> inner.f(mem, deg2rad.(y)),
+        (mem, y) -> begin
+            u = inner.g(mem, deg2rad.(y))
+            return u === nothing ? nothing : rad2deg.(u)
+        end,
+    )
+end
+
 println(
-    "loading ",
-    basename(controller_file),
-    " (",
-    round(filesize(controller_file) / 1024 / 1024; digits = 1),
-    " MB)",
+    "controller ready, memory = ",
+    server_controller.x,
+    ", wire units = ",
+    DEGREES ? "degrees" : "radians",
 )
-server_controller = CSD.load_server_controller(controller_file)
-println("controller ready, memory = ", server_controller.x)
 
 # 4 joint angles in, 4 joint velocities out.
 result = SR.start_control_server(
@@ -63,5 +98,25 @@ if result !== nothing
         slew =
             maximum(maximum(abs.(controls[:, k + 1] - controls[:, k])) for k in 1:(n - 1))
         println("max |Δu| along the session: ", round(slew; digits = 3), " rad/s")
+    end
+end
+
+# One panel per joint: what the robot reported against what it was told to do.
+# `Plots` is not a dependency of this environment on purpose -- it resolves from
+# the default one through the stacked load path. Guarded so a machine without it
+# loses the figure rather than the session that has already finished.
+if result !== nothing && n > 0
+    if Base.find_package("Plots") === nothing
+        @info "Plots is not in the load path; skipping the session figure"
+    else
+        using Plots
+        unit = DEGREES ? "deg" : "rad"
+        fig = plot(; layout = (2, 2), size = (1200, 900))
+        for i in 1:4
+            plot!(fig[i], t[1:n], measurements[i, 1:n]; label = "θ$i ($unit)")
+            plot!(fig[i], t[1:n], controls[i, 1:n]; label = "u$i ($unit/s)")
+            xlabel!(fig[i], "time (s)")
+        end
+        display(fig)
     end
 end

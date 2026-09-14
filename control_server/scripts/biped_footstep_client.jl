@@ -21,7 +21,8 @@ using Sockets
 const PORT = 5000
 const MAXSTEPS = 400
 const TSTEP = 0.1
-const X0 = [0.2, 0.0, -0.2, 0.0]      # θ1..θ4, the example's initial posture
+const DEGREES = true                  # must match the server's own DEGREES
+const X0 = [0.2, 0.0, -0.2, 0.0]      # θ1..θ4 in radians, the example's start
 
 "Send `v` as length-prefixed network-order Float64s."
 function send_vec(sock, v::Vector{Float64})
@@ -50,10 +51,12 @@ dts = Float64[]
 
 for k in 1:MAXSTEPS
     tick = time()
-    send_vec(sock, x)
+    # The plant is simulated in radians; only the wire carries degrees.
+    send_vec(sock, DEGREES ? rad2deg.(x) : x)
     local u
     try
         u = recv_vec(sock)
+        DEGREES && (u = deg2rad.(u))
     catch err
         # The server closes the session when the controller is undefined at the
         # measured state -- the certificate says nothing beyond its domain.
