@@ -91,6 +91,7 @@ function start_control_server(
                     x_plus = controller.f(controller.x, measurements)
                     controller.x = x_plus
                     control = controller.g(controller.x, measurements)
+                    println("Computed control action: $control")
 
                     # Ensure control is a Float64 vector for transmission/logging
                     control_vec = Float64[control...]
