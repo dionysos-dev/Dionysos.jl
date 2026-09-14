@@ -95,9 +95,16 @@ if result !== nothing
     println("session finished: $n packets")
     if n > 1
         println("average dt: ", round((t[n] - t[1]) / (n - 1); digits = 4), " s")
+        # `controls` is logged in wire units, so say which -- 1.0 rad/s reads as
+        # 57.3 and looks alarming when labelled as radians.
         slew =
             maximum(maximum(abs.(controls[:, k + 1] - controls[:, k])) for k in 1:(n - 1))
-        println("max |Δu| along the session: ", round(slew; digits = 3), " rad/s")
+        println(
+            "max |Δu| along the session: ",
+            round(slew; digits = 3),
+            DEGREES ? " deg/s" : " rad/s",
+            DEGREES ? "  (" * string(round(deg2rad(slew); digits = 3)) * " rad/s)" : "",
+        )
     end
 end
 
