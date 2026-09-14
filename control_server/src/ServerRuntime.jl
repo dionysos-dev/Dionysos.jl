@@ -135,16 +135,20 @@ function start_control_server(
                     control = controller.g(controller.x, measurements)
                     x_plus = controller.f(controller.x, measurements)
 
-                    # `nothing` from either is the protocol's "not defined here":
-                    # the state left the controlled region, and no certificate
-                    # covers what happens next. Stop rather than send a garbage
-                    # command — and note `controller.x` is typed from the initial
-                    # memory, so assigning `nothing` to it would throw anyway.
-                    if control === nothing || x_plus === nothing
+                    # No control is the protocol's "not defined here": the state
+                    # left the controlled region and no certificate covers what
+                    # happens next, so stop rather than send a garbage command.
+                    if control === nothing
                         @error "Controller undefined at the measured state; closing the session." measurements
                         break
                     end
-                    controller.x = x_plus
+
+                    # A `nothing` memory is *not* the same signal: a static
+                    # controller is memoryless and its `update_state` always
+                    # returns `nothing`. Only advance when there is something to
+                    # advance to -- `controller.x` is typed from the initial
+                    # memory, so assigning `nothing` to a dynamic one would throw.
+                    x_plus === nothing || (controller.x = x_plus)
 
                     # Ensure control is a Float64 vector for transmission/logging
                     control_vec = Float64[control...]
