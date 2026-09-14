@@ -69,23 +69,27 @@ _compatible(constraint::BoundedInputVariation, u_prev::Int, u::Int) =
 # `nothing` boundary input = unconstrained.
 _compatible(constraint::BoundedInputVariation, ::Nothing, u::Int) = true
 
+# Why this type exists, at length (kept out of the docstring, which renders into
+# an API page already at Documenter's size limit):
+#
+# A synthesized controller keeps a reference to its constraint, so whatever the
+# constraint holds ends up inside every serialized controller. A
+# `BoundedInputVariation` holds `input_distance` -- a function, and after lifting
+# an anonymous closure over the abstract system. JLD2 cannot reconstruct a closure
+# type in a fresh session, which is where a deployed controller is loaded: it
+# substitutes a non-callable placeholder, and the controller then throws from
+# `is_defined` while `output_control` keeps answering. That is a controller still
+# emitting commands having silently lost its domain check.
+#
+# The constraint is only ever consulted as `_compatible(constraint, u⁻, u)` on
+# input symbols, so tabulating it loses nothing. 625² bits = 49 KB for the biped.
 """
     TabulatedInputVariation(compatible; target_input = nothing, initial_input = nothing)
 
 Plain-data form of [`BoundedInputVariation`](@ref) over *abstract* input symbols:
-`compatible[u⁻, u]` says whether playing `u` after `u⁻` is allowed.
-
-Why it exists: the synthesized controller keeps a reference to its constraint, so
-whatever the constraint holds ends up inside every serialized controller. A
-`BoundedInputVariation` holds `input_distance` — a **function**, and after lifting
-an anonymous closure over the abstract system. JLD2 cannot reconstruct a closure
-type in a fresh session; it substitutes a non-callable placeholder, and the
-controller then throws from `is_defined` while `output_control` keeps answering.
-That is a controller that emits commands having silently lost its domain check.
-
-The constraint is only ever consulted as `_compatible(constraint, u⁻, u)` on input
-symbols, so tabulating it loses nothing. The table is `n_input²` bits — 49 KB for
-the 625-symbol alphabet of the 4-D biped.
+`compatible[u⁻, u]` says whether playing `u` after `u⁻` is allowed. Unlike a
+distance function, it survives serialization, so a controller holding it can be
+saved and reloaded.
 
 Built by `lift_bounded_input_variation`; users write a
 [`BoundedInputVariation`](@ref) on concrete inputs and never construct this.
@@ -131,9 +135,7 @@ controller is *dynamic* — its memory is the previously played input — and at
 with memory `u⁻` it plays the compatible input of least value.
 
 The controller holds on to `constraint`, so it is serializable exactly when the
-constraint is: pass a [`TabulatedInputVariation`](@ref), which is what
-`lift_bounded_input_variation` produces, rather than a
-[`BoundedInputVariation`](@ref) carrying a distance function.
+constraint is — pass a [`TabulatedInputVariation`](@ref), not a distance function.
 
 Only **deterministic** automata are supported for now — the exact-lattice
 abstractions this constraint is designed for are deterministic by construction.

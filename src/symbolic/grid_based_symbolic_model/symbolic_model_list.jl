@@ -75,6 +75,15 @@ is_determinized(sym::SymbolicModelList) = !(sym.original_symmodel === nothing)
 
 get_transition_metadata(sym::SymbolicModelList) = sym.metadata
 
+"""
+    without_metadata(sym::SymbolicModel)
+
+Copy `sym` with its per-transition metadata dropped, sharing the same automaton.
+
+The transition relation is kept, so the copy is still usable for synthesis; only
+the metadata attached to each transition goes. To drop the relation itself — which
+a finished controller never reads — use [`without_automaton`](@ref).
+"""
 function without_metadata(sym::SymbolicModel)
     return SymbolicModelList(
         get_state_mapping(sym),
