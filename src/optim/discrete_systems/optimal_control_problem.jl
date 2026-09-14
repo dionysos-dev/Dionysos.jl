@@ -26,7 +26,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: AbstractDionysosOptimizer
     print_level::Int
     # Optional input slew-rate constraint; routes the synthesis to
     # `compute_bounded_input_variation_controller`.
-    bounded_input_variation::Union{Nothing, BoundedInputVariation}
+    bounded_input_variation::Union{Nothing, AbstractInputVariation}
 
     # outputs
     controller::Union{Nothing, ST.AbstractDiscreteController}

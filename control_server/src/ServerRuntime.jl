@@ -21,6 +21,13 @@ Starts a server that listens for incoming measurement vectors.
 - If `log_data=true` and `state_to_vector !== nothing`, controller states are also logged
   through `state_to_vector(controller.x)`.
 - Control outputs are logged whenever `log_data=true`.
+- `expected_dt` is the time step the controller was synthesized for. When given, the
+  observed packet rate is checked once over the first samples and a mismatch beyond
+  `dt_tolerance` (relative) is warned about: a per-step limit such as a slew bound is
+  only the intended per-second limit when the client holds each command that long.
+- `serve_forever = true` keeps listening for further clients after one disconnects,
+  which then needs an interrupt to stop and holds the port until it gets one. The
+  default serves a single session and returns, releasing the port.
 
 Returns:
 - `nothing` if `log_data=false`
@@ -34,6 +41,9 @@ function start_control_server(
     log_data = false,
     received_data_size = 1,
     state_to_vector = nothing,
+    expected_dt = nothing,
+    dt_tolerance = 0.25,
+    serve_forever = false,
 )
     server = listen(port)
     println("Server listening on port $port...")
@@ -62,6 +72,16 @@ function start_control_server(
             idx = 1
             start_time = time()
 
+            # A controller synthesized for a fixed time step is only correct if
+            # the client actually holds each command that long. It is easy to
+            # miss: a loop running 10x too fast still reports the right per-call
+            # numbers -- a slew bound of `du` per call is the intended
+            # acceleration limit only at `du / expected_dt`. Check the observed
+            # rate once, early, rather than after the session.
+            dt_checked = expected_dt === nothing
+            dt_samples = Float64[]
+            last_packet = 0.0
+
             try
                 while isopen(sock)
                     # 1. Read header (4 bytes)
@@ -82,15 +102,53 @@ function start_control_server(
                     payload_bytes = Vector{UInt8}(undef, nbytes)
                     read!(sock, payload_bytes)
 
+                    if !dt_checked
+                        now = time()
+                        last_packet > 0 && push!(dt_samples, now - last_packet)
+                        last_packet = now
+                        if length(dt_samples) >= 10
+                            observed = sum(dt_samples) / length(dt_samples)
+                            if abs(observed - expected_dt) > dt_tolerance * expected_dt
+                                @warn "Client packet rate does not match the controller's time step; " *
+                                      "per-step limits are being applied over the wrong interval." observed_dt =
+                                    round(observed; digits = 4) expected_dt
+                            end
+                            dt_checked = true
+                        end
+                    end
+
                     # 3. Convert network-order bytes to Float64 vector
                     payload_u64 = reinterpret(UInt64, payload_bytes)
                     measurements = reinterpret(Float64, ntoh.(payload_u64))
                     println("Received vector: $measurements")
 
-                    # 4. Update the controller state and compute control output
-                    x_plus = controller.f(controller.x, measurements)
-                    controller.x = x_plus
+                    # 4. Read the control at the CURRENT memory, then advance it.
+                    #
+                    # The order matters for any controller with memory. A
+                    # slew-rate-limited controller remembers the input it last
+                    # played and admits only inputs within one notch of it;
+                    # advancing the memory first picks the control against the
+                    # *next* memory instead. That still reaches the target, so it
+                    # looks fine — while commanding twice the permitted velocity
+                    # jump, which is the acceleration limit the controller was
+                    # synthesized to respect. Matches `System/trajectories/closed_loop.jl`.
                     control = controller.g(controller.x, measurements)
+                    x_plus = controller.f(controller.x, measurements)
+
+                    # No control is the protocol's "not defined here": the state
+                    # left the controlled region and no certificate covers what
+                    # happens next, so stop rather than send a garbage command.
+                    if control === nothing
+                        @error "Controller undefined at the measured state; closing the session." measurements
+                        break
+                    end
+
+                    # A `nothing` memory is *not* the same signal: a static
+                    # controller is memoryless and its `update_state` always
+                    # returns `nothing`. Only advance when there is something to
+                    # advance to -- `controller.x` is typed from the initial
+                    # memory, so assigning `nothing` to a dynamic one would throw.
+                    x_plus === nothing || (controller.x = x_plus)
 
                     # Ensure control is a Float64 vector for transmission/logging
                     control_vec = Float64[control...]
@@ -126,9 +184,12 @@ function start_control_server(
             finally
                 close(sock)
                 println("Client disconnected.")
-                # I think we need here:
-                # keep_running = false
-                # Otherwise, the server keeps running
+                # Stop after the session unless asked to keep listening. Without
+                # this the loop returns to `accept` and holds the port until the
+                # process is killed, and everything a caller wrote after
+                # `start_control_server` -- the summary, the plots -- is
+                # unreachable except through a manual interrupt.
+                serve_forever || (keep_running = false)
             end
         end
     catch e

@@ -84,6 +84,58 @@ function set_control!(C::ControlTable, q::Int, u::Int)
     return u
 end
 
+"""
+    CompactControlTable(table::ControlTable)
+
+Immutable, flat form of a [`ControlTable`](@ref), for a controller that is done
+being built — in particular one about to be serialized.
+
+`ControlTable` stores `Vector{Vector{Int}}`: one separately heap-allocated inner
+vector per state, most of them empty for a controller defined on part of its
+domain. At ~48 bytes of object overhead each that dominates everything else —
+241 MB of a 243 MB controller on the 4-D biped, where the control data itself is
+a few MB.
+
+This stores the same content as two flat arrays (the usual CSR layout): state `q`
+owns `inputs[offsets[q] : offsets[q+1]-1]`. Reads return a `view`, so `isempty` /
+`first` / `rand` behave exactly as before, and the elements stay `Int` — input
+symbols flow straight into `get_coord_by_state`, which is typed for `Int`.
+
+It is not mutable: build with `ControlTable`, then convert. Applied
+automatically by `Dionysos.Symbolic.compact_controller`.
+"""
+struct CompactControlTable
+    offsets::Vector{Int32}
+    inputs::Vector{Int}
+end
+
+function CompactControlTable(table::ControlTable)
+    n = length(table.U)
+    total = sum(length, table.U; init = 0)
+    total < typemax(Int32) ||
+        error("control table has $total entries, too many for Int32 offsets")
+
+    offsets = Vector{Int32}(undef, n + 1)
+    inputs = Vector{Int}(undef, total)
+    k = 1
+    for q in 1:n
+        offsets[q] = k
+        for u in table.U[q]
+            @inbounds inputs[k] = u
+            k += 1
+        end
+    end
+    offsets[n + 1] = k
+    return CompactControlTable(offsets, inputs)
+end
+
+function (C::CompactControlTable)(q::Int)
+    # Out of range reads as "no admissible input", matching a state the table was
+    # never sized for rather than throwing.
+    1 <= q < length(C.offsets) || return view(C.inputs, 1:0)
+    return @inbounds view(C.inputs, C.offsets[q]:(C.offsets[q + 1] - 1))
+end
+
 # --------------- Discrete Static Controller --------------------------
 
 """

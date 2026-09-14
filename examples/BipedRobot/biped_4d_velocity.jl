@@ -66,8 +66,9 @@ import .RobotProblem as RP
 # ------------------------------------------------------------
 # 1) Scenario
 # ------------------------------------------------------------
-# Pick with the BIPED_SCENARIO environment variable. All five are BFS-verified
-# connected under sound carving at dx = 0.05:
+# Edit `scenario_name` below to pick one, or set `SCENARIO` before including this
+# file (`export_controller.jl` does that). All five are BFS-verified connected
+# under sound carving at dx = 0.05:
 #   step        — 8 cm × 3 cm step, |θ| ≤ 1.2 (the default; ~52 steps)
 #   riccardo    — the original 16 cm × 5 cm step: infeasible on a symmetric
 #                 domain, feasible once the swing leg gets ±1.4 rad (~58 steps)
@@ -131,7 +132,7 @@ const SCENARIOS = Dict(
     ),
 )
 
-scenario_name = Symbol(get(ENV, "BIPED_SCENARIO", "step"))
+scenario_name = @isdefined(SCENARIO) ? Symbol(SCENARIO) : :step
 scenario = SCENARIOS[scenario_name]
 println("scenario: ", scenario_name)
 
@@ -140,12 +141,25 @@ geometry = RP.default_geometry()
 # Two speed levels per joint (`u ∈ {-1, -0.5, 0, 0.5, 1}` rad/s): steps of up
 # to two cells per axis, made sound by the swept-cell transition validation
 # below (`MP.swept_input_filter`).
-disc = RP.default_discretization(;
-    dx = 0.05,
-    tstep = 0.1,
-    speed_levels = 2,
-    swept_transitions = true,
-)
+# Set `DISC` before including this file to try another resolution. Two levers,
+# with very different costs:
+#
+#   dx            — the grid. Cells go as dx^-4, so 0.05 → 0.07 is ~4x fewer.
+#                   But the Lipschitz carving margin grows with dx, and at
+#                   dx = 0.1 it provably disconnects the free space for `step`:
+#                   no controller exists, the run just fails slower.
+#   speed_levels  — inputs per axis are 2*speed_levels+1, so the alphabet is
+#                   (2L+1)^4: 625 at L = 2, 81 at L = 1. That is 7.7x less
+#                   abstraction work, and the single-speed lattice needs no
+#                   swept-cell check. The footstep takes more steps instead.
+disc =
+    @isdefined(DISC) ? DISC :
+    RP.default_discretization(;
+        dx = 0.05,
+        tstep = 0.1,
+        speed_levels = 2,
+        swept_transitions = true,
+    )
 
 obstacle = scenario.obstacles
 domain = RP.RobotDomainConfig(;
@@ -202,6 +216,12 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
+# The domain is a box with the obstacle carved out of it, and the carving lives
+# in the state *set*, not the mapping — so the mapping only has to enumerate the
+# box, which an implicit one does arithmetically instead of storing every cell
+# twice. Worth ~239 MB of the saved controller here. The ambient box defaults to
+# the outer box of the domain.
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), true)
 # Two combined restrictions on (state, input) pairs:
 # - one joint per step, which keeps the automaton at 17 effective inputs
 #   (≈ 40 M transitions) instead of 5⁴ = 625 (beyond laptop memory);
@@ -261,114 +281,145 @@ traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 )
 xs = collect(ST.states(traj))
+us = collect(ST.inputs(traj))
 println("steps: ", length(xs) - 1, ", reached: ", reached(xs[end]))
 
 # ------------------------------------------------------------
 # 4) Same footstep with the acceleration (slew-rate) limit
 # ------------------------------------------------------------
 
-# Consecutive velocity commands within one speed notch (`du`, not `u_max`!)
-# per joint, starting from and ramping down to rest: reaching full speed takes
-# two steps (0 → 0.5 → 1.0 rad/s) and reversals must ramp back through zero.
-rest = SVector(0.0, 0.0, 0.0, 0.0)
-slew = OPDS.BoundedInputVariation(
-    (u1, u2) -> maximum(abs.(u1 - u2)),
-    disc.du;
-    target_input = rest,
-    initial_input = rest,
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("bounded_input_variation"), slew)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), step_pb)
-@time MOI.optimize!(optimizer)
-println(
-    "footstep success (slew-rate limited): ",
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("success")),
-)
+# This pass is the expensive one (≈ 165 s against 26 s for the plain footstep),
+# so a script that only wants the plain controller can skip it by defining
+# `RUN_SLEW = false` before including this file. `if` is not a scope block in
+# Julia, so everything below stays a global either way.
+run_slew = @isdefined(RUN_SLEW) ? RUN_SLEW : true
 
-slew_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-slew_traj = ST.get_closed_loop_trajectory(
-    discrete_time_system,
-    slew_controller,
-    x0,
-    400;
-    stopping = reached,
-)
-slew_xs = collect(ST.states(slew_traj))
-slew_us = collect(ST.inputs(slew_traj))
-println(
-    "steps (slew-rate limited): ",
-    length(slew_xs) - 1,
-    ", reached: ",
-    reached(slew_xs[end]),
-)
-max_slew =
-    maximum(maximum(abs.(slew_us[k + 1] - slew_us[k])) for k in 1:(length(slew_us) - 1))
-println("max input variation along the run: ", max_slew, " (bound: ", disc.du, ")")
-println("max input magnitude along the run: ", maximum(maximum(abs.(u)) for u in slew_us))
+rest = SVector(0.0, 0.0, 0.0, 0.0)
+
+if run_slew
+    # Consecutive velocity commands within one speed notch (`du`, not `u_max`!)
+    # per joint, starting from and ramping down to rest: reaching full speed takes
+    # two steps (0 → 0.5 → 1.0 rad/s) and reversals must ramp back through zero.
+    slew = OPDS.BoundedInputVariation(
+        (u1, u2) -> maximum(abs.(u1 - u2)),
+        disc.du;
+        target_input = rest,
+        initial_input = rest,
+    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("bounded_input_variation"), slew)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), step_pb)
+    @time MOI.optimize!(optimizer)
+    println(
+        "footstep success (slew-rate limited): ",
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("success")),
+    )
+
+    slew_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    slew_traj = ST.get_closed_loop_trajectory(
+        discrete_time_system,
+        slew_controller,
+        x0,
+        400;
+        stopping = reached,
+    )
+    slew_xs = collect(ST.states(slew_traj))
+    slew_us = collect(ST.inputs(slew_traj))
+    println(
+        "steps (slew-rate limited): ",
+        length(slew_xs) - 1,
+        ", reached: ",
+        reached(slew_xs[end]),
+    )
+    max_slew =
+        maximum(maximum(abs.(slew_us[k + 1] - slew_us[k])) for k in 1:(length(slew_us) - 1))
+    println("max input variation along the run: ", max_slew, " (bound: ", disc.du, ")")
+    println(
+        "max input magnitude along the run: ",
+        maximum(maximum(abs.(u)) for u in slew_us),
+    )
+end # run_slew
 
 # ------------------------------------------------------------
 # 5) Visualization
 # ------------------------------------------------------------
 
-plot_robot = RP.system_plot!(;
-    geometry = geometry,
-    obstacle = obstacle,
-    foothold = foothold,
-    xlims = (-0.6, 0.6),
-    ylims = (-0.05, 0.55),
-)
+# Rendering the dashboard costs more than the plain synthesis does, and a script
+# that only wants the controllers has no use for it: define `RUN_PLOTS = false`
+# before including this file to skip it (`export_controller.jl` does).
+run_plots = @isdefined(RUN_PLOTS) ? RUN_PLOTS : true
 
-png_file = joinpath(@__DIR__, "biped_4d_footstep_$(scenario_name).png")
-gif_file = joinpath(@__DIR__, "biped_4d_footstep_$(scenario_name).gif")
+# Whichever footstep was actually computed is the one drawn.
+plot_traj = run_slew ? slew_traj : traj
+plot_xs = run_slew ? slew_xs : xs
+plot_us = run_slew ? slew_us : us
 
-fig = Plots.plot(; aspect_ratio = :equal, legend = false)
-for (k, x) in enumerate(slew_xs)
-    k % 5 == 1 || k == length(slew_xs) || continue
-    plot_robot(fig, x, k <= length(slew_us) ? slew_us[k] : rest)
-end
-Plots.savefig(fig, png_file)
-println("saved ", png_file)
+if run_plots
+    plot_robot = RP.system_plot!(;
+        geometry = geometry,
+        obstacle = obstacle,
+        foothold = foothold,
+        xlims = (-0.6, 0.6),
+        ylims = (-0.05, 0.55),
+    )
 
-# State panel = the swing angles (θ3, θ4) — where the obstacle preimage lives.
-# The carved region is 4-D, so drawing its raw projection would be misleading;
-# instead each frame shows its *slice*: the (θ3, θ4) cells that are blocked
-# given the current stance angles (θ1, θ2).
-h3, h4 = MP.get_h(disc.state_grid)[3], MP.get_h(disc.state_grid)[4]
-k3_range = round(Int, scenario.x_lb[3] / h3):round(Int, scenario.x_ub[3] / h3)
-k4_range = round(Int, scenario.x_lb[4] / h4):round(Int, scenario.x_ub[4] / h4)
-blocked_slice! = function (p_state, x)
-    pos = MP.get_pos_by_coord(disc.state_grid, x)
-    shapes = Plots.Shape[]
-    for k3 in k3_range, k4 in k4_range
-        (pos[1], pos[2], k3, k4) in removed || continue
-        c = MP.get_coord_by_pos(disc.state_grid, (pos[1], pos[2], k3, k4))
-        push!(
-            shapes,
-            Plots.Shape(
-                [c[3] - h3 / 2, c[3] + h3 / 2, c[3] + h3 / 2, c[3] - h3 / 2],
-                [c[4] - h4 / 2, c[4] - h4 / 2, c[4] + h4 / 2, c[4] + h4 / 2],
-            ),
-        )
+    png_file = joinpath(@__DIR__, "biped_4d_footstep_$(scenario_name).png")
+    gif_file = joinpath(@__DIR__, "biped_4d_footstep_$(scenario_name).gif")
+
+    fig = Plots.plot(; aspect_ratio = :equal, legend = false)
+    for (k, x) in enumerate(plot_xs)
+        k % 5 == 1 || k == length(plot_xs) || continue
+        plot_robot(fig, x, k <= length(plot_us) ? plot_us[k] : rest)
     end
-    isempty(shapes) ||
-        Plots.plot!(p_state, shapes; color = :black, alpha = 0.35, lw = 0, label = "")
-    return p_state
-end
+    Plots.savefig(fig, png_file)
+    println("saved ", png_file)
 
-DI.animate_trajectory_dashboard(
-    plot_robot,
-    slew_traj;
-    Δt = disc.tstep,
-    xdims = (3, 4),
-    udims = (3, 4),
-    xlabel_state = "θ3 (swing hip)",
-    ylabel_state = "θ4 (swing knee)",
-    xlabel_input = "u3 (swing hip)",
-    ylabel_input = "u4 (swing knee)",
-    xlims_state = (scenario.x_lb[3], scenario.x_ub[3]),
-    ylims_state = (scenario.x_lb[4], scenario.x_ub[4]),
-    state_background! = blocked_slice!,
-    title = "4-D velocity-controlled biped — certified footstep ($(scenario_name))",
-    filename = gif_file,
-)
-println("saved ", gif_file)
+    # State panel = the swing angles (θ3, θ4) — where the obstacle preimage lives.
+    # The carved region is 4-D, so drawing its raw projection would be misleading;
+    # instead each frame shows its *slice*: the (θ3, θ4) cells that are blocked
+    # given the current stance angles (θ1, θ2).
+    h3, h4 = MP.get_h(disc.state_grid)[3], MP.get_h(disc.state_grid)[4]
+    k3_range = round(Int, scenario.x_lb[3] / h3):round(Int, scenario.x_ub[3] / h3)
+    k4_range = round(Int, scenario.x_lb[4] / h4):round(Int, scenario.x_ub[4] / h4)
+    blocked_slice! = function (p_state, x)
+        pos = MP.get_pos_by_coord(disc.state_grid, x)
+        shapes = Plots.Shape[]
+        for k3 in k3_range, k4 in k4_range
+            (pos[1], pos[2], k3, k4) in removed || continue
+            c = MP.get_coord_by_pos(disc.state_grid, (pos[1], pos[2], k3, k4))
+            push!(
+                shapes,
+                Plots.Shape(
+                    [c[3] - h3 / 2, c[3] + h3 / 2, c[3] + h3 / 2, c[3] - h3 / 2],
+                    [c[4] - h4 / 2, c[4] - h4 / 2, c[4] + h4 / 2, c[4] + h4 / 2],
+                ),
+            )
+        end
+        isempty(shapes) || Plots.plot!(
+            p_state,
+            shapes;
+            color = :black,
+            alpha = 0.35,
+            lw = 0,
+            label = "",
+        )
+        return p_state
+    end
+
+    DI.animate_trajectory_dashboard(
+        plot_robot,
+        plot_traj;
+        Δt = disc.tstep,
+        xdims = (3, 4),
+        udims = (3, 4),
+        xlabel_state = "θ3 (swing hip)",
+        ylabel_state = "θ4 (swing knee)",
+        xlabel_input = "u3 (swing hip)",
+        ylabel_input = "u4 (swing knee)",
+        xlims_state = (scenario.x_lb[3], scenario.x_ub[3]),
+        ylims_state = (scenario.x_lb[4], scenario.x_ub[4]),
+        state_background! = blocked_slice!,
+        title = "4-D velocity-controlled biped — certified footstep ($(scenario_name))",
+        filename = gif_file,
+    )
+    println("saved ", gif_file)
+end # run_plots

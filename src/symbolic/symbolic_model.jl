@@ -375,6 +375,60 @@ function ST.output_control(ctrl::QuantizedDynamicController, x, y)
     return get_concrete_input(ctrl.sym, u_sym)
 end
 
+"""
+    compact_controller(ctrl)
+
+Return a copy of a quantized controller carrying only what it needs to *run*,
+with the abstraction's transition relation dropped. Call it before serializing a
+controller for deployment:
+
+```julia
+JLD2.jldsave("controller.jld2"; controller = SY.compact_controller(ctrl))
+```
+
+A quantized controller reads its symbolic model for exactly two things —
+`get_abstract_state` (the grid-to-index lookup) and the out-of-domain handler —
+plus `get_concrete_input` on the way out. The transition relation it was
+synthesized from is never consulted again, but it is by far the largest thing the
+model holds: on the 4-D biped example it is ~39 M transitions, which turns a
+serialized controller into gigabytes. The decision table lives in
+`abstract_controller` and is untouched, so the compacted controller answers
+identically.
+
+Controllers that are not quantized are returned unchanged, so this is safe to
+call on any controller before saving.
+
+See also [`without_automaton`](@ref).
+"""
+compact_controller(ctrl::ST.AbstractController) = ctrl
+
+compact_controller(ctrl::QuantizedStaticController) = QuantizedStaticController(
+    without_automaton(ctrl.sym),
+    _compact_abstract(ctrl.abstract_controller),
+    ctrl.out_of_domain_handler,
+)
+
+compact_controller(ctrl::QuantizedDynamicController) = QuantizedDynamicController(
+    without_automaton(ctrl.sym),
+    _compact_abstract(ctrl.abstract_controller),
+    ctrl.out_of_domain_handler,
+)
+
+# The decision table is the other half of a controller's size, and the mutable
+# `ControlTable` pays ~48 bytes of object overhead per state for its
+# per-state inner vector -- empty ones included. Flatten it once the controller
+# is done being built. Anything else is left alone.
+_compact_abstract(ctrl) = ctrl
+
+function _compact_abstract(ctrl::ST.DiscreteStaticController)
+    ctrl.controller_map isa ST.ControlTable || return ctrl
+    return ST.DiscreteStaticController(
+        ctrl.dom,
+        ST.CompactControlTable(ctrl.controller_map),
+        ctrl.randomize,
+    )
+end
+
 #---------- Quantization -------------
 
 # Dispatch on the static/dynamic trait, so any abstract controller obeying the

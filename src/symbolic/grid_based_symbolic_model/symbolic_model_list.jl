@@ -75,6 +75,15 @@ is_determinized(sym::SymbolicModelList) = !(sym.original_symmodel === nothing)
 
 get_transition_metadata(sym::SymbolicModelList) = sym.metadata
 
+"""
+    without_metadata(sym::SymbolicModel)
+
+Copy `sym` with its per-transition metadata dropped, sharing the same automaton.
+
+The transition relation is kept, so the copy is still usable for synthesis; only
+the metadata attached to each transition goes. To drop the relation itself — which
+a finished controller never reads — use [`without_automaton`](@ref).
+"""
 function without_metadata(sym::SymbolicModel)
     return SymbolicModelList(
         get_state_mapping(sym),
@@ -83,6 +92,34 @@ function without_metadata(sym::SymbolicModel)
         Rset = get_retained_set(sym),
         Uset = get_input_set(sym),
         automaton_constructor = (n, m) -> get_automaton(sym),
+        metadata = NoTransitionMetadata(),
+    )
+end
+
+"""
+    without_automaton(sym::SymbolicModel)
+
+Copy `sym` keeping only the state/input mappings and their sets, with an **empty**
+automaton and no transition metadata.
+
+The transition relation is what synthesis consumes; a controller that already
+exists never reads it again — `get_abstract_state` and the out-of-domain handler
+are the only things a quantized controller touches at run time. Dropping it is
+therefore lossless *for a controller* and is what makes one small enough to
+serialize: on the 4-D biped the relation is ~39 M transitions, i.e. gigabytes.
+
+Do not use this on a model you still intend to synthesize on — use
+[`without_metadata`](@ref), which keeps the automaton. To strip a controller
+rather than a model, see [`compact_controller`](@ref).
+"""
+function without_automaton(sym::SymbolicModel)
+    return SymbolicModelList(
+        get_state_mapping(sym),
+        get_input_mapping(sym);
+        Xset = get_state_set(sym),
+        Rset = get_retained_set(sym),
+        Uset = get_input_set(sym),
+        # default automaton_constructor = an empty SortedAutomatonList
         metadata = NoTransitionMetadata(),
     )
 end

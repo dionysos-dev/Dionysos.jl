@@ -17,6 +17,18 @@
 import DataStructures: PriorityQueue, dequeue_pair!
 
 """
+    AbstractInputVariation
+
+An input slew-rate constraint, consulted only as `_compatible(constraint, u⁻, u)`.
+
+Two forms: [`BoundedInputVariation`](@ref), written by the user over concrete
+inputs and holding a distance *function*, and [`TabulatedInputVariation`](@ref),
+the plain-data form over abstract input symbols that a synthesized controller can
+actually carry through serialization.
+"""
+abstract type AbstractInputVariation end
+
+"""
     BoundedInputVariation(input_distance, max_variation; target_input = nothing, initial_input = nothing)
 
 Input slew-rate constraint for [`compute_bounded_input_variation_controller`](@ref):
@@ -27,10 +39,10 @@ target (e.g. the rest input, so velocities ramp down), `initial_input` the
 
 At the discrete level inputs are abstract symbols (`Int`); the
 UniformGridAbstraction front-end accepts the same struct expressed on
-*concrete* inputs and lifts it with `SY.get_concrete_input` /
-`SY.get_abstract_input`.
+*concrete* inputs and lifts it to a [`TabulatedInputVariation`](@ref) with
+`SY.get_concrete_input` / `SY.get_abstract_input`.
 """
-struct BoundedInputVariation{D, TU, IU}
+struct BoundedInputVariation{D, TU, IU} <: AbstractInputVariation
     input_distance::D
     max_variation::Float64
     target_input::TU
@@ -57,11 +69,81 @@ _compatible(constraint::BoundedInputVariation, u_prev::Int, u::Int) =
 # `nothing` boundary input = unconstrained.
 _compatible(constraint::BoundedInputVariation, ::Nothing, u::Int) = true
 
+# Why this type exists, at length (kept out of the docstring, which renders into
+# an API page already at Documenter's size limit):
+#
+# A synthesized controller keeps a reference to its constraint, so whatever the
+# constraint holds ends up inside every serialized controller. A
+# `BoundedInputVariation` holds `input_distance` -- a function, and after lifting
+# an anonymous closure over the abstract system. JLD2 cannot reconstruct a closure
+# type in a fresh session, which is where a deployed controller is loaded: it
+# substitutes a non-callable placeholder, and the controller then throws from
+# `is_defined` while `output_control` keeps answering. That is a controller still
+# emitting commands having silently lost its domain check.
+#
+# The constraint is only ever consulted as `_compatible(constraint, u⁻, u)` on
+# input symbols, so tabulating it loses nothing. 625² bits = 49 KB for the biped.
+"""
+    TabulatedInputVariation(compatible; target_input = nothing, initial_input = nothing)
+
+Plain-data form of [`BoundedInputVariation`](@ref) over *abstract* input symbols:
+`compatible[u⁻, u]` says whether playing `u` after `u⁻` is allowed. Unlike a
+distance function, it survives serialization, so a controller holding it can be
+saved and reloaded.
+
+Built by `lift_bounded_input_variation`; users write a
+[`BoundedInputVariation`](@ref) on concrete inputs and never construct this.
+"""
+struct TabulatedInputVariation{TU, IU} <: AbstractInputVariation
+    compatible::BitMatrix
+    target_input::TU
+    initial_input::IU
+end
+
+function TabulatedInputVariation(
+    compatible::AbstractMatrix{Bool};
+    target_input = nothing,
+    initial_input = nothing,
+)
+    size(compatible, 1) == size(compatible, 2) ||
+        error("the compatibility table must be square, got $(size(compatible))")
+    return TabulatedInputVariation(BitMatrix(compatible), target_input, initial_input)
+end
+
+_compatible(constraint::TabulatedInputVariation, u_prev::Int, u::Int) =
+    constraint.compatible[u_prev, u]
+
+_compatible(constraint::TabulatedInputVariation, ::Nothing, u::Int) = true
+
+# Per-state candidate inputs, cheapest first, flat (CSR): state `q` owns
+# `inputs[offsets[q] : offsets[q+1]-1]`. Internal to this solver -- the
+# controller captures it, so it is also what a saved controller carries.
+#
+# A `Dict{Int, Vector{Tuple{Int, Float64}}}` costs a heap object per state plus
+# the dict, and keeps a cost per candidate that nothing reads once the lists are
+# sorted. Both go: 743 MB -> a flat pair of arrays on the 4-D biped.
+# `inputs` is Int32: abstract input symbols index the model's input mapping, so
+# they are far below 2^31, and this array is the dominant allocation. `select`
+# widens the one symbol it returns, so nothing downstream sees the narrow type --
+# unlike `ControlTable`, which hands out its storage wholesale and so has to stay
+# `Int` for `get_coord_by_state`.
+struct _RankedCandidates
+    offsets::Vector{Int32}
+    inputs::Vector{Int32}
+end
+
+function (C::_RankedCandidates)(q::Int)
+    # Out of range reads as "no candidate", matching a state the table was never
+    # sized for rather than throwing.
+    1 <= q < length(C.offsets) || return view(C.inputs, 1:0)
+    return @inbounds view(C.inputs, C.offsets[q]:(C.offsets[q + 1] - 1))
+end
+
 """
     compute_bounded_input_variation_controller(
         autom::SY.AbstractAutomatonList,
         target_set,
-        constraint::BoundedInputVariation;
+        constraint::AbstractInputVariation;
         initial_set = SY.enum_states(autom),
         safe_set = nothing,
         cost_function = nothing,
@@ -73,9 +155,11 @@ Optimal reach(-avoid) controller under the input slew-rate `constraint`
 Dijkstra on the pair graph: the value of `(q, u)` is the optimal cost-to-target
 from `q` when playing `u` now, subject to every later consecutive pair — and
 the final input, when `target_input` is set — being compatible. The returned
-controller is *dynamic* (memory = previously played input; closure-backed, not
-serializable): at `q` with memory `u⁻` it plays the compatible input of least
-value.
+controller is *dynamic* — its memory is the previously played input — and at `q`
+with memory `u⁻` it plays the compatible input of least value.
+
+The controller holds on to `constraint`, so it is serializable exactly when the
+constraint is — pass a [`TabulatedInputVariation`](@ref), not a distance function.
 
 Only **deterministic** automata are supported for now — the exact-lattice
 abstractions this constraint is designed for are deterministic by construction.
@@ -86,7 +170,7 @@ with `value_fun_tab[q] = min_u value(q, u)` (unconstrained start at `q`).
 function compute_bounded_input_variation_controller(
     autom::SY.AbstractAutomatonList,
     target_set,
-    constraint::BoundedInputVariation;
+    constraint::AbstractInputVariation;
     initial_set = SY.enum_states(autom),
     safe_set = nothing,
     cost_function = nothing,
@@ -152,20 +236,49 @@ function compute_bounded_input_variation_controller(
         end
     end
 
-    # Candidate inputs per state, cheapest first — the controller's lookup table.
-    candidates = Dict{Int, Vector{Tuple{Int, Float64}}}()
-    for ((q, u), v) in value
-        push!(get!(candidates, q, Tuple{Int, Float64}[]), (u, v))
+    # Candidate inputs per state, cheapest first — the controller's lookup table,
+    # and the whole size of a saved controller. Stored flat (CSR) rather than as a
+    # `Dict{Int, Vector{Tuple{Int, Float64}}}`: that costs a heap-allocated inner
+    # vector per state plus the dict itself, 743 MB of a 745 MB controller on the
+    # 4-D biped. The cost only orders each list — `select` below discards it — so
+    # it is dropped once the ordering is baked in, halving what remains.
+    counts = zeros(Int32, nstates)
+    for ((q, _), _) in value
+        counts[q] += 1
     end
-    for list in values(candidates)
-        sort!(list; by = last)
+    offsets = Vector{Int32}(undef, nstates + 1)
+    let k = Int32(1)
+        for q in 1:nstates
+            offsets[q] = k
+            k += counts[q]
+        end
+        offsets[nstates + 1] = k
     end
+    total = Int(offsets[nstates + 1]) - 1
+    cand_inputs = Vector{Int32}(undef, total)
+    cand_values = Vector{Float64}(undef, total)   # temporary: ordering only
+    let fill_at = copy(offsets)
+        for ((q, u), v) in value
+            i = fill_at[q]
+            cand_inputs[i] = u
+            cand_values[i] = v
+            fill_at[q] = i + Int32(1)
+        end
+    end
+    for q in 1:nstates
+        lo, hi = Int(offsets[q]), Int(offsets[q + 1]) - 1
+        hi > lo || continue
+        perm = sortperm(view(cand_values, lo:hi))
+        cand_inputs[lo:hi] = cand_inputs[lo:hi][perm]
+    end
+    candidates = _RankedCandidates(offsets, cand_inputs)
 
     # Deterministic selection shared by output and memory update: cheapest
     # compatible input at `q` given the previously played input (0 = none yet).
     select = function (q::Int, u_prev::Int)
         target_bits[q] && return nothing # reached: the controller is done
-        for (u, _) in get(candidates, q, Tuple{Int, Float64}[])
+        for u32 in candidates(q)
+            u = Int(u32)   # widen here so callers only ever see `Int` symbols
             if u_prev == 0
                 _compatible(constraint, constraint.initial_input, u) && return u
             else
@@ -198,9 +311,11 @@ function compute_bounded_input_variation_controller(
     for q in 1:nstates
         if target_bits[q] && safe_bits[q]
             push!(controllable_set, q)
-        elseif haskey(candidates, q) && any(
-            u_v -> _compatible(constraint, constraint.initial_input, u_v[1]),
-            candidates[q],
+            # `candidates(q)` is empty for a state with no finite-value input, so
+            # `any` already answers false — no membership test needed.
+        elseif any(
+            u -> _compatible(constraint, constraint.initial_input, Int(u)),
+            candidates(q),
         )
             push!(controllable_set, q)
         end

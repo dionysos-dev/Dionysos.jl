@@ -92,12 +92,25 @@ while retaining a common global `Rset`.
 - `h` (optional):  
   Grid spacing vector used to construct the state grid if `state_grid` is not provided.
 
-- `use_implicit_mapping` (optional, default = `false`):  
-  If `true`, constructs an implicit state mapping instead of an explicit one.
+- `use_implicit_mapping` (optional, default = `false`):
+  Build the state mapping implicitly — cell ids are computed by row-major
+  linearization of a rectangular ambient box, so the mapping is a handful of
+  tuples whatever the cell count. An explicit mapping stores every cell twice
+  (`Dict` position→id plus a `Vector` id→position): on the 4-D biped that is
+  239 MB of a 408 MB controller, against ~200 bytes implicitly. Worth turning on
+  for any abstraction whose controller will be serialized.
 
-- `mapping_region` (required if `use_implicit_mapping = true`):  
-  Hyper-rectangle used as ambient region for the implicit mapping.  
-  It must enclose `abstraction_region`.
+  It is not the default because it changes what `get_n_state` counts: ids then
+  span the whole ambient box rather than only the covered cells, so anything
+  sized by the state count grows in proportion (on path planning, 26 285 → 32 585).
+  Leave it off for a domain that is not a bounded box, or for a lazy/adaptive
+  abstraction where the reachable cells are a minuscule fraction of the box and
+  are discovered rather than known up front.
+
+- `mapping_region` (optional):
+  Hyper-rectangle used as ambient region for the implicit mapping; it must
+  enclose `abstraction_region`. Defaults to the outer box of
+  `abstraction_region`, so it is only needed to request a *wider* ambient box.
 
 - `use_implicit_stateset` (optional, default = `false`):  
   If `true`, builds `Xset` as an implicit state set rather than an explicit set of indices.
@@ -645,9 +658,17 @@ function build_state_mapping(opt::OptimizerAlternatingSimulationProblem{T}) wher
 
     grid = build_state_grid(opt)
     if opt.use_implicit_mapping
-        _validate_model(opt, [:mapping_region, :abstraction_region])
-        _validate_mapping_encloses_abstraction_region(opt)
-        maprect = opt.mapping_region
+        _validate_model(opt, [:abstraction_region])
+        # An implicit mapping needs a rectangular ambient box. When the user did
+        # not name one, the abstraction region's own outer box is the tightest
+        # box that certainly encloses it — so `mapping_region` only has to be
+        # given when a *wider* ambient box is wanted.
+        maprect = if opt.mapping_region === nothing
+            UT._outer_box(opt.abstraction_region)
+        else
+            _validate_mapping_encloses_abstraction_region(opt)
+            opt.mapping_region
+        end
         m = MP.ImplicitGridMapping(grid, maprect; incl_mode = opt.incl_mode)
     else
         N = MP.get_dim(grid)

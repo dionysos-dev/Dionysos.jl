@@ -227,15 +227,22 @@ function lift_bounded_input_variation(
     constraint::OPDS.BoundedInputVariation,
 )
     d = constraint.input_distance
-    lifted_distance =
-        (s1::Int, s2::Int) -> d(
-            SY.get_concrete_input(abstract_system, s1),
-            SY.get_concrete_input(abstract_system, s2),
-        )
+    symbols = collect(SY.enum_inputs(abstract_system))
+    concrete = [SY.get_concrete_input(abstract_system, s) for s in symbols]
+
+    # Tabulate rather than close over `d`: the synthesized controller keeps the
+    # constraint, and a closure inside it cannot be reconstructed by JLD2 in a
+    # fresh session -- which is where a deployed controller is loaded. The table
+    # is n_input² bits, so this is cheap even for the biped's 625 symbols.
+    n = maximum(symbols)
+    compatible = falses(n, n)
+    for (i, si) in enumerate(symbols), (j, sj) in enumerate(symbols)
+        compatible[si, sj] = d(concrete[i], concrete[j]) <= constraint.max_variation
+    end
+
     lift(u) = u === nothing ? nothing : SY.get_abstract_input(abstract_system, u)
-    return OPDS.BoundedInputVariation(
-        lifted_distance,
-        constraint.max_variation;
+    return OPDS.TabulatedInputVariation(
+        compatible;
         target_input = lift(constraint.target_input),
         initial_input = lift(constraint.initial_input),
     )
