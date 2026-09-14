@@ -299,6 +299,12 @@ end
     @test SY.get_n_transitions(ST.domain(ctrl)) > 0
     @test SY.get_n_transitions(ST.domain(small)) == 0
 
+    # ... and the per-state vector-of-vectors table is flattened. That table is
+    # the other half of a controller's size: one heap-allocated inner vector per
+    # state, empty ones included.
+    @test ctrl.abstract_controller.controller_map isa ST.ControlTable
+    @test small.abstract_controller.controller_map isa ST.CompactControlTable
+
     # ... and every answer is unchanged, before and after a round-trip.
     small2 = roundtrip(small)
     npts = 0

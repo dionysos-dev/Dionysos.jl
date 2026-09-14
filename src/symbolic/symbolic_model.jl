@@ -404,15 +404,30 @@ compact_controller(ctrl::ST.AbstractController) = ctrl
 
 compact_controller(ctrl::QuantizedStaticController) = QuantizedStaticController(
     without_automaton(ctrl.sym),
-    ctrl.abstract_controller,
+    _compact_abstract(ctrl.abstract_controller),
     ctrl.out_of_domain_handler,
 )
 
 compact_controller(ctrl::QuantizedDynamicController) = QuantizedDynamicController(
     without_automaton(ctrl.sym),
-    ctrl.abstract_controller,
+    _compact_abstract(ctrl.abstract_controller),
     ctrl.out_of_domain_handler,
 )
+
+# The decision table is the other half of a controller's size, and the mutable
+# `ControlTable` pays ~48 bytes of object overhead per state for its
+# per-state inner vector -- empty ones included. Flatten it once the controller
+# is done being built. Anything else is left alone.
+_compact_abstract(ctrl) = ctrl
+
+function _compact_abstract(ctrl::ST.DiscreteStaticController)
+    ctrl.controller_map isa ST.ControlTable || return ctrl
+    return ST.DiscreteStaticController(
+        ctrl.dom,
+        ST.CompactControlTable(ctrl.controller_map),
+        ctrl.randomize,
+    )
+end
 
 #---------- Quantization -------------
 
