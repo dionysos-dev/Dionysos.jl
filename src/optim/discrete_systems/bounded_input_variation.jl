@@ -17,6 +17,18 @@
 import DataStructures: PriorityQueue, dequeue_pair!
 
 """
+    AbstractInputVariation
+
+An input slew-rate constraint, consulted only as `_compatible(constraint, u⁻, u)`.
+
+Two forms: [`BoundedInputVariation`](@ref), written by the user over concrete
+inputs and holding a distance *function*, and [`TabulatedInputVariation`](@ref),
+the plain-data form over abstract input symbols that a synthesized controller can
+actually carry through serialization.
+"""
+abstract type AbstractInputVariation end
+
+"""
     BoundedInputVariation(input_distance, max_variation; target_input = nothing, initial_input = nothing)
 
 Input slew-rate constraint for [`compute_bounded_input_variation_controller`](@ref):
@@ -27,10 +39,10 @@ target (e.g. the rest input, so velocities ramp down), `initial_input` the
 
 At the discrete level inputs are abstract symbols (`Int`); the
 UniformGridAbstraction front-end accepts the same struct expressed on
-*concrete* inputs and lifts it with `SY.get_concrete_input` /
-`SY.get_abstract_input`.
+*concrete* inputs and lifts it to a [`TabulatedInputVariation`](@ref) with
+`SY.get_concrete_input` / `SY.get_abstract_input`.
 """
-struct BoundedInputVariation{D, TU, IU}
+struct BoundedInputVariation{D, TU, IU} <: AbstractInputVariation
     input_distance::D
     max_variation::Float64
     target_input::TU
@@ -58,10 +70,52 @@ _compatible(constraint::BoundedInputVariation, u_prev::Int, u::Int) =
 _compatible(constraint::BoundedInputVariation, ::Nothing, u::Int) = true
 
 """
+    TabulatedInputVariation(compatible; target_input = nothing, initial_input = nothing)
+
+Plain-data form of [`BoundedInputVariation`](@ref) over *abstract* input symbols:
+`compatible[u⁻, u]` says whether playing `u` after `u⁻` is allowed.
+
+Why it exists: the synthesized controller keeps a reference to its constraint, so
+whatever the constraint holds ends up inside every serialized controller. A
+`BoundedInputVariation` holds `input_distance` — a **function**, and after lifting
+an anonymous closure over the abstract system. JLD2 cannot reconstruct a closure
+type in a fresh session; it substitutes a non-callable placeholder, and the
+controller then throws from `is_defined` while `output_control` keeps answering.
+That is a controller that emits commands having silently lost its domain check.
+
+The constraint is only ever consulted as `_compatible(constraint, u⁻, u)` on input
+symbols, so tabulating it loses nothing. The table is `n_input²` bits — 49 KB for
+the 625-symbol alphabet of the 4-D biped.
+
+Built by `lift_bounded_input_variation`; users write a
+[`BoundedInputVariation`](@ref) on concrete inputs and never construct this.
+"""
+struct TabulatedInputVariation{TU, IU} <: AbstractInputVariation
+    compatible::BitMatrix
+    target_input::TU
+    initial_input::IU
+end
+
+function TabulatedInputVariation(
+    compatible::AbstractMatrix{Bool};
+    target_input = nothing,
+    initial_input = nothing,
+)
+    size(compatible, 1) == size(compatible, 2) ||
+        error("the compatibility table must be square, got $(size(compatible))")
+    return TabulatedInputVariation(BitMatrix(compatible), target_input, initial_input)
+end
+
+_compatible(constraint::TabulatedInputVariation, u_prev::Int, u::Int) =
+    constraint.compatible[u_prev, u]
+
+_compatible(constraint::TabulatedInputVariation, ::Nothing, u::Int) = true
+
+"""
     compute_bounded_input_variation_controller(
         autom::SY.AbstractAutomatonList,
         target_set,
-        constraint::BoundedInputVariation;
+        constraint::AbstractInputVariation;
         initial_set = SY.enum_states(autom),
         safe_set = nothing,
         cost_function = nothing,
@@ -73,9 +127,13 @@ Optimal reach(-avoid) controller under the input slew-rate `constraint`
 Dijkstra on the pair graph: the value of `(q, u)` is the optimal cost-to-target
 from `q` when playing `u` now, subject to every later consecutive pair — and
 the final input, when `target_input` is set — being compatible. The returned
-controller is *dynamic* (memory = previously played input; closure-backed, not
-serializable): at `q` with memory `u⁻` it plays the compatible input of least
-value.
+controller is *dynamic* — its memory is the previously played input — and at `q`
+with memory `u⁻` it plays the compatible input of least value.
+
+The controller holds on to `constraint`, so it is serializable exactly when the
+constraint is: pass a [`TabulatedInputVariation`](@ref), which is what
+`lift_bounded_input_variation` produces, rather than a
+[`BoundedInputVariation`](@ref) carrying a distance function.
 
 Only **deterministic** automata are supported for now — the exact-lattice
 abstractions this constraint is designed for are deterministic by construction.
@@ -86,7 +144,7 @@ with `value_fun_tab[q] = min_u value(q, u)` (unconstrained start at `q`).
 function compute_bounded_input_variation_controller(
     autom::SY.AbstractAutomatonList,
     target_set,
-    constraint::BoundedInputVariation;
+    constraint::AbstractInputVariation;
     initial_set = SY.enum_states(autom),
     safe_set = nothing,
     cost_function = nothing,
