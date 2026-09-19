@@ -62,6 +62,71 @@ function is_deterministic(G::LabDigraph, modes)
     )
 end
 
+"""
+    is_co_complete(G::LabDigraph, modes) -> Bool
+
+Whether every node of `G` has an **incoming** edge for every mode in `modes`.
+
+The mirror of [`is_complete`](@ref), and the reason both are worth testing: each licenses a different
+closed-form common Lyapunov function, and the two are genuinely different objects.
+
+Write the edge condition as `V_d(A_m x) ≤ γ V_s(x)` for every edge `(s, m, d)`.
+
+- **complete** ⟹ `V_min = min_i V_i` is a common Lyapunov function. If the minimum at `x` is attained
+  at `i`, completeness supplies an edge `(i, m, d)`, so `min_j V_j(A_m x) ≤ V_d(A_m x) ≤ γ V_i(x)`.
+  Its sublevel set is the **union** of the pieces' sublevel sets — non-convex, but the larger set.
+- **co-complete** ⟹ `V_max = max_i V_i` is one. For each target `i`, co-completeness supplies an edge
+  `(s, m, i)`, so `V_i(A_m x) ≤ γ V_s(x) ≤ γ V_max(x)`. Its sublevel set is the **intersection** —
+  convex and cheap, but the smaller set.
+
+On De Bruijn graphs exactly one holds: the primal (a node records the last mode played) is complete
+and not co-complete; the dual (a node commits to the mode played next, and any node may follow) is
+co-complete and not complete. So determinising a dual graph necessarily *loses coverage*, and
+determinising a primal one necessarily *loses convexity*. See [`build_common_lyapunov`](@ref).
+"""
+function is_co_complete(G::LabDigraph, modes)
+    return all(any(e -> e[2] == s && e[3] == m, G.edges) for s in G.verts for m in modes)
+end
+
+"""
+    enabled_modes(G::LabDigraph) -> Dict{U, Set{Int}}
+
+The modes each node of `G` may actually emit.
+
+This is the language talking, and it has to be carried forward explicitly rather than rediscovered
+later from the absence of a transition. Downstream, "node `q` has no successor under mode `m`" has two
+irreconcilable causes: the language forbids `m` at `q`, so the environment *cannot* play it; or `m` is
+allowed but its successor left the region the abstraction covers, so a real behaviour was dropped. A
+universal (`∀`) answer must ignore the first and pessimistically account for the second, and once the
+graph is gone the two are indistinguishable. See [`is_complete`](@ref) for when the distinction is
+vacuous: on a complete graph every node enables every mode and nothing is ever forbidden.
+"""
+function enabled_modes(G::LabDigraph{T, U}) where {T, U}
+    out = Dict{U, Set{Int}}(v => Set{Int}() for v in G.verts)
+    for (u, _, label) in G.edges
+        push!(out[u], Int(label))
+    end
+    return out
+end
+
+"""
+    restricts_future(G::LabDigraph) -> Bool
+
+Whether the node reached so far changes which modes are available next.
+
+`false` on a De Bruijn graph, where a node records history only and every node enables every mode, so
+a result holding at one node holds at all of them. `true` for a genuine language restriction such as
+"no two consecutive uses of mode 1", where the node constrains the *future* — and then results at
+different nodes are answers to different questions and must not be merged without deciding which
+node a run may start in.
+"""
+function restricts_future(G::LabDigraph)
+    enabled = enabled_modes(G)
+    isempty(enabled) && return false
+    reference = first(values(enabled))
+    return any(!=(reference), values(enabled))
+end
+
 abstract type AbstractPiece end
 
 function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
@@ -240,8 +305,18 @@ function compute_quadratic_pieces_pclf(
     a = 0.0
     b = 0.0
     for Ai in A
-        a = max(a, maximum(abs.(LinearAlgebra.eigvals(Ai))))
         b = max(b, LinearAlgebra.opnorm(Ai, 2))
+    end
+
+    # The lower bracket must bound the rate over the *graph's* language, not the system's. A mode
+    # carrying a self-loop can be repeated for ever, so the language contains `mᵂ` and the rate is
+    # at least `ρ(A_m)`; a mode with no self-loop may be forbidden from repeating, and assuming
+    # otherwise clamps the bisection above the true answer -- silently, since it then converges to
+    # the bracket floor for every template. With no self-loop this degrades to 0, and for a single
+    # node carrying every mode it reproduces the previous bracket exactly.
+    for (u, v, label) in G.edges
+        u == v || continue
+        a = max(a, maximum(abs.(LinearAlgebra.eigvals(A[Int(label)]))))
     end
 
     # --- bisection loop ---
@@ -449,22 +524,29 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         push!(Mlist, (ui, vi, σ, M))
     end
 
-    # --- initial upper bound b: max row-sum among M matrices (finite) ---
+    # --- initial upper bound b: max row sum among the M matrices ---
+    #
+    # It must be taken on the `M = |G_v A_σ G_u^{-1}|`, NOT on the raw `A_σ`. The constraint the
+    # bisection tests is `M w_u <= γ w_v`, so giving every `w` the same value makes it feasible
+    # exactly at `γ = max row sum of M` — a bracket the search is *guaranteed* to start inside.
+    # `opnorm(A_σ, Inf)` is that same quantity only when the templates are the identity; under a
+    # rotated template it can be strictly smaller, and then the top of the bracket is itself
+    # infeasible and a certifiable system is reported as having no certificate.
     a = 0.0
     b = 0.0
-    for Ai in A
-        a = max(a, maximum(abs.(LinearAlgebra.eigvals(Ai))))
-        b = max(b, LinearAlgebra.opnorm(Ai, Inf))   # infinity norm (max row sum)
+    for (_, _, _, M) in Mlist
+        b = max(b, maximum(sum(M; dims = 2)))
     end
 
-    # --- bisection ---
-    iter = 0
-    feasible_at = false
-    any_feasible = false
-    while (b - a > tol) && (iter < maxiter)
-        iter += 1
-        gamma = (a + b) / 2
+    # See `compute_quadratic_pieces_pclf` for why the lower bracket is language-aware.
+    for (u, v, label) in D.edges
+        u == v || continue
+        a = max(a, maximum(abs.(LinearAlgebra.eigvals(A[Int(label)]))))
+    end
 
+    # Whether one trial rate admits piece weights, as a closure so the bracket can be tested at `b`
+    # itself rather than only at points strictly inside it.
+    function feasible_at_rate(gamma)
         model = JuMP.Model(optimizer)
         if !verbose
             JuMP.set_silent(model)
@@ -472,14 +554,12 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
 
         # variables: w_i in R^n with strict positivity lower bound min_w
         wvars = [JuMP.@variable(model, [1:n]) for i in 1:l_s]
-
-        # enforce strict positivity
         for i in 1:l_s, k in 1:n
             JuMP.@constraint(model, wvars[i][k] >= min_w)
         end
 
         # constraints: for every precomputed M (ui->vi): M * w_ui <= gamma * w_vi
-        for (ui, vi, σ, M) in Mlist
+        for (ui, vi, _, M) in Mlist
             for k in 1:n
                 JuMP.@constraint(
                     model,
@@ -488,12 +568,26 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
             end
         end
 
-        # Feasibility check (no objective)
         JuMP.optimize!(model)
         st = JuMP.termination_status(model)
-        feasible_at = (st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT)
+        return st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT
+    end
 
-        if feasible_at
+    # --- bisection ---
+    #
+    # The top of the bracket is TESTED, not assumed feasible. Without this the search reports failure
+    # whenever the optimum sits exactly at `b`, because the lower bracket `a = ρ(A_m)` over self-loops
+    # then equals `b`, `b - a > tol` is false at once, the loop body never runs and `any_feasible`
+    # stays false. That is not a corner case: `A = diag(0.6, 0.48)` under a π/6-rotated template has
+    # Perron root exactly 0.6 — a similarity transform preserves the spectrum — so `a` and `b` meet
+    # on the true answer and a perfectly good certificate was reported as absent.
+    any_feasible = feasible_at_rate(b)
+
+    iter = 0
+    while (b - a > tol) && (iter < maxiter)
+        iter += 1
+        gamma = (a + b) / 2
+        if feasible_at_rate(gamma)
             any_feasible = true
             b = gamma
         else
@@ -501,15 +595,27 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         end
     end
 
-    # See the note in `compute_polyhedral_pieces_pclf`: `b` is only an unverified norm bound until
-    # some trial certifies it, so returning it unconditionally reports a failure as a result.
+    # With a fixed template and free positive weights a feasible rate ALWAYS exists — give every `w`
+    # the same value and the constraints hold at `γ = max row sum of M`, which is how `b` is chosen.
+    # So reaching here with nothing feasible does not mean "no certificate"; it means the solver could
+    # not certify even the bracket that is feasible by construction, which is a numerical failure and
+    # is reported as such. `Inf` is kept for that case rather than returning a rate no solve backed.
     if !any_feasible
-        @warn "compute_symmetric_2n_faces_polyhedral_pieces_pclf: no feasible contraction rate \
-               found; no certificate exists for this graph and template. Returning JSRapprox = Inf."
+        @warn "compute_symmetric_2n_faces_polyhedral_pieces_pclf: the solver rejected even the \
+               guaranteed bracket γ = $(b), which is feasible by construction (equal weights). This \
+               is a numerical failure, not an absent certificate. Returning JSRapprox = Inf."
         return PCLF(D, Dict{Any, AbstractPiece}(), Inf)
     end
 
     gamma = b
+
+    # A rate is always returned, and it is the caller's job to ask whether it contracts. Saying so
+    # here because the previous version conflated "no contraction" with "no answer", and a rate of,
+    # say, 1.2 is strictly more useful than `Inf`: it says how far the template is from working.
+    if gamma >= 1
+        @warn "compute_symmetric_2n_faces_polyhedral_pieces_pclf: best rate for this graph and \
+               template is $(gamma) >= 1, so it certifies no contraction." maxlog = 1
+    end
 
     # --- final solve to extract pieces (if requested) ---
     pieces = Dict{Any, AbstractPiece}()
@@ -745,8 +851,13 @@ function compute_polyhedral_pieces_pclf(
     a = 0.0
     b = 0.0
     for Ai in A
-        a = max(a, maximum(abs.(LinearAlgebra.eigvals(Ai))))
         b = max(b, LinearAlgebra.opnorm(Ai, Inf))   # infinity norm (max row sum)
+    end
+
+    # See `compute_quadratic_pieces_pclf` for why the lower bracket is language-aware.
+    for (u, v, label) in D.edges
+        u == v || continue
+        a = max(a, maximum(abs.(LinearAlgebra.eigvals(A[Int(label)]))))
     end
 
     # --- bisection over rho ---
@@ -911,13 +1022,89 @@ function common_lyapunov_graph(labels::Vector{T}) where {T <: Real}
     return LabDigraph{T, Symbol}(edges, verts)
 end
 
-function build_common_lyapunov(pclf::PCLF)
-    states, _, alphabet = build_observer_graph(pclf.graph)
+"""
+Drop observer states that **contain** another one.
 
-    U = eltype(pclf.graph.verts)
+The sublevel set is a union over states of an intersection over the nodes of each, so `S′ ⊆ S` makes
+`S` redundant: `∩_{i∈S} ⊆ ∩_{i∈S′}`. Dropping it leaves the function itself unchanged — in
+`min_S max_{i∈S} V_i` a superset's `max` is never the smallest — but removes one polytope from the
+union, and with it the disjoint-decomposition work that polytope would have caused downstream.
+
+This is not a micro-optimisation. On a complete graph the observer reaches the full vertex set (the
+initial uncertainty) *and* every singleton; the full set contributes the intersection, which then has
+to be carved out of each singleton's piece, turning two convex polytopes into five disjoint parts.
+Every cell of a quotient built on such a certificate inherits that fragmentation.
+"""
+function _drop_redundant_supersets(states::Vector{Set{U}}) where {U}
+    keep = Set{U}[]
+    for S in states
+        isempty(S) && continue
+        any(other -> other != S && issubset(other, S), states) && continue
+        push!(keep, S)
+    end
+    return isempty(keep) ? states : keep
+end
+
+"""
+    build_common_lyapunov(pclf::PCLF; mode = :auto) -> PCLF
+
+The common Lyapunov function induced by `pclf`, as a one-node `PCLF`.
+
+`mode` selects the construction, and the default checks the graph's structure rather than always
+paying for the subset construction:
+
+| `mode` | needs | `V*` | sublevel set |
+| :--- | :--- | :--- | :--- |
+| `:min` | [`is_complete`](@ref) | `min_i V_i` | the **union** of the pieces — non-convex, the larger set |
+| `:max` | [`is_co_complete`](@ref) | `max_i V_i` | the **intersection** — convex, the smaller set |
+| `:observer` | nothing | `min_S max_{i∈S} V_i` | union over the observer's reachable subsets |
+| `:auto` | — | the first of the three that applies | |
+
+`:auto` prefers `:min` when both structural tests pass, because a certificate is judged first by what
+it certifies and the union is the larger region; `:max` is then available explicitly and is cheaper.
+On a De Bruijn graph the question does not arise — the primal is complete and not co-complete, the
+dual the reverse — so each admits exactly one closed form.
+
+The observer fallback is not wrong on the structured graphs, merely wasteful: it recovers the same
+function (on a complete graph its singletons make `min_S max_{i∈S} V_i` collapse to `min_i V_i`) but
+enumerates redundant subsets on the way. Those are filtered out in every mode.
+"""
+function build_common_lyapunov(pclf::PCLF; mode::Symbol = :auto)
+    g = pclf.graph
+    labels = graph_labels(g)
+    alphabet = collect(labels)
+
+    if mode === :auto
+        mode = if is_complete(g, labels)
+            :min
+        elseif is_co_complete(g, labels)
+            :max
+        else
+            :observer
+        end
+    end
+
+    U = eltype(g.verts)
+    states = if mode === :min
+        is_complete(g, labels) || error(
+            "`mode = :min` needs a COMPLETE graph (every node an outgoing edge for every mode); " *
+            "min_i V_i is not a common Lyapunov function otherwise.",
+        )
+        [Set{U}([v]) for v in g.verts]
+    elseif mode === :max
+        is_co_complete(g, labels) || error(
+            "`mode = :max` needs a CO-COMPLETE graph (every node an incoming edge for every mode); " *
+            "max_i V_i is not a common Lyapunov function otherwise.",
+        )
+        [Set{U}(g.verts)]
+    elseif mode === :observer
+        first(build_observer_graph(g))
+    else
+        error("unknown mode $(repr(mode)); expected :auto, :min, :max or :observer")
+    end
+
     pieces_typed = Dict{U, AbstractPiece}(pclf.pieces)
-
-    clf_piece = ObserverCLFPiece(states, pieces_typed)
+    clf_piece = ObserverCLFPiece(_drop_redundant_supersets(states), pieces_typed)
     clf_graph = common_lyapunov_graph(alphabet)
 
     return PCLF(clf_graph, Dict(:clf => clf_piece), pclf.JSRapprox)
