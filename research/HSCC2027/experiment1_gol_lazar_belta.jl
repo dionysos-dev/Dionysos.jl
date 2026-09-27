@@ -16,7 +16,8 @@
 # CACHE=0 rebuilds the quotients instead of loading them from `cache/`, and is what the reported
 # build time requires.
 
-using StaticArrays, LinearAlgebra, JuMP, HiGHS, LazySets, Plots, Printf, Spot, JLD2, LaTeXStrings
+using StaticArrays,
+    LinearAlgebra, JuMP, HiGHS, LazySets, Plots, Printf, Spot, JLD2, LaTeXStrings
 import HybridSystems, Statistics
 import MathOptInterface as MOI
 
@@ -89,13 +90,18 @@ end
 graph = PCLF.generate_DeBruijn_edges(2, 1)
 nodes = sort(collect(graph.verts); by = string)
 pclf = PCLF.compute_polyhedral_pieces_pclf(
-    f, graph, HiGHS.Optimizer, Dict(nd => cones for nd in nodes); MLF = true,
+    f,
+    graph,
+    HiGHS.Optimizer,
+    Dict(nd => cones for nd in nodes);
+    MLF = true,
 )
 isinf(pclf.JSRapprox) && error("no certificate for this graph and template")
 
 "The smallest level at which every node's piece contains every observation region."
 region_level(p) = maximum(
-    PCQ.gamma_cover_set(p.pieces[nd], UT._as_hpolytope(R)) for nd in nodes for (_, R) in REGIONS
+    PCQ.gamma_cover_set(p.pieces[nd], UT._as_hpolytope(R)) for nd in nodes for
+    (_, R) in REGIONS
 )
 
 # One common factor, so the level lands near 6. The certificate LP is free to return any scaling and
@@ -120,7 +126,7 @@ NB = something(
     findfirst(
         j ->
             PCQ.all_nodes_clear_regions(pclf, ΓX * γ^(j - 1), regions_h; tol = 1e-2) &&
-                PCQ.all_nodes_clear_regions(common, ΓX * γ^(j - 1), regions_h; tol = 1e-2),
+            PCQ.all_nodes_clear_regions(common, ΓX * γ^(j - 1), regions_h; tol = 1e-2),
         1:80,
     ),
     -1,
@@ -131,12 +137,21 @@ common_parts = let S = PCLF.get_sublevel_set(common.pieces[:clf], 1.0; atol = 1e
     S isa LazySets.UnionSetArray ? length(S.array) : 1
 end
 
-@printf("\ngraph            primal De Bruijn order 1, %d nodes, complete: %s\n",
-        length(nodes), PCLF.is_complete(graph, 1:2))
-@printf("template         %d placed cones, %d rows per piece\n",
-        length(cones), size(pclf.pieces[nodes[1]].G, 1))
+@printf(
+    "\ngraph            primal De Bruijn order 1, %d nodes, complete: %s\n",
+    length(nodes),
+    PCLF.is_complete(graph, 1:2)
+)
+@printf(
+    "template         %d placed cones, %d rows per piece\n",
+    length(cones),
+    size(pclf.pieces[nodes[1]].G, 1)
+)
 @printf("CERTIFIED RATE   %.6f\n", γ)
-@printf("induced common   %d disjoint polytopes, the union approach 1 works on\n", common_parts)
+@printf(
+    "induced common   %d disjoint polytopes, the union approach 1 works on\n",
+    common_parts
+)
 @printf("ladder           ΓX = %.4f, %d slices, τD = %.4f\n", ΓX, NB, ΓX * γ^(NB - 1))
 
 # The certificate itself, which every number below depends on. A polyhedral piece is the gauge
@@ -147,8 +162,14 @@ for nd in nodes
     p = pclf.pieces[nd]
     @printf("  node %-6s  V(x) = max_i |(G x)_i| / w_i\n", string(nd))
     for i in 1:size(p.G, 1)
-        @printf("      G[%d,:] = %9.4f %9.4f      w[%d] = %8.4f\n",
-                i, p.G[i, 1], p.G[i, 2], i, p.w[i])
+        @printf(
+            "      G[%d,:] = %9.4f %9.4f      w[%d] = %8.4f\n",
+            i,
+            p.G[i, 1],
+            p.G[i, 2],
+            i,
+            p.w[i]
+        )
     end
 end
 
@@ -223,9 +244,15 @@ end
 function stats(q)
     parts, faces = PCQ.cell_complexities(q)
     return (;
-        cells = length(parts), parts, faces,
-        sum_p = sum(parts), mean_p = Statistics.mean(parts), max_p = maximum(parts),
-        sum_f = sum(faces), mean_f = Statistics.mean(faces), max_f = maximum(faces),
+        cells = length(parts),
+        parts,
+        faces,
+        sum_p = sum(parts),
+        mean_p = Statistics.mean(parts),
+        max_p = maximum(parts),
+        sum_f = sum(faces),
+        mean_f = Statistics.mean(faces),
+        max_f = maximum(faces),
     )
 end
 
@@ -235,7 +262,7 @@ function run(name, title, cert)
     built = if USE_CACHE && isfile(path)
         println("  (quotient loaded from cache; run with CACHE=0 to time the build)")
         JLD2.jldopen(path, "r") do file
-            (; quotient = file["quotient"], D = file["D"])
+            return (; quotient = file["quotient"], D = file["D"])
         end
     else
         b = build(cert)
@@ -257,14 +284,30 @@ function run(name, title, cert)
 
     s = stats(built.quotient)
     syn, ver = solve(f, built), solve(f_forall, built)
-    @printf("  quotient         %d cells, %d polytopes, D in %d part(s), clears every region\n",
-            s.cells, s.sum_p, length(parts))
-    @printf("  certified        %d cells under ∃, %d under ∀\n", length(syn.won), length(ver.won))
+    @printf(
+        "  quotient         %d cells, %d polytopes, D in %d part(s), clears every region\n",
+        s.cells,
+        s.sum_p,
+        length(parts)
+    )
+    @printf(
+        "  certified        %d cells under ∃, %d under ∀\n",
+        length(syn.won),
+        length(ver.won)
+    )
     return (; built, s, cert, syn, ver)
 end
 
-a1 = run("approach1", "APPROACH 1 — determinise the PCLF, then build on the induced common", common)
-a2 = run("approach2", "APPROACH 2 — build on the PCLF directly, one partition per node", pclf)
+a1 = run(
+    "approach1",
+    "APPROACH 1 — determinise the PCLF, then build on the induced common",
+    common,
+)
+a2 = run(
+    "approach2",
+    "APPROACH 2 — build on the PCLF directly, one partition per node",
+    pclf,
+)
 
 # ── the two costs, measured side by side ─────────────────────────────────────────────────────────
 # Timed here, after both quotients exist, rather than inside `run`. A timed region pays garbage
@@ -317,8 +360,15 @@ if FIGURES
     # series inherits and which makes these outlines vanish entirely.
     function outline!(p)
         for (i, (_, R)) in enumerate(REGIONS)
-            plot!(p, R; fillalpha = 0.0, linecolor = REGION_COLOURS[i], linealpha = 1.0,
-                  linewidth = 2.5, label = "")
+            plot!(
+                p,
+                R;
+                fillalpha = 0.0,
+                linecolor = REGION_COLOURS[i],
+                linealpha = 1.0,
+                linewidth = 2.5,
+                label = "",
+            )
         end
         return p
     end
@@ -336,24 +386,45 @@ if FIGURES
     # independently of the data over-constrains the layout and Plots aborts.
     function rowsize(l, n; w = 430, chrome = 95)
         (xlo, xhi), (ylo, yhi) = l
-        return (w * n,
-                round(Int, w * clamp((yhi - ylo) / max(xhi - xlo, eps()), 0.35, 2.2)) + chrome)
+        return (
+            w * n,
+            round(Int, w * clamp((yhi - ylo) / max(xhi - xlo, eps()), 0.35, 2.2)) + chrome,
+        )
     end
     function certified(q, res, title)
         p = plot(; aspect_ratio = :equal, legend = false, title = title, titlefontsize = 9)
         for (ids, c) in ((res.lost, LOST), (res.won, WON))
             isempty(ids) && continue
-            plot!(p, q; what = :states, state_ids = collect(ids), show_contours = false,
-                  user_color = c, fillalpha = 1.0)
+            plot!(
+                p,
+                q;
+                what = :states,
+                state_ids = collect(ids),
+                show_contours = false,
+                user_color = c,
+                fillalpha = 1.0,
+            )
         end
         return outline!(p)
     end
 
     # (1) the induced common's quotient, its cells
-    p = plot(; aspect_ratio = :equal, legend = false, titlefontsize = 9,
-             title = "Approach 1 — the induced common's quotient, $(a1.s.cells) cells")
-    plot!(p, a1.built.quotient; what = :states, by = :state, show_contours = true,
-          linewidth = 0.3, fillalpha = 0.9, merge_series = false)
+    p = plot(;
+        aspect_ratio = :equal,
+        legend = false,
+        titlefontsize = 9,
+        title = "Approach 1 — the induced common's quotient, $(a1.s.cells) cells",
+    )
+    plot!(
+        p,
+        a1.built.quotient;
+        what = :states,
+        by = :state,
+        show_contours = true,
+        linewidth = 0.3,
+        fillalpha = 0.9,
+        merge_series = false,
+    )
     outline!(p)
     l = align!([p])
     plot!(p; size = rowsize(l, 1))
@@ -400,7 +471,8 @@ if FIGURES
             return true
         end
         z = collect(Float64, z)
-        closed = walk([z], Int[], OPDS.step(spec, OPDS.init_state(spec), labels_at(z, D)), 0)
+        closed =
+            walk([z], Int[], OPDS.step(spec, OPDS.init_state(spec), labels_at(z, D)), 0)
         depth = isempty(branches) ? 0 : maximum(length(b.word) for b in branches)
         return (; branches, closed, depth, leaves = length(branches))
     end
@@ -416,8 +488,16 @@ if FIGURES
     "The terminal set, the formula's target, outlined on a panel."
     function target!(p, D)
         for P in (D isa LazySets.UnionSetArray ? D.array : [D])
-            plot!(p, P; fillalpha = 0.0, linecolor = :black, linestyle = :dash,
-                  linealpha = 1.0, linewidth = 1.5, label = "")
+            plot!(
+                p,
+                P;
+                fillalpha = 0.0,
+                linecolor = :black,
+                linestyle = :dash,
+                linealpha = 1.0,
+                linewidth = 1.5,
+                label = "",
+            )
         end
         return p
     end
@@ -461,9 +541,13 @@ if FIGURES
             t = environment_tree(D, c.x; nmax = TREE_MAX)
             t.closed && push!(ranked, (; c..., t))
         end
-        isempty(ranked) && error("no ∀-certified point whose tree closes within $TREE_MAX steps")
-        sort!(ranked; by = w -> (w.from == "the paper's point a" && w.t.depth ≥ 3, w.t.depth),
-              rev = true)
+        isempty(ranked) &&
+            error("no ∀-certified point whose tree closes within $TREE_MAX steps")
+        sort!(
+            ranked;
+            by = w -> (w.from == "the paper's point a" && w.t.depth ≥ 3, w.t.depth),
+            rev = true,
+        )
 
         pick = nothing
         for w in ranked
@@ -475,7 +559,8 @@ if FIGURES
             pick = (w, s1, s2)
             break
         end
-        pick === nothing && error("no witness point carries a controller on both quotients")
+        pick === nothing &&
+            error("no witness point carries a controller on both quotients")
         pick
     end
     xw = SVector{2}(witness.x)
@@ -484,15 +569,22 @@ if FIGURES
     # prefix that is acceptance, but leaving the domain looks the same from outside, and only the
     # first is a witness.
     for (nm, s, D) in (("approach 1", sim1, a1.built.D), ("approach 2", sim2, a2.built.D))
-        accepts(s.X, D) ||
-            error("[$nm] the controlled run does not satisfy φ; it left the controller's domain")
+        accepts(s.X, D) || error(
+            "[$nm] the controlled run does not satisfy φ; it left the controller's domain",
+        )
     end
     @printf("\nwitness point    (%.3f, %.3f), %s\n", xw[1], xw[2], witness.from)
-    @printf("  synthesis ∃    approach 1: %d steps, approach 2: %d steps\n",
-            length(sim1.U), length(sim2.U))
+    @printf(
+        "  synthesis ∃    approach 1: %d steps, approach 2: %d steps\n",
+        length(sim1.U),
+        length(sim2.U)
+    )
     # The same runs appear on both figures: they are runs of the system, not of a quotient.
-    @printf("  verification ∀ %d runs, deepest %d steps, identical on both\n",
-            witness.t.leaves, witness.t.depth)
+    @printf(
+        "  verification ∀ %d runs, deepest %d steps, identical on both\n",
+        witness.t.leaves,
+        witness.t.depth
+    )
 
     # Only two of the environment's runs are drawn. The whole tree was a tangle in which no single
     # run could be followed, and following one is the point; the shortest and the longest bracket
@@ -501,8 +593,18 @@ if FIGURES
     word_label(w) = isempty(w) ? "ε" : join(w, "")
     function run!(p, X, col, lab)
         xs, ys = first.(X), last.(X)
-        plot!(p, xs, ys; color = col, linealpha = 1.0, linewidth = 2.2, marker = :circle,
-              markersize = 3.5, markerstrokewidth = 0, label = lab)
+        plot!(
+            p,
+            xs,
+            ys;
+            color = col,
+            linealpha = 1.0,
+            linewidth = 2.2,
+            marker = :circle,
+            markersize = 3.5,
+            markerstrokewidth = 0,
+            label = lab,
+        )
         return p
     end
 
@@ -519,43 +621,101 @@ if FIGURES
     # R1 away from black, which this figure spends on D₁ and D₂.
     const PROBLEM_COLOURS = [:darkgreen, :navy, :darkorange]
     τD = ΓX * γ^(NB - 1)
-    D_pieces = [UT._as_hpolytope(PCLF.get_sublevel_set(pclf.pieces[nd], τD)) for nd in nodes]
+    D_pieces =
+        [UT._as_hpolytope(PCLF.get_sublevel_set(pclf.pieces[nd], τD)) for nd in nodes]
     D1 = reduce(LazySets.intersection, D_pieces)
     # The working pair, one level up: X₂ is the outer domain the abstraction is built on, X₁ the
     # inner set verification and synthesis are restricted to.
-    X_pieces = [UT._as_hpolytope(PCLF.get_sublevel_set(pclf.pieces[nd], ΓX)) for nd in nodes]
+    X_pieces =
+        [UT._as_hpolytope(PCLF.get_sublevel_set(pclf.pieces[nd], ΓX)) for nd in nodes]
     X1 = reduce(LazySets.intersection, X_pieces)
 
-    p = plot(; aspect_ratio = :equal, legend = false, titlefontsize = 9,
-             title = "Gol-Lazar-Belta Example 3.1 — the problem")
+    p = plot(;
+        aspect_ratio = :equal,
+        legend = false,
+        titlefontsize = 9,
+        title = "Gol-Lazar-Belta Example 3.1 — the problem",
+    )
     for P in X_pieces
-        plot!(p, P; fillalpha = 1.0, fillcolor = :grey93, linecolor = :grey70,
-              linealpha = 1.0, linewidth = 1.0, label = "")
+        plot!(
+            p,
+            P;
+            fillalpha = 1.0,
+            fillcolor = :grey93,
+            linecolor = :grey70,
+            linealpha = 1.0,
+            linewidth = 1.0,
+            label = "",
+        )
     end
-    plot!(p, X1; fillalpha = 0.0, linecolor = :black, linealpha = 1.0, linewidth = 2.0, label = "")
+    plot!(
+        p,
+        X1;
+        fillalpha = 0.0,
+        linecolor = :black,
+        linealpha = 1.0,
+        linewidth = 2.0,
+        label = "",
+    )
     # R₁ and R₂ are nudged off their centroids: the run crosses both, and a label sitting on the
     # line is unreadable. A nudge that would leave its region is dropped.
     LABEL_NUDGE = Dict("R1" => [0.9, 0.0], "R2" => [1.0, -0.9])
     for (i, (nm, R)) in enumerate(REGIONS)
-        plot!(p, R; fillalpha = 0.30, fillcolor = PROBLEM_COLOURS[i], linealpha = 1.0,
-              linecolor = PROBLEM_COLOURS[i], linewidth = 2.5, label = "")
+        plot!(
+            p,
+            R;
+            fillalpha = 0.30,
+            fillcolor = PROBLEM_COLOURS[i],
+            linealpha = 1.0,
+            linecolor = PROBLEM_COLOURS[i],
+            linewidth = 2.5,
+            label = "",
+        )
         c = cell_point(R)
         c_lab = c + get(LABEL_NUDGE, nm, [0.0, 0.0])
         c_lab ∈ UT._as_hpolytope(R) || (c_lab = c)
-        annotate!(p, c_lab[1], c_lab[2],
-                  Plots.text(latexstring("R_", i), 12, PROBLEM_COLOURS[i], :center))
+        annotate!(
+            p,
+            c_lab[1],
+            c_lab[2],
+            Plots.text(latexstring("R_", i), 12, PROBLEM_COLOURS[i], :center),
+        )
     end
     # D₂ filled, then D₁ opaque on top: the pieces are nested and differ by 4% in area, so the pair
     # is only legible as the ring between them that this leaves.
     for P in D_pieces
-        plot!(p, P; fillalpha = 0.40, fillcolor = :red, linecolor = :red, linealpha = 1.0,
-              linewidth = 1.2, label = "")
+        plot!(
+            p,
+            P;
+            fillalpha = 0.40,
+            fillcolor = :red,
+            linecolor = :red,
+            linealpha = 1.0,
+            linewidth = 1.2,
+            label = "",
+        )
     end
-    plot!(p, D1; fillalpha = 1.0, fillcolor = :grey78, linecolor = :black, linealpha = 1.0,
-          linewidth = 1.5, label = "")
+    plot!(
+        p,
+        D1;
+        fillalpha = 1.0,
+        fillcolor = :grey78,
+        linecolor = :black,
+        linealpha = 1.0,
+        linewidth = 1.5,
+        label = "",
+    )
     run!(p, sim2.X, :black, "")
-    scatter!(p, [xw[1]], [xw[2]]; color = :white, markerstrokecolor = :black,
-             markerstrokewidth = 1.5, markersize = 6, label = "")
+    scatter!(
+        p,
+        [xw[1]],
+        [xw[2]];
+        color = :white,
+        markerstrokecolor = :black,
+        markerstrokewidth = 1.5,
+        markersize = 6,
+        label = "",
+    )
     let c = cell_point(D1)
         annotate!(p, c[1], c[2], Plots.text(L"\mathcal{D}_1", 12, :black, :center))
     end
@@ -568,14 +728,23 @@ if FIGURES
         far = filter(w -> outside_D(w) > 1e-8, V)
         cand = isempty(far) ? V : far
         v = cand[argmax([w[1] + w[2] for w in cand])]
-        annotate!(p, 1.10 * v[1] + 0.1, 1.10 * v[2] + 0.4,
-                  Plots.text(L"\mathcal{D}_2", 12, :red, :center))
+        annotate!(
+            p,
+            1.10 * v[1] + 0.1,
+            1.10 * v[2] + 0.4,
+            Plots.text(L"\mathcal{D}_2", 12, :red, :center),
+        )
     end
     # The two working sets are named on opposite sides so the labels cannot be confused: X₁ just
     # inside its dark contour at the bottom, X₂ just outside the outer boundary at the top.
     let V = LazySets.vertices_list(X1)
         v = V[argmin([w[2] for w in V])]
-        annotate!(p, 0.88 * v[1], 0.88 * v[2], Plots.text(L"\mathcal{X}_1", 12, :black, :center))
+        annotate!(
+            p,
+            0.88 * v[1],
+            0.88 * v[2],
+            Plots.text(L"\mathcal{X}_1", 12, :black, :center),
+        )
     end
     # X₂ is named at a vertex that lies strictly outside X₁, so the label sits where the two sets
     # actually differ rather than where their boundaries touch.
@@ -586,8 +755,12 @@ if FIGURES
         far = filter(w -> outside(w) > 1e-8, V)
         cand = isempty(far) ? V : far
         v = cand[argmax([w[1] + w[2] for w in cand])]
-        annotate!(p, 1.07 * v[1] + 0.5, 1.07 * v[2],
-                  Plots.text(L"\mathcal{X}_2", 12, :black, :center))
+        annotate!(
+            p,
+            1.07 * v[1] + 0.5,
+            1.07 * v[2],
+            Plots.text(L"\mathcal{X}_2", 12, :black, :center),
+        )
     end
     # To the right of the point, not below it: below, the label fell across the X₁ contour.
     annotate!(p, xw[1] + 1.0, xw[2] - 0.5, Plots.text(L"x_0", 12, :black, :center))
@@ -597,10 +770,18 @@ if FIGURES
 
     # (2) approach 1, both games on one figure, each carrying the runs from the witness point: the
     # controller needs one of them to reach the target, the environment must be answered on all.
-    ps = [certified(a1.built.quotient, a1.syn,
-                    "Approach 1 — synthesis ∃: the controlled run"),
-          certified(a1.built.quotient, a1.ver,
-                    "Approach 1 — verification ∀: $(witness.t.leaves) runs, $(length(shown)) drawn")]
+    ps = [
+        certified(
+            a1.built.quotient,
+            a1.syn,
+            "Approach 1 — synthesis ∃: the controlled run",
+        ),
+        certified(
+            a1.built.quotient,
+            a1.ver,
+            "Approach 1 — verification ∀: $(witness.t.leaves) runs, $(length(shown)) drawn",
+        ),
+    ]
     run!(ps[1], sim1.X, RUN_COLOURS[1], "word " * word_label(Int.(sim1.U)))
     for (i, b) in enumerate(shown)
         run!(ps[2], b.X, RUN_COLOURS[i], "word " * word_label(b.word))
@@ -610,9 +791,22 @@ if FIGURES
     for p in ps
         outline!(p)
         target!(p, a1.built.D)
-        scatter!(p, [xw[1]], [xw[2]]; color = :white, markerstrokecolor = :black,
-                 markerstrokewidth = 1.5, markersize = 6, label = "")
-        plot!(p; legend = :bottomright, legendfontsize = 7, background_color_legend = :white)
+        scatter!(
+            p,
+            [xw[1]],
+            [xw[2]];
+            color = :white,
+            markerstrokecolor = :black,
+            markerstrokewidth = 1.5,
+            markersize = 6,
+            label = "",
+        )
+        plot!(
+            p;
+            legend = :bottomright,
+            legendfontsize = 7,
+            background_color_legend = :white,
+        )
     end
     l = align!(ps)
     out(plot(ps...; layout = (1, 2), size = rowsize(l, 2)), "exp1_approach1_spec.png")
@@ -624,10 +818,18 @@ if FIGURES
     # The environment's runs are identical to approach 1's, because they are runs of the system and
     # not of a quotient, which is the claim: the cheaper abstraction answers the same question. The
     # controlled run need not be, since the two quotients admit different strategies.
-    ps = [certified(a2.built.quotient, a2.syn,
-                    "Approach 2 — synthesis ∃: the controlled run"),
-          certified(a2.built.quotient, a2.ver,
-                    "Approach 2 — verification ∀: $(witness.t.leaves) runs, $(length(shown)) drawn")]
+    ps = [
+        certified(
+            a2.built.quotient,
+            a2.syn,
+            "Approach 2 — synthesis ∃: the controlled run",
+        ),
+        certified(
+            a2.built.quotient,
+            a2.ver,
+            "Approach 2 — verification ∀: $(witness.t.leaves) runs, $(length(shown)) drawn",
+        ),
+    ]
     run!(ps[1], sim2.X, RUN_COLOURS[1], "word " * word_label(Int.(sim2.U)))
     for (i, b) in enumerate(shown)
         run!(ps[2], b.X, RUN_COLOURS[i], "word " * word_label(b.word))
@@ -635,9 +837,22 @@ if FIGURES
     for p in ps
         outline!(p)
         target!(p, a2.built.D)
-        scatter!(p, [xw[1]], [xw[2]]; color = :white, markerstrokecolor = :black,
-                 markerstrokewidth = 1.5, markersize = 6, label = "")
-        plot!(p; legend = :bottomright, legendfontsize = 7, background_color_legend = :white)
+        scatter!(
+            p,
+            [xw[1]],
+            [xw[2]];
+            color = :white,
+            markerstrokecolor = :black,
+            markerstrokewidth = 1.5,
+            markersize = 6,
+            label = "",
+        )
+        plot!(
+            p;
+            legend = :bottomright,
+            legendfontsize = 7,
+            background_color_legend = :white,
+        )
     end
     l = align!(ps)
     out(plot(ps...; layout = (1, 2), size = rowsize(l, 2)), "exp1_approach2_spec.png")
@@ -646,13 +861,34 @@ if FIGURES
     # the construction pays for. `fillrange` pins both series to the same baseline, which a log axis
     # otherwise picks per series, leaving the second suspended at 10^0.
     bins = range(0, 1.02 * max(maximum(a1.s.faces), maximum(a2.s.faces)); length = 45)
-    h = histogram(a1.s.faces; bins, yscale = :log10, fillrange = 0.7, alpha = 0.55,
-                  color = :firebrick, linecolor = :firebrick,
-                  label = "approach 1 (determinise first)",
-                  xlabel = "facets per cell", ylabel = "cells", legend = :topright,
-                  framestyle = :box, grid = false, ylims = (0.7, 5e4), size = (660, 410))
-    histogram!(h, a2.s.faces; bins, yscale = :log10, fillrange = 0.7, alpha = 0.55,
-               color = :steelblue, linecolor = :steelblue, label = "approach 2 (on the PCLF)")
+    h = histogram(
+        a1.s.faces;
+        bins,
+        yscale = :log10,
+        fillrange = 0.7,
+        alpha = 0.55,
+        color = :firebrick,
+        linecolor = :firebrick,
+        label = "approach 1 (determinise first)",
+        xlabel = "facets per cell",
+        ylabel = "cells",
+        legend = :topright,
+        framestyle = :box,
+        grid = false,
+        ylims = (0.7, 5e4),
+        size = (660, 410),
+    )
+    histogram!(
+        h,
+        a2.s.faces;
+        bins,
+        yscale = :log10,
+        fillrange = 0.7,
+        alpha = 0.55,
+        color = :steelblue,
+        linecolor = :steelblue,
+        label = "approach 2 (on the PCLF)",
+    )
     vline!(h, [a1.s.max_f]; color = :firebrick, ls = :dash, lw = 1.5, label = "")
     vline!(h, [a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.5, label = "")
     out(h, "exp1_facets_histogram.png")
@@ -661,24 +897,51 @@ if FIGURES
     # is deliberate, since `using CairoMakie` makes every bare `plot` in this session ambiguous,
     # which breaks redrawing a figure from a REPL that has the script loaded.
     import CairoMakie
-    mk_out(mk, n) = (CairoMakie.save(joinpath(d, n), mk; px_per_unit = 3); println("wrote ", n))
+    mk_out(mk, n) =
+        (CairoMakie.save(joinpath(d, n), mk; px_per_unit = 3); println("wrote ", n))
     node_z = Dict(nd => z for (nd, z) in zip(nodes, (0.0, 1.0)))
 
     function layered(title; ids = nothing, traj = nothing)
         mk = CairoMakie.Figure(; size = (900, 700))
-        ax = CairoMakie.Axis3(mk[1, 1]; xlabel = "x₁", ylabel = "x₂",
-                              zlabel = "memory (graph node)",
-                              zticks = ([0.0, 1.0], ["node $(nodes[1])", "node $(nodes[2])"]),
-                              azimuth = 1.2π, elevation = 0.16π, title = title)
+        ax = CairoMakie.Axis3(
+            mk[1, 1];
+            xlabel = "x₁",
+            ylabel = "x₂",
+            zlabel = "memory (graph node)",
+            zticks = ([0.0, 1.0], ["node $(nodes[1])", "node $(nodes[2])"]),
+            azimuth = 1.2π,
+            elevation = 0.16π,
+            title = title,
+        )
         q = a2.built.quotient
         if ids === nothing
-            DI.plot_augmented_bisimulation!(ax, q; node_z = node_z, color_by = :state,
-                                            alpha = 0.35, show_contours = false)
+            DI.plot_augmented_bisimulation!(
+                ax,
+                q;
+                node_z = node_z,
+                color_by = :state,
+                alpha = 0.35,
+                show_contours = false,
+            )
         else
-            DI.plot_augmented_bisimulation!(ax, q; state_ids = ids.lost, node_z = node_z,
-                                            color_by = LOST, alpha = 0.30, show_contours = false)
-            DI.plot_augmented_bisimulation!(ax, q; state_ids = ids.won, node_z = node_z,
-                                            color_by = WON, alpha = 0.45, show_contours = false)
+            DI.plot_augmented_bisimulation!(
+                ax,
+                q;
+                state_ids = ids.lost,
+                node_z = node_z,
+                color_by = LOST,
+                alpha = 0.30,
+                show_contours = false,
+            )
+            DI.plot_augmented_bisimulation!(
+                ax,
+                q;
+                state_ids = ids.won,
+                node_z = node_z,
+                color_by = WON,
+                alpha = 0.45,
+                show_contours = false,
+            )
         end
         # The observation regions on every layer. The specification is about them, and without them
         # the layers read as two coloured discs. `vertices_list` does not promise a cyclic order, so
@@ -690,24 +953,36 @@ if FIGURES
             V = V[sortperm([atan(v[2] - c[2], v[1] - c[1]) for v in V])]
             push!(V, V[1])
             for z in values(node_z)
-                CairoMakie.lines!(ax, first.(V), last.(V), fill(z + 0.005, length(V));
-                                  color = :black, linewidth = 2.0)
+                CairoMakie.lines!(
+                    ax,
+                    first.(V),
+                    last.(V),
+                    fill(z + 0.005, length(V));
+                    color = :black,
+                    linewidth = 2.0,
+                )
             end
         end
-        traj === nothing || DI.plot_augmented_trajectory!(ax, q, traj.X, traj.M; node_z = node_z)
+        traj === nothing ||
+            DI.plot_augmented_trajectory!(ax, q, traj.X, traj.M; node_z = node_z)
         return mk
     end
 
     # (3) approach 2's quotient in 3-D, one layer per graph node
-    mk_out(layered("Approach 2 — the quotient, one layer per graph node"),
-           "exp1_approach2_3d_quotient.png")
+    mk_out(
+        layered("Approach 2 — the quotient, one layer per graph node"),
+        "exp1_approach2_3d_quotient.png",
+    )
 
     # (4) the certified set in 3-D with the closed loop, as on the poster. It is `sim2`, the same
     # run approach 2's flat figure draws from the same witness point, so the three figures can be
     # read as one story rather than three unrelated starts.
     mk_out(
-        layered("Approach 2 — certified set (∃) and the closed loop";
-                ids = (; won = a2.syn.won, lost = a2.syn.lost), traj = (; sim2.X, sim2.M)),
+        layered(
+            "Approach 2 — certified set (∃) and the closed loop";
+            ids = (; won = a2.syn.won, lost = a2.syn.lost),
+            traj = (; sim2.X, sim2.M),
+        ),
         "exp1_approach2_3d_certified.png",
     )
 end

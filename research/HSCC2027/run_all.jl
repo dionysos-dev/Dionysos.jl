@@ -5,8 +5,11 @@
 # Expected total runtime: a few minutes on a laptop. Set SAMPLES=3 for medians over three timed
 # rounds instead of one, and FIGURES=0 to skip every figure.
 
-for script in ("experiment1_gol_lazar_belta.jl", "experiment2_graph_orientation.jl",
-                "experiment3_diverse_pieces.jl")
+for script in (
+    "experiment1_gol_lazar_belta.jl",
+    "experiment2_graph_orientation.jl",
+    "experiment3_diverse_pieces.jl",
+)
     println("\n", "#"^84)
     println("# ", script)
     println("#"^84)
