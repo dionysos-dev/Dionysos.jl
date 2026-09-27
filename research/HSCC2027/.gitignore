@@ -1,0 +1,7 @@
+cache/
+figures/
+
+# The root .gitignore drops every Manifest.toml, which is right for a package and wrong here: this
+# environment exists so that a third party reproduces the reported counts, and those counts depend
+# on solver versions. Pin it.
+!Manifest.toml
