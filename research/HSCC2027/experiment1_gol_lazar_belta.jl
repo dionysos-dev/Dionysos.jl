@@ -423,7 +423,6 @@ if FIGURES
         show_contours = true,
         linewidth = 0.3,
         fillalpha = 0.9,
-        merge_series = false,
     )
     outline!(p)
     l = align!([p])

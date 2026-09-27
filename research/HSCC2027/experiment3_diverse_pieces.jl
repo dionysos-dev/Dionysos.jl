@@ -55,7 +55,22 @@ gr()
 
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "1"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
-const RUNGS = parse(Int, get(ENV, "RUNGS", "7"))
+# The ladder has to be given explicitly here, since the construction's stopping rule is satisfied
+# immediately when there is no region to clear. The count is not neutral, and it is chosen on the
+# polytope totals rather than on the times, which vary by a factor of three between runs on this
+# machine while every count reproduces exactly. Approach 2's saving, as a share of approach 1's
+# polytopes, over the two orientations:
+#
+#   rungs      7        9       10       11
+#   primal   46 %     32 %     28 %     23 %
+#   dual     -2 %     19 %     21 %     37 %
+#
+# The two orientations move in opposite directions as the quotient is refined: the primal loses
+# margin as the induced common's fragmentation weighs relatively less, the dual gains it as the
+# arms' cell counts separate. Seven is where the dual has nothing to show. Nine is the first count
+# where both are solidly positive, and it keeps the quotients small enough that the partition
+# figures still show individual cells rather than a texture.
+const RUNGS = parse(Int, get(ENV, "RUNGS", "9"))
 const ATOL = 1e-3
 const SOLVER = JuMP.optimizer_with_attributes(
     Clarabel.Optimizer,
@@ -177,6 +192,23 @@ function run_orientation(dual)
         ΓX,
         RUNGS
     )
+    # The certificate itself. A polyhedral piece is the gauge `V_s(x) = max_i |(G x)_i| / w_i`, so
+    # its Γ-sublevel set is the symmetric polytope `{x : |G x| ≤ Γ w}`.
+    println("  the certificate, one polyhedral piece per node:")
+    for nd in nodes
+        pc = pclf.pieces[nd]
+        @printf("    node %-6s\n", string(nd))
+        for i in 1:size(pc.G, 1)
+            @printf(
+                "      G[%d,:] = %9.4f %9.4f      w[%d] = %8.4f\n",
+                i,
+                pc.G[i, 1],
+                pc.G[i, 2],
+                i,
+                pc.w[i]
+            )
+        end
+    end
 
     # Build both arms first, then time both. A timed region pays garbage collection proportional to
     # the live heap, so an arm timed while the other does not yet exist is timed on a lighter heap:
@@ -296,7 +328,6 @@ if FIGURES
             show_contours = true,
             linewidth = 0.3,
             fillalpha = 0.9,
-            merge_series = false,
         )
         plot!(p; size = panelsize(p))
         savefig(p, joinpath(d, "exp3_$(r.tag)_approach1_quotient.png"))
