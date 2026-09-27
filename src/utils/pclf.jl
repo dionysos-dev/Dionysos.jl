@@ -1022,19 +1022,21 @@ function common_lyapunov_graph(labels::Vector{T}) where {T <: Real}
     return LabDigraph{T, Symbol}(edges, verts)
 end
 
-"""
-Drop observer states that **contain** another one.
-
-The sublevel set is a union over states of an intersection over the nodes of each, so `S′ ⊆ S` makes
-`S` redundant: `∩_{i∈S} ⊆ ∩_{i∈S′}`. Dropping it leaves the function itself unchanged — in
-`min_S max_{i∈S} V_i` a superset's `max` is never the smallest — but removes one polytope from the
-union, and with it the disjoint-decomposition work that polytope would have caused downstream.
-
-This is not a micro-optimisation. On a complete graph the observer reaches the full vertex set (the
-initial uncertainty) *and* every singleton; the full set contributes the intersection, which then has
-to be carved out of each singleton's piece, turning two convex polytopes into five disjoint parts.
-Every cell of a quotient built on such a certificate inherits that fragmentation.
-"""
+# Drop observer states that CONTAIN another one.
+#
+# The sublevel set is a union over states of an intersection over the nodes of each, so `S′ ⊆ S`
+# makes `S` redundant: `∩_{i∈S} ⊆ ∩_{i∈S′}`. Dropping it leaves the function itself unchanged, since
+# in `min_S max_{i∈S} V_i` a superset's `max` is never the smallest, but removes one polytope from
+# the union, and with it the disjoint-decomposition work that polytope would have caused downstream.
+#
+# This is not a micro-optimisation. On a complete graph the observer reaches the full vertex set (the
+# initial uncertainty) AND every singleton; the full set contributes the intersection, which then has
+# to be carved out of each singleton's piece, turning two convex polytopes into five disjoint parts.
+# Every cell of a quotient built on such a certificate inherits that fragmentation.
+#
+# A comment rather than a docstring: the `@autodocs` blocks filter underscore-prefixed internals out
+# of the manual, while `checkdocs = :all` demands that every docstring appear in it, so a private
+# helper cannot carry one.
 function _drop_redundant_supersets(states::Vector{Set{U}}) where {U}
     keep = Set{U}[]
     for S in states
