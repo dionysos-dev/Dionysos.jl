@@ -7,7 +7,7 @@
 
 for script in (
     "experiment1_gol_lazar_belta.jl",
-    "experiment2_graph_orientation.jl",
+    "experiment2_primal_and_dual.jl",
     "experiment3_diverse_pieces.jl",
 )
     println("\n", "#"^84)

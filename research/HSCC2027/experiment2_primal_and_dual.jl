@@ -1,6 +1,6 @@
 # EXPERIMENT 2 — the same system on both orientations of the De Bruijn graph.
 #
-#     julia --project=. experiment2_graph_orientation.jl        [SAMPLES=n] [FIGURES=0]
+#     julia --project=. experiment2_primal_and_dual.jl        [SAMPLES=n] [FIGURES=0]
 #
 # Self-contained: this file defines its own system, certificate and ladder. It shares nothing with
 # experiment 1, which needs different choices — in particular a different rule for the outer level,
@@ -173,6 +173,23 @@ function run_orientation(dual)
         ΓX,
         NB
     )
+    # The certificate itself. A polyhedral piece is the gauge `V_s(x) = max_i |(G x)_i| / w_i`, so
+    # its Γ-sublevel set is the symmetric polytope `{x : |G x| ≤ Γ w}`.
+    println("  the certificate, one polyhedral piece per node:")
+    for nd in nodes
+        pc = pclf.pieces[nd]
+        @printf("    node %-6s\n", string(nd))
+        for i in 1:size(pc.G, 1)
+            @printf(
+                "      G[%d,:] = %9.4f %9.4f      w[%d] = %8.4f\n",
+                i,
+                pc.G[i, 1],
+                pc.G[i, 2],
+                i,
+                pc.w[i]
+            )
+        end
+    end
 
     # Build both arms first, then time both. A timed region pays garbage collection proportional to
     # the live heap, so an arm timed while the other does not yet exist is timed on a lighter heap:
@@ -305,7 +322,6 @@ if FIGURES
             show_contours = true,
             linewidth = 0.3,
             fillalpha = 0.9,
-            merge_series = false,
         )
         outline!(p)
         plot!(p; size = panelsize(p))
