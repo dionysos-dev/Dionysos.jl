@@ -104,11 +104,6 @@ region_level(p) = maximum(
     (_, R) in REGIONS
 )
 
-# One common factor, so the level lands near 6. The certificate LP is free to return any scaling and
-# here returns one near 0.013, where `all_nodes_clear_regions`'s absolute tolerance of 1e-2 is the
-# size of the quantity it perturbs and the test answers "clear" for a terminal set that meets a
-# region. Rescaling is not free, since it changes the row norms and hence the geometric thickness of
-# `atol`, so it is used here and deliberately not in experiment 2.
 let α = region_level(pclf) / SCALE
     for nd in keys(pclf.pieces)
         pclf.pieces[nd].G = pclf.pieces[nd].G / α
