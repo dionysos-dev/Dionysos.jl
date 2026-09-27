@@ -97,7 +97,7 @@ HybridSystems.add_state!(::FoldedAutomaton) = error(_FOLDED_READ_ONLY)
 Base.empty!(::FoldedAutomaton) = error(_FOLDED_READ_ONLY)
 
 """
-    complete_with_sink(autom; groups = collect(1:get_n_input(autom))) -> (completed, sink, ncompleted)
+    complete_with_sink(autom; groups, is_enabled) -> (completed, sink, ncompleted)
 
 The automaton extended so that every `(state, symbol group)` has a successor, by routing the
 groups with none to a fresh absorbing `sink` state.
@@ -115,12 +115,21 @@ edge symbols `(mode, announcement)` over a lifted quotient, say: a layer that ne
 announcement is a *structural non-edge*, not a dropped behaviour, and completing it per symbol
 would poison the fold; only a **mode** with no successor at all is genuinely missing.
 
+`is_enabled(q, g)` says whether the environment could have played group `g` at state `q` at all. The
+default answers `true` everywhere, which is the right reading when the group alphabet *is* the
+environment's full choice set. It is the wrong reading when the alphabet is a constrained switching
+language: there, a group the language forbids at `q` is not missing behaviour but behaviour that does
+not exist, and sinking it grants the adversary a move the plant cannot make. That does not merely add
+conservatism — it makes every such state lose, and since `∀` fails a state when *any* successor
+fails, the loss propagates backward into every predecessor and empties the answer.
+
 The sink is state `get_n_state(autom) + 1` of `completed`; it carries every symbol as a self-loop
 and corresponds to no state of the original automaton, so translations back must skip it.
 """
 function complete_with_sink(
     autom::AbstractAutomatonList;
     groups::Vector{Int} = collect(1:get_n_input(autom)),
+    is_enabled = (q, g) -> true,
 )
     n = get_n_state(autom)
     m = get_n_input(autom)
@@ -137,6 +146,13 @@ function complete_with_sink(
     ncompleted = 0
     for q in 1:n, g in group_ids
         symbols = findall(==(g), groups)
+        # A group with no successor at `q` is completed only if the environment could have played it.
+        # `is_enabled` is how the caller says so, and its default keeps the historical reading: every
+        # group is available everywhere, so every gap is a dropped behaviour. When the alphabet is a
+        # constrained switching language that default is wrong -- a group the language forbids at `q`
+        # is not a gap at all, and sinking it hands the adversary a move the plant cannot make, which
+        # loses the whole universal answer rather than merely weakening it.
+        is_enabled(q, g) || continue
         if all(u -> isempty(post(autom, q, u)), symbols)
             add_transition!(completed, q, sink, first(symbols))
             ncompleted += 1
