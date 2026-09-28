@@ -1,7 +1,12 @@
 # Bisimulation quotient (HSCC 2027)
 
-Scripts reproducing the experiments of our **HSCC 2027** submission on path-complete Lyapunov
-function (PCLF) based bisimulation quotients for switched systems.
+Development folder for our **HSCC 2027** submission on path-complete Lyapunov function (PCLF) based
+bisimulation quotients for switched systems.
+
+> **The submission's artifact is [`../HSCC2027/`](../HSCC2027/)** — three self-contained scripts, a
+> pinned environment, and the reported numbers in its README. Run that to reproduce the paper. What
+> is here is the work behind it: the claims table below, the experiment campaign, and the reference
+> run whose cache several campaign scripts read.
 
 > **Citation:** _add the full reference once the paper is finalized._
 
@@ -10,10 +15,12 @@ function (PCLF) based bisimulation quotients for switched systems.
 [`common.jl`](common.jl) holds everything the scripts share — the imports and module aliases,
 the benchmark problems, the MOI call sequences for building a quotient (`build_quotient`) and
 synthesising a co-safe LTL controller on it (`synthesize_cosafe_ltl`), and the figures. The
-scripts split into [`examples/`](examples/) — the paper's worked examples, each a self-contained
-narrative with its figures beside it — and [`experiments/`](experiments/) — the measurement
-campaigns and sweeps behind the claims table. Each script `include`s `common.jl` from the parent
-and contains only what makes it different. Run any of them directly:
+scripts split into [`examples/`](examples/) — the reference run on the Gol–Lazar–Belta benchmark, a
+self-contained narrative with its figures beside it — and [`experiments/`](experiments/) — the
+sweeps behind the claims table. Each script `include`s `common.jl` from the parent and contains only
+what makes it different. [`campaign/`](campaign/) is separate: thirteen numbered folders, each a plan
+and the scripts that produced whatever numbers it quotes, indexed by
+[`campaign/plan.md`](campaign/plan.md). Run any script directly:
 
 ```
 julia --project=test research/BisimulationQuotient/examples/gol_lazar_belta_pclf.jl
@@ -21,18 +28,22 @@ julia --project=test research/BisimulationQuotient/examples/gol_lazar_belta_pclf
 
 ## What is claimed, and what backs it
 
-Eight claims, eight scripts. The evidence is of different kinds and the table says which is which,
-because they carry different weight: a construction settles a claim, a benchmark supports one.
+Eight claims. The evidence is of different kinds and the table says which is which, because they
+carry different weight: a construction settles a claim, a benchmark supports one.
+
+Four of the scripts are retired: `research/HSCC2027/` now carries the paper's experiments, and the
+campaign cites these rows by number rather than running them. The measurements stand as recorded
+here, and git has the code that produced them.
 
 | # | Script | Claim it addresses | Evidence | Headline numbers |
 | :-- | :--- | :--- | :--- | :--- |
 | E1 | [`graph_invariance.jl`](experiments/graph_invariance.jl) | The certified answer does not depend on the graph | proved + measured | 4 graphs, 101 probes, **0 disagreements**; cells span 9.3×, facets 6.7× |
 | E2 | [`complexity_distribution.jl`](experiments/complexity_distribution.jl) | Geometric complexity is redistributed, not removed | statistical | Σ facets conserved to **0.7 %**; worst cell **146 vs 1 728** (11.8×) |
 | E3 | [`memory_vs_geometry.jl`](experiments/memory_vs_geometry.jl) | With a bounded per-node budget, memory decides whether an abstraction exists | formal construction | at 4 facets/node: one node **rate ≥ 1**, no quotient; ℤ_q cycle **rate = ρ**, 1 797 cells |
-| E4 | [`gol_lazar_belta_example.jl`](examples/gol_lazar_belta_example.jl) | The construction contains the predecessor as `\|S\| = 1`, and answers both their Problem 5.1 (synthesis, ∃) and 5.2 (verification, ∀) from the one quotient — the two runs differ only in who the system says owns the switching signal | validation against published numbers | rate **0.940008** (exact LP) vs their 0.94; **11** slices vs their 11; 6 332 cells; winning **4 379** cells (vol 91.88) ⊋ verified **1 867** cells (vol 51.79) |
-| E5 | [`augmented_showcase.jl`](examples/augmented_showcase.jl) | The whole memory-vs-geometry trade on one system: at 2 rows/node memory is *necessary* (single node certifies nothing at any orientation), the induced common `max(V₀,V₁)` is the octagon at the conserved budget Σℓₛ = 4, and the two constructions agree on 96.9 % of a probe grid while the complete augmentation replicates (×2.4 cells) | exact LP rates + probe grid + figures | period-2 rate **0.800000** exact; trajectory **10 steps, 9 layer hops**; verification (∀) **0 cells** with lasso counterexample `1^ω`; writes the paper's 8-figure set (problem panel, ∃/∀ planar pairs for both certificates, by-cell 3-D views, satisfaction-per-layer 3-D) |
-| E6 | [`incomplete_showcase.jl`](examples/incomplete_showcase.jl) | An *incomplete* path-complete graph (dual De Bruijn, node = announced next mode) against its induced common at identical pieces: exact answer invariance, and the pruning of incompleteness | exact rates + probe grid | rates equal (0.800000); **1521/1521 probe agreement**; augmentation 1 308 cells vs common 807 — pruning saves 19 % below the 2× a complete graph would force, but the common stays cheaper |
-| E7 | [`gol_lazar_belta_comparison.jl`](examples/gol_lazar_belta_comparison.jl) | Our solver against their hand-crafted certificate at their own 4-row budget, whole-quotient and restricted to the common working set | exact LP rates + restricted counts | solver beats the hand: **ρ = 0.937457 < 0.940008** in 37 s; memory ties geometry exactly; on the common domain the cell gap narrows ×1.83 → ×1.47 but does not vanish; ~86 % of every quotient's cells lie outside X |
+| E4 | `gol_lazar_belta_example.jl` — retired | The construction contains the predecessor as `\|S\| = 1`, and answers both their Problem 5.1 (synthesis, ∃) and 5.2 (verification, ∀) from the one quotient — the two runs differ only in who the system says owns the switching signal | validation against published numbers | rate **0.940008** (exact LP) vs their 0.94; **11** slices vs their 11; 6 332 cells; winning **4 379** cells (vol 91.88) ⊋ verified **1 867** cells (vol 51.79) |
+| E5 | `augmented_showcase.jl` — retired | The whole memory-vs-geometry trade on one system: at 2 rows/node memory is *necessary* (single node certifies nothing at any orientation), the induced common `max(V₀,V₁)` is the octagon at the conserved budget Σℓₛ = 4, and the two constructions agree on 96.9 % of a probe grid while the complete augmentation replicates (×2.4 cells) | exact LP rates + probe grid + figures | period-2 rate **0.800000** exact; trajectory **10 steps, 9 layer hops**; verification (∀) **0 cells** with lasso counterexample `1^ω`; writes the paper's 8-figure set (problem panel, ∃/∀ planar pairs for both certificates, by-cell 3-D views, satisfaction-per-layer 3-D) |
+| E6 | `incomplete_showcase.jl` — retired | An *incomplete* path-complete graph (dual De Bruijn, node = announced next mode) against its induced common at identical pieces: exact answer invariance, and the pruning of incompleteness | exact rates + probe grid | rates equal (0.800000); **1521/1521 probe agreement**; augmentation 1 308 cells vs common 807 — pruning saves 19 % below the 2× a complete graph would force, but the common stays cheaper |
+| E7 | `gol_lazar_belta_comparison.jl` — retired | Our solver against their hand-crafted certificate at their own 4-row budget, whole-quotient and restricted to the common working set | exact LP rates + restricted counts | solver beats the hand: **ρ = 0.937457 < 0.940008** in 37 s; memory ties geometry exactly; on the common domain the cell gap narrows ×1.83 → ×1.47 but does not vanish; ~86 % of every quotient's cells lie outside X |
 | E8 | [`gol_lazar_belta_pclf.jl`](examples/gol_lazar_belta_pclf.jl) | **The poster example.** On the benchmark itself, memory *redistributes* geometric complexity instead of removing it: the 2-node PCLF and the common Lyapunov function it induces (`build_common_lyapunov`) carry the same facet budget, but the induced common concentrates it into few fat cells where the PCLF spreads it thinly — and all three arms (PCLF, their certificate, induced CLF) answer both ∃ and ∀ from one quotient each | measured, three quotients on one problem | Σ facets **163 854 vs 161 937** — conserved to **1.2 %**; worst cell **187 vs 1 557** facets (**8.3× simpler**); cells 10 611 (PCLF) vs 2 680 (induced CLF) vs 6 332 (theirs); ∃/∀: 8 794/2 962 vs 2 090/776 vs 4 379/1 867; writes the 12-figure set |
 
 Run order: E2 reads the caches written by [`pclf_vs_clf.jl`](experiments/pclf_vs_clf.jl), so run that first. The
@@ -57,11 +68,15 @@ pairwise bisimilar. Measured on the De Bruijn family: 379 / 775 / 1 613 cells fo
 that is 1.00 / 2.05 / 4.26. The benefit of a complete augmentation is confined to the geometry of the
 individual cells.
 
-**One reduction remains unexplained.** The dual De Bruijn graph of order 1 — incomplete, identical
-pieces — yields 174 cells against 379 for the single node, a genuine reduction. A mode-committed
-graph sharing those properties yields an *increase* (305 against 93) on the same problem. The
-characterisation of when augmentation reduces the quotient is open; an explanation based on the mode set
-of a node was tried and refuted.
+**The reduction is characterised qualitatively, not quantitatively.** The dual De Bruijn graph of
+order 1 — incomplete, identical pieces — yields 174 cells against 379 for the single node, while a
+mode-committed graph sharing those properties yields an *increase* (305 against 93) on the same
+problem. [`campaign/N1_quotient_cost/`](campaign/N1_quotient_cost/) separates the two cases: on a
+complete graph the saving is cell *simplicity*, on a co-complete one it is the per-node reduction
+`g`, and route 2 pays `|S|` copies of the pipeline either way, so `g > |S|` is break-even. Both
+measurements sit on the side of that threshold their graph predicts. **No quantitative predictor is
+validated** — one was proposed, fitted three retrospective points and failed its first prospective
+test — so do not quote one.
 
 **The reproduction is partial.** E4 recovers the predecessor's contraction rate (0.9400 against
 their 0.94) and slice count (11 against their 11) exactly, but not their reported quotient size:
@@ -71,9 +86,14 @@ explain it. The cause is unidentified; candidates are the transcription of the t
 polytopes, which the paper gives only as a figure, and a difference in how states are counted.
 The certificate and the slice structure reproduce; the cell count does not.
 
-**Two solver-side anomalies are open.** `max_slices` does not cap the number of slices built, and
-some quotients contain deadend states (minimum outgoing degree 0) where a bisimulation of a total
-system should have none. Both look like `atol` coverage loss rather than dynamics.
+**The solver-side anomalies are closed**, in
+[`campaign/N4_soundness_regressions/`](campaign/N4_soundness_regressions/). The deadend states are a
+numerical residue and not a soundness bug: every apparent violation is a cell whose image leaves the
+working set, where no successor is owed, and the one quotient that still shows deadends has three out
+of 9 027, carrying a volume far below `atol`. The `max_slices` cap did not reproduce. A third
+anomaly, a non-monotone JSR bound over nested conic orders, is a solver-tolerance artefact confined
+to conic order 3 — see the solver-tolerance note below. What is still missing is the regression test
+that would keep all three closed.
 
 ## Worked examples
 
@@ -114,8 +134,8 @@ family is built from the certificate's own sublevel sets. Cell counts and volume
 whole quotient are therefore not directly comparable; restrict both to a common reference set, or
 report the covered volume alongside. How badly this bites: on the predecessor's own example, a
 single-node conic-order-1 certificate produces a quotient of **one cell**, because its terminal set
-absorbs almost the whole domain. A cell count against that is meaningless, which is why
-`gol_lazar_belta_example.jl` reproduces their certificate rather than benchmarking against it.
+absorbs almost the whole domain. A cell count against that is meaningless, which is why E4
+reproduced their certificate rather than benchmarking against it.
 The one principled cross-certificate comparison is a PCLF against the common function it
 *induces* (`build_common_lyapunov`): same certified information and the same facet budget, spent
 with memory or without — that is E2's and E8's comparison.
