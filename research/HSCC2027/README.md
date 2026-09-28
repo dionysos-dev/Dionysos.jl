@@ -8,9 +8,9 @@ one and lifts the abstraction over the nodes of the certificate's graph. Given a
 certificate there are then two ways to obtain a finite bisimulation quotient, and the experiments
 compare them:
 
-* **Approach 1.** Determinise the path-complete function into a common one, by the observer
-  construction of [2], then run the single-node construction of [1] on the result. This is what the
-  earlier method requires when it is handed a path-complete certificate.
+* **Approach 1.** Take the common Lyapunov function the path-complete one induces, by the observer
+  construction of [2], then run the single-node construction of [1] on it. This is what the earlier
+  method requires when it is handed a path-complete certificate.
 * **Approach 2.** Run the construction on the path-complete function directly, with one partition per
   graph node. This is the paper's generalisation of [1] to the path-complete setting.
 
@@ -47,14 +47,14 @@ julia --project=. experiment3_diverse_pieces.jl
 ```
 
 `SAMPLES=n` reports the median of `n` timed rounds instead of one. Each round rebuilds everything, so
-`n = 3` roughly triples the runtime. `FIGURES=0` skips the figures. In experiment 1, `CACHE=0` forces
-a rebuild instead of loading the quotient from `cache/`, which is what the reported build time
-requires.
+`n = 3` roughly triples the runtime. `FIGURES=0` skips the figures. All three keep their untimed
+quotients in `cache/`; `CACHE=0` rebuilds them instead, which is what the reported build time
+requires. Experiments 2 and 3 also take `TIMING=0`, which drops the timed builds and leaves the
+counts — that is how the figure scripts avoid paying for a measurement they do not use.
 
-After precompilation, experiment 1 takes about five minutes, experiment 2 about one and experiment 3
-about nine. Experiment 1 is the only one that caches its quotients, so with `CACHE=0` it spends six
-minutes more rebuilding them. Every arm is built twice in any case, once for the figures and the
-counts and once to be timed.
+After precompilation and with `cache/` warm, experiment 1 takes about five minutes, experiment 2 well
+under one and experiment 3 about ten; a cold cache costs each of them several minutes more. Every arm
+is built twice in any case, once for the figures and the counts and once to be timed.
 
 Every experiment builds both quotients first and times them afterwards, with both alive. This is not
 incidental: a timed region pays garbage collection proportional to the live heap, so an arm timed
@@ -67,6 +67,37 @@ of two between runs here. The counts are deterministic and reproduce exactly, an
 carry the mechanism. Where a time was of the same order as its own noise, it was replaced by the
 count of geometric operations underneath it, which is what decides the time and can be checked.
 
+## The figures in the paper
+
+The experiments draw every figure themselves, through GR and CairoMakie, with no LaTeX involved.
+Those are the ones to look at while working: they cost nothing beyond the run.
+
+The paper's figures are the same plots with their axis numbers, labels and legends typeset by LaTeX,
+so that they are set in acmart's own fonts — Libertine text with newtxmath — and not in Computer
+Modern. One script per experiment produces them:
+
+```
+julia --project=. paper_figures_exp1.jl   # seven figures
+julia --project=. paper_figures_exp2.jl   # five
+julia --project=. paper_figures_exp3.jl   # five
+```
+
+Each includes its experiment once with `FIGURES=0`, then redraws the flat figures through pgfplots:
+the plot's graphics are rasterised alone, framed at the data limits, and pgfplots draws the axis
+around the cropped image at those same limits. Including the experiment costs minutes and LaTeX
+costs a second per figure, which is why this is one script per experiment and not one per figure.
+
+The 3-D figures cannot take that route, since Makie draws its own text. The experiments instead hand
+Makie the Linux Libertine OTF, which `kpsewhich` locates in the TeX installation.
+
+Run each script *after* its experiment, never the other way round: both write the same file names,
+and the experiment's version is the Computer Modern one. `pdflatex` and `pdftocairo` have to be on
+`PATH`; nothing else here needs them.
+
+`paper_fonts.jl` holds the single-axis form and `paper_stack.jl` the stacked one, which puts several
+panels on shared limits under one x axis. `exp3_facets_histogram_stacked.png` uses it to read the
+primal histogram against the dual in the width of one column.
+
 ## Contents
 
 | file | |
@@ -75,8 +106,12 @@ count of geometric operations underneath it, which is what decides the time and 
 | `experiment2_primal_and_dual.jl` | experiment 2 |
 | `experiment3_diverse_pieces.jl` | experiment 3 |
 | `run_all.jl` | all three, in order |
+| `paper_figures_exp1.jl` | experiment 1's figures, typeset by LaTeX |
+| `paper_figures_exp2.jl` | experiment 2's, the stacked histogram included |
+| `paper_figures_exp3.jl` | experiment 3's, likewise |
+| `paper_fonts.jl`, `paper_stack.jl` | the typesetting itself, one axis and several |
 | `Project.toml`, `Manifest.toml` | the pinned environment |
-| `cache/` | experiment 1's quotients, once built |
+| `cache/` | the untimed quotients, once built |
 | `figures/` | output |
 
 Each experiment is a single self-contained file: it defines its own system, certificate and figures,
