@@ -2,22 +2,22 @@
 #
 #     julia --project=. experiment1_gol_lazar_belta.jl     [SAMPLES=n] [FIGURES=0] [CACHE=0]
 #
+# Self-contained: this file defines its own system, certificate, levels and figures.
+#
 # The system, the three observation regions, the co-safe LTL formula and the initial point are those
 # of Example 3.1 of Gol, Ding, Lazar and Belta, "Finite bisimulations for switched linear systems",
-# IEEE TAC 59(12):3122-3134, 2014. The Lyapunov certificate is NOT theirs: theirs is a common
-# polyhedral function built by hand, certifying 0.94; the path-complete framework searches instead,
-# and returns a markedly tighter one on the same system.
+# IEEE TAC 59(12):3122-3134, 2014. The certificate is NOT theirs: theirs is a common polyhedral
+# function built by hand, certifying 0.94, and the path-complete framework searches instead and
+# returns a markedly tighter one on the same system.
 #
 # Both approaches build a quotient and then answer the same specification under both quantifiers:
 # synthesis, where the modes belong to the controller, and verification, where they belong to the
-# environment. The two quotients differ in cost, and the timed lines do not all favour the same arm,
-# which is the point of the experiment.
+# environment. The timed lines do not all favour the same arm, which is the point.
 #
 # CACHE=0 rebuilds the quotients instead of loading them from `cache/`, and is what the reported
 # build time requires.
 
-using StaticArrays,
-    LinearAlgebra, JuMP, HiGHS, LazySets, Plots, Printf, Spot, JLD2, LaTeXStrings
+using StaticArrays, LinearAlgebra, HiGHS, LazySets, Plots, Printf, Spot, JLD2, LaTeXStrings
 import HybridSystems, Statistics
 import MathOptInterface as MOI
 
@@ -39,8 +39,8 @@ const ATOL = 1e-3
 const SCALE = 6.0
 const RAYS_DEG = [0.0, 32.6, 65.8, 91.5, 112.6, 131.4, 152.0, 180.0]
 const WON, LOST = :green, :red
-# All three in black. These outlines sit on saturated red and green, and darkorange vanished into
-# the red while navy vanished into the dark green; the regions are told apart by where they are.
+# All three black: these outlines sit on saturated red and green, where darkorange and navy both
+# vanished. The regions are told apart by where they are.
 const REGION_COLOURS = [:black, :black, :black]
 
 # ── the problem ──────────────────────────────────────────────────────────────────────────────────
@@ -117,16 +117,12 @@ common = PCLF.build_common_lyapunov(pclf)
 # A terminal set that still meets one labels every point of the overlap with the terminal
 # observation instead of its own.
 regions_h = [UT._as_hpolytope(R) for (_, R) in REGIONS]
-NB = something(
-    findfirst(
-        j ->
-            PCQ.all_nodes_clear_regions(pclf, ΓX * γ^(j - 1), regions_h; tol = 1e-2) &&
-            PCQ.all_nodes_clear_regions(common, ΓX * γ^(j - 1), regions_h; tol = 1e-2),
-        1:80,
-    ),
-    -1,
+clears(j) = all(
+    c -> PCQ.all_nodes_clear_regions(c, ΓX * γ^(j - 1), regions_h; tol = 1e-2),
+    (pclf, common),
 )
-NB > 0 || error("no region-free terminal level within 80 rungs")
+NB = something(findfirst(clears, 1:80), -1)
+NB > 0 || error("no region-free terminal level among the first 80")
 
 common_parts = let S = PCLF.get_sublevel_set(common.pieces[:clf], 1.0; atol = 1e-6)
     S isa LazySets.UnionSetArray ? length(S.array) : 1
@@ -147,11 +143,10 @@ end
     "induced common   %d disjoint polytopes, the union approach 1 works on\n",
     common_parts
 )
-@printf("ladder           ΓX = %.4f, %d slices, τD = %.4f\n", ΓX, NB, ΓX * γ^(NB - 1))
+@printf("levels           ΓX = %.4f, %d of them, τD = %.4f\n", ΓX, NB, ΓX * γ^(NB - 1))
 
-# The certificate itself, which every number below depends on. A polyhedral piece is the gauge
-# `V_s(x) = max_i |(G_s x)_i| / w_i`, so its Γ-sublevel set is the symmetric polytope
-# `{x : |G_s x| ≤ Γ w}`.
+# A polyhedral piece is the gauge `V_s(x) = max_i |(G_s x)_i| / w_i`, whose Γ-sublevel set is the
+# symmetric polytope `{x : |G_s x| ≤ Γ w}`.
 println("\nthe certificate, one polyhedral piece per node:")
 for nd in nodes
     p = pclf.pieces[nd]
@@ -180,7 +175,7 @@ for nd in nodes, (nm, R) in REGIONS
 end
 
 # ── the two arms ─────────────────────────────────────────────────────────────────────────────────
-"Build the quotient from `cert`, on the ladder the certificate fixed above."
+"Build the quotient from `cert`, on the levels fixed above."
 function build(cert)
     opt = MOI.instantiate(PCQ.OptimizerBisimulationQuotient)
     MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
@@ -306,13 +301,12 @@ a2 = run(
 
 # ── the two costs, measured side by side ─────────────────────────────────────────────────────────
 # Timed here, after both quotients exist, rather than inside `run`. A timed region pays garbage
-# collection proportional to the live heap, so an arm measured while the other does not yet exist is
-# measured on a lighter heap: doing it inside `run` favours whichever arm runs first by a factor
-# large enough to reverse a verdict. Here both arms pay the same memory.
+# collection proportional to the live heap, so timing an arm while the other does not yet exist
+# favours whichever runs first, by enough to reverse the verdict.
 #
-# The quotient's `Σ polytopes` is the other half of the story, and it needs no timing: abstracting a
-# concrete set tests it against every cell, a cell is a semilinear set, so the sweep costs one
-# feasibility LP per polytope. Solving, by contrast, touches no set at all.
+# `Σ polytopes` is the other half of the story and needs no timing: abstracting a concrete set tests
+# it against every cell, and a cell is a union of polytopes, so it costs one feasibility LP per
+# polytope. Solving touches no set at all.
 t_build =
     USE_CACHE ? (NaN, NaN) :
     (timed(() -> build(a1.cert), SAMPLES), timed(() -> build(a2.cert), SAMPLES))
@@ -323,7 +317,7 @@ t_ver = (
 )
 
 println("\n", "="^84, "\nRESULT — ratio above 1 favours approach 2\n", "="^84)
-@printf("%-26s %13s %13s %10s\n", "", "approach 1", "approach 2", "1 / 2")
+@printf("%-34s %13s %13s %10s\n", "", "approach 1", "approach 2", "1 / 2")
 println("-"^84)
 for (nm, u, v) in (
     ("cells", float(a1.s.cells), float(a2.s.cells)),
@@ -337,9 +331,9 @@ for (nm, u, v) in (
     ("solve ∀, a graph fixed point (s)", t_ver[1], t_ver[2]),
 )
     if isnan(u)
-        @printf("%-26s %13s %13s %10s\n", nm, "cached", "cached", "—")
+        @printf("%-34s %13s %13s %10s\n", nm, "cached", "cached", "—")
     else
-        @printf("%-26s %13.2f %13.2f %10.2f\n", nm, u, v, u / v)
+        @printf("%-34s %13.2f %13.2f %10.2f\n", nm, u, v, u / v)
     end
 end
 println("="^84)
@@ -350,9 +344,8 @@ if FIGURES
     mkpath(d)
     out(fig, n) = (savefig(fig, joinpath(d, n)); println("wrote ", n))
 
-    # `linealpha` is set explicitly on every overlay in this file. Plotting the quotient with
-    # `show_contours = true` leaves a subplot-level line alpha of 0.5 behind, which every later
-    # series inherits and which makes these outlines vanish entirely.
+    # `linealpha` is pinned on every overlay here: plotting the quotient with `show_contours = true`
+    # leaves a subplot-level line alpha of 0.5 that later series inherit, and the outlines vanish.
     function outline!(p)
         for (i, (_, R)) in enumerate(REGIONS)
             plot!(
@@ -377,8 +370,7 @@ if FIGURES
         end
         return l
     end
-    # Under equal aspect Plots derives the height from the width and the data, so a height fixed
-    # independently of the data over-constrains the layout and Plots aborts.
+    # Under equal aspect Plots derives the height from the data; fixing it independently aborts.
     function rowsize(l, n; w = 430, chrome = 95)
         (xlo, xhi), (ylo, yhi) = l
         return (
@@ -403,7 +395,7 @@ if FIGURES
         return outline!(p)
     end
 
-    # (1) the induced common's quotient, its cells
+    # ── figure: approach 1's quotient ────────────────────────────────────────────────────────────
     p = plot(;
         aspect_ratio = :equal,
         legend = false,
@@ -425,12 +417,10 @@ if FIGURES
     out(p, "exp1_approach1_quotient.png")
 
     # ── the witness runs ─────────────────────────────────────────────────────────────────────────
-    # The certified sets say which points satisfy φ; they do not show what the two quantifiers mean.
-    # From one point certified under both, the controller's single run and the environment's whole
-    # tree of runs do, and ∀ certifies a subset of ∃, so a ∀-certified point serves both.
-    #
-    # Labels are read off the concrete regions rather than off a cell, so the picture is about the
-    # system and not about either quotient.
+    # The certified sets say which points satisfy φ, not what the two quantifiers mean. One point
+    # certified under both does: the controller's single run against the environment's whole tree,
+    # and ∀ certifies a subset of ∃, so a ∀-certified point serves both. Labels are read off the
+    # concrete regions rather than off a cell, so the picture is about the system, not a quotient.
     spec = Dionysos.spot_stepper(φ)
     acc = Set(OPDS.accepting_states(spec))
     A = UT.mode_matrices(f)
@@ -496,9 +486,9 @@ if FIGURES
         return p
     end
 
-    # The paper's point `a` is preferred, and a deeper tree over the ∀-certified cells is taken when
-    # it is shallow: a tree of one or two levels shows nothing the certified set does not. The point
-    # must also carry a controller on BOTH quotients, since the same point is drawn on both figures.
+    # The paper's point `a` is preferred, unless its tree is shallow: one or two levels show nothing
+    # the certified set does not. The point must also carry a controller on BOTH quotients, since the
+    # same point is drawn on both figures.
     const TREE_MAX = 7
     ctrl1 = PCQ.solve_concrete_problem(a1.syn.opt)
     ctrl2 = PCQ.solve_concrete_problem(a2.syn.opt)
@@ -580,9 +570,9 @@ if FIGURES
         witness.t.depth
     )
 
-    # Only two of the environment's runs are drawn. The whole tree was a tangle in which no single
-    # run could be followed, and following one is the point; the shortest and the longest bracket
-    # the spread, and the title carries the count.
+    # Only two of the environment's runs are drawn: the whole tree was a tangle in which no single
+    # run could be followed. The shortest and the longest bracket the spread; the title has the
+    # count.
     const RUN_COLOURS = [:black, :blue]
     word_label(w) = isempty(w) ? "ε" : join(w, "")
     function run!(p, X, col, lab)
@@ -606,20 +596,20 @@ if FIGURES
         length(bs) ≤ 2 ? bs : [bs[1], bs[end]]
     end
 
-    # (0) the problem as the paper states it: a working pair X₁ ⊆ X₂, pairwise disjoint regions of
-    # interest, and a terminal pair D₁ ⊆ D₂ with D₂ disjoint from every region. Each pair comes from
-    # one level of the PCLF pieces, the intersection giving the inner set and the union the outer.
-    # Neither D is invariant; what makes the pair terminal is that a run reaching D₁ stays in D₂
-    # forever, and D₂ meets no region, so no region is ever observed again.
+    # ── figure: the problem as the paper states it ───────────────────────────────────────────────
+    # A working pair X₁ ⊆ X₂, pairwise disjoint regions of interest, and a terminal pair D₁ ⊆ D₂
+    # with D₂ disjoint from every region. Each pair comes from one level of the PCLF pieces, the
+    # intersection giving the inner set and the union the outer. Neither D is invariant: what makes
+    # the pair terminal is that a run reaching D₁ stays in D₂ forever, and D₂ meets no region.
     #
-    # R1 away from black, which this figure spends on D₁ and D₂.
+    # The regions leave black to D₁ and D₂ here.
     const PROBLEM_COLOURS = [:darkgreen, :navy, :darkorange]
     τD = ΓX * γ^(NB - 1)
     D_pieces =
         [UT._as_hpolytope(PCLF.get_sublevel_set(pclf.pieces[nd], τD)) for nd in nodes]
     D1 = reduce(LazySets.intersection, D_pieces)
-    # The working pair, one level up: X₂ is the outer domain the abstraction is built on, X₁ the
-    # inner set verification and synthesis are restricted to.
+    # One level up: X₂ is the outer domain the abstraction is built on, X₁ the inner set synthesis
+    # and verification are restricted to.
     X_pieces =
         [UT._as_hpolytope(PCLF.get_sublevel_set(pclf.pieces[nd], ΓX)) for nd in nodes]
     X1 = reduce(LazySets.intersection, X_pieces)
@@ -651,8 +641,8 @@ if FIGURES
         linewidth = 2.0,
         label = "",
     )
-    # R₁ and R₂ are nudged off their centroids: the run crosses both, and a label sitting on the
-    # line is unreadable. A nudge that would leave its region is dropped.
+    # R₁ and R₂ are nudged off their centroids, where the run would cross the label. A nudge that
+    # would leave its region is dropped.
     LABEL_NUDGE = Dict("R1" => [0.9, 0.0], "R2" => [1.0, -0.9])
     for (i, (nm, R)) in enumerate(REGIONS)
         plot!(
@@ -675,8 +665,8 @@ if FIGURES
             Plots.text(latexstring("R_", i), 12, PROBLEM_COLOURS[i], :center),
         )
     end
-    # D₂ filled, then D₁ opaque on top: the pieces are nested and differ by 4% in area, so the pair
-    # is only legible as the ring between them that this leaves.
+    # D₂ filled, then D₁ opaque on top: the two differ by 4% in area, so the pair is only legible
+    # as the ring this leaves between them.
     for P in D_pieces
         plot!(
             p,
@@ -713,8 +703,8 @@ if FIGURES
     let c = cell_point(D1)
         annotate!(p, c[1], c[2], Plots.text(L"\mathcal{D}_1", 12, :black, :center))
     end
-    # D₂ is named like X₂: just outside a vertex that lies strictly outside D₁, the most top-right
-    # of them, so the label points at the ring rather than at where the two boundaries touch.
+    # D₂ is named like X₂ below: outside the most top-right vertex that lies strictly outside D₁, so
+    # the label points at the ring rather than at where the two boundaries touch.
     let V = reduce(vcat, LazySets.vertices_list.(D_pieces)),
         cs_D = LazySets.constraints_list(D1)
 
@@ -729,8 +719,8 @@ if FIGURES
             Plots.text(L"\mathcal{D}_2", 12, :red, :center),
         )
     end
-    # The two working sets are named on opposite sides so the labels cannot be confused: X₁ just
-    # inside its dark contour at the bottom, X₂ just outside the outer boundary at the top.
+    # The two are named on opposite sides so they cannot be confused: X₁ just inside its contour at
+    # the bottom, X₂ just outside the outer boundary at the top.
     let V = LazySets.vertices_list(X1)
         v = V[argmin([w[2] for w in V])]
         annotate!(
@@ -740,8 +730,7 @@ if FIGURES
             Plots.text(L"\mathcal{X}_1", 12, :black, :center),
         )
     end
-    # X₂ is named at a vertex that lies strictly outside X₁, so the label sits where the two sets
-    # actually differ rather than where their boundaries touch.
+    # At a vertex strictly outside X₁, so the label sits where the two sets differ.
     let V = reduce(vcat, LazySets.vertices_list.(X_pieces)),
         cs = LazySets.constraints_list(X1)
 
@@ -762,8 +751,9 @@ if FIGURES
     plot!(p; size = rowsize(l, 1))
     out(p, "exp1_problem.png")
 
-    # (2) approach 1, both games on one figure, each carrying the runs from the witness point: the
-    # controller needs one of them to reach the target, the environment must be answered on all.
+    # ── figure: approach 1 under both quantifiers ────────────────────────────────────────────────
+    # Both games on one figure, each carrying the runs from the witness point: the controller needs
+    # one of them to reach the target, the environment must be answered on all.
     ps = [
         certified(
             a1.built.quotient,
@@ -805,12 +795,12 @@ if FIGURES
     l = align!(ps)
     out(plot(ps...; layout = (1, 2), size = rowsize(l, 2)), "exp1_approach1_spec.png")
 
-    # (5) approach 2, the same two games from the same point. Every layer's cells are drawn, so a
-    # state certified on one layer and not on the other appears in both colours; the 3-D view
-    # disambiguates it.
+    # ── figure: approach 2 under both quantifiers ────────────────────────────────────────────────
+    # The same two games from the same point. Every layer's cells are drawn, so a state certified on
+    # one layer and not the other appears in both colours; the 3-D view below disambiguates it.
     #
-    # The environment's runs are identical to approach 1's, because they are runs of the system and
-    # not of a quotient, which is the claim: the cheaper abstraction answers the same question. The
+    # The environment's runs are identical to approach 1's, being runs of the system and not of a
+    # quotient — which is the claim: the cheaper abstraction answers the same question. The
     # controlled run need not be, since the two quotients admit different strategies.
     ps = [
         certified(
@@ -851,9 +841,10 @@ if FIGURES
     l = align!(ps)
     out(plot(ps...; layout = (1, 2), size = rowsize(l, 2)), "exp1_approach2_spec.png")
 
-    # (6) facets per cell. Log counts: most cells are simple, the tail is not, and the tail is what
-    # the construction pays for. `fillrange` pins both series to the same baseline, which a log axis
-    # otherwise picks per series, leaving the second suspended at 10^0.
+    # ── figure: facets per cell ──────────────────────────────────────────────────────────────────
+    # On a log count: most cells are simple, and the construction pays for the tail. `fillrange`
+    # pins both series to one baseline, which a log axis otherwise picks per series, leaving the
+    # second suspended at 10^0.
     bins = range(0, 1.02 * max(maximum(a1.s.faces), maximum(a2.s.faces)); length = 45)
     h = histogram(
         a1.s.faces;
@@ -887,9 +878,9 @@ if FIGURES
     vline!(h, [a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.5, label = "")
     out(h, "exp1_facets_histogram.png")
 
-    # ── 3-D. Everything Plots-based must come first: both packages export `plot`, and the import
-    # is deliberate, since `using CairoMakie` makes every bare `plot` in this session ambiguous,
-    # which breaks redrawing a figure from a REPL that has the script loaded.
+    # ── figures: 3-D, one layer per graph node ───────────────────────────────────────────────────
+    # `import`, not `using`: both packages export `plot`, so every Plots figure had to come first,
+    # and `using CairoMakie` would make every bare `plot` ambiguous in a REPL holding this file.
     import CairoMakie
     mk_out(mk, n) =
         (CairoMakie.save(joinpath(d, n), mk; px_per_unit = 3); println("wrote ", n))
@@ -937,10 +928,9 @@ if FIGURES
                 show_contours = false,
             )
         end
-        # The observation regions on every layer. The specification is about them, and without them
-        # the layers read as two coloured discs. `vertices_list` does not promise a cyclic order, so
-        # the outline is sorted by angle around the centroid; the small z offset keeps the line off
-        # the cell meshes it would otherwise z-fight with.
+        # The regions on every layer: without them the layers read as two coloured discs.
+        # `vertices_list` promises no cyclic order, so the outline is sorted by angle around the
+        # centroid, and the small z offset keeps the line off the meshes it would z-fight with.
         for (_, R) in REGIONS
             V = LazySets.vertices_list(UT._as_hpolytope(R))
             c = sum(V) / length(V)
@@ -962,15 +952,14 @@ if FIGURES
         return mk
     end
 
-    # (3) approach 2's quotient in 3-D, one layer per graph node
+    # The quotient itself.
     mk_out(
         layered("Approach 2 — the quotient, one layer per graph node"),
         "exp1_approach2_3d_quotient.png",
     )
 
-    # (4) the certified set in 3-D with the closed loop, as on the poster. It is `sim2`, the same
-    # run approach 2's flat figure draws from the same witness point, so the three figures can be
-    # read as one story rather than three unrelated starts.
+    # The certified set with the closed loop. The run is `sim2`, the one approach 2's flat figure
+    # draws from the same witness point, so the figures read as one story.
     mk_out(
         layered(
             "Approach 2 — certified set (∃) and the closed loop";

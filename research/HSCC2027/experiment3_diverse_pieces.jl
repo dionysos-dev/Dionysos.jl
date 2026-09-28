@@ -1,45 +1,26 @@
-# EXPERIMENT 3 — what happens when the certificate's node pieces genuinely differ.
+# EXPERIMENT 3 — the same two graphs, with node pieces that do not coincide.
 #
-#     julia --project=. experiment3_diverse_pieces.jl        [RUNGS=n] [SAMPLES=n] [FIGURES=0]
+#     julia --project=. experiment3_diverse_pieces.jl        [LEVELS=n] [SAMPLES=n] [FIGURES=0]
 #
-# Self-contained: this file defines its own system, certificate, ladder and figures.
+# Self-contained: this file defines its own system, certificate, levels and figures.
 #
-# Experiments 1 and 2 use certificates whose node pieces are close to one another. This one does
-# not, and that is its whole purpose. The working set is the one of experiment 2; only the dynamics
-# change, and with them the pieces the solver returns.
+# Experiments 1 and 2 use certificates whose node pieces are close to one another; this one changes
+# the dynamics so that they are not. The working set is experiment 2's, deliberately, so that the
+# pieces are the only difference between the two. The diversity is DISCOVERED, not imposed: both
+# nodes get the same conic template of order 2 and the solver returns two markedly different pieces.
 #
-# The diversity is DISCOVERED, not imposed. Both nodes are given the same conic template of order 2,
-# and the solver comes back with two markedly different pieces — a support-function gap of about
-# 0.46, against 0.03 for experiment 2's certificate. Forcing the pieces apart by handing each node a
-# different template would be the easier route and a much weaker claim.
+# NO OBSERVATION REGIONS HERE. With regions, part of the refinement serves to respect them, and that
+# is work both approaches do identically; removing them leaves the certificate's own geometry as the
+# only thing driving the partition. It also removes the specification, so the comparison is on the
+# abstraction alone, and the stopping rule, so the depth is given by LEVELS instead of derived.
 #
-# NO OBSERVATION REGIONS HERE, unlike the other two experiments. With regions, part of the
-# refinement serves to respect them, and that part is work both approaches do identically. Removing
-# them leaves the certificate's own geometry as the only thing driving the partition, which is
-# exactly what this experiment is about. It also removes the specification, so there is nothing to
-# solve and nothing to certify: the comparison is on the abstraction alone.
-#
-# The price is that the ladder has to be given explicitly. The construction stops at the first level
-# whose terminal set clears the regions, and with no regions that holds immediately: the ladder would
-# be one rung and the quotient one cell per node. So the rung count is fixed, and the outer level is
-# taken from a probe that lets approach 1 derive its own, then imposed on approach 2. There is no
-# terminal set to overlap anything, so fixing the count is sound here in a way it would not be with
-# regions present.
-#
-# BOTH ORIENTATIONS ARE RUN, and the pair with experiment 2 is the point. Experiment 2 flips the
-# orientation with pieces that nearly coincide; this one flips it with pieces that do not. The two
-# mechanisms are different and the question is whether approach 2 wins under both:
-#
-#   primal, complete      the induced common is `min_i V_i`, the UNION of the node pieces, which
-#                         fragments as they separate. Approach 1's cells inherit the fragmentation
-#                         and approach 2's do not, so approach 2 should win on CELL SIMPLICITY while
-#                         building more cells.
-#   dual, co-complete     the induced common is `max_i V_i`, the INTERSECTION, which stays convex
-#                         however different the pieces are. Approach 1 then pays nothing for the
-#                         diversity, so the simplicity channel is closed; what is left is the
-#                         per-node reduction, and diversity works against it.
+# Both graphs are run, and reading this beside experiment 2 separates the two channels behind
+# approach 2's advantage: on the primal graph the induced common is the UNION of the node pieces,
+# which fragments as they separate, so approach 2 wins on cell simplicity; on the dual it is their
+# INTERSECTION, which stays convex, so that channel is closed and only the per-node reduction is
+# left.
 
-using StaticArrays, LinearAlgebra, JuMP, Clarabel, LazySets, Plots, Printf
+using JuMP, Clarabel, LazySets, Plots, Printf
 import HybridSystems, Statistics
 import MathOptInterface as MOI
 
@@ -55,22 +36,7 @@ gr()
 
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "1"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
-# The ladder has to be given explicitly here, since the construction's stopping rule is satisfied
-# immediately when there is no region to clear. The count is not neutral, and it is chosen on the
-# polytope totals rather than on the times, which vary by a factor of three between runs on this
-# machine while every count reproduces exactly. Approach 2's saving, as a share of approach 1's
-# polytopes, over the two orientations:
-#
-#   rungs      7        9       10       11
-#   primal   46 %     32 %     28 %     23 %
-#   dual     -2 %     19 %     21 %     37 %
-#
-# The two orientations move in opposite directions as the quotient is refined: the primal loses
-# margin as the induced common's fragmentation weighs relatively less, the dual gains it as the
-# arms' cell counts separate. Seven is where the dual has nothing to show. Nine is the first count
-# where both are solidly positive, and it keeps the quotients small enough that the partition
-# figures still show individual cells rather than a texture.
-const RUNGS = parse(Int, get(ENV, "RUNGS", "9"))
+const LEVELS = parse(Int, get(ENV, "LEVELS", "9"))
 const ATOL = 1e-3
 const SOLVER = JuMP.optimizer_with_attributes(
     Clarabel.Optimizer,
@@ -85,20 +51,17 @@ f = ST.with_switching(
     HybridSystems.discreteswitchedsystem([A1, A2]),
     HybridSystems.ControlledSwitching(),
 )
-# The same working set as experiment 2, deliberately. The two experiments are meant to differ in one
-# respect — whether the certificate's node pieces coincide — and giving this one its own geometry
-# would add a second difference.
 X = LazySets.Hyperrectangle(; low = [-2.0, -2.0], high = [2.0, 2.0])
 problem = PR.BisimulationQuotientProblem(f, X, typeof(X)[])
 
 println(
     "="^84,
-    "\nEXPERIMENT 3 — diverse node pieces, both orientations, no regions\n",
+    "\nEXPERIMENT 3 — diverse node pieces, the primal and the dual graph, no regions\n",
     "="^84,
 )
 
 "How different two pieces are: the largest relative gap between their support functions. Exact for
-convex sets, needs no volume, and reads as a percentage."
+convex sets and needs no volume."
 function piece_gap(P1, P2; K = 64)
     return maximum(
         abs(LazySets.ρ(d, P1) - LazySets.ρ(d, P2)) /
@@ -113,8 +76,8 @@ function build(cert; ΓX = nothing)
     MOI.set(opt, MOI.RawOptimizerAttribute("pclf"), cert)
     MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 0)
     MOI.set(opt, MOI.RawOptimizerAttribute("atol"), ATOL)
-    MOI.set(opt, MOI.RawOptimizerAttribute("nb_levels"), RUNGS)
-    MOI.set(opt, MOI.RawOptimizerAttribute("max_slices"), RUNGS)
+    MOI.set(opt, MOI.RawOptimizerAttribute("nb_levels"), LEVELS)
+    MOI.set(opt, MOI.RawOptimizerAttribute("max_slices"), LEVELS)
     isnothing(ΓX) || MOI.set(opt, MOI.RawOptimizerAttribute("ΓX"), ΓX)
     MOI.optimize!(opt)
     return (;
@@ -137,21 +100,18 @@ end
 
 function stats(q)
     parts, faces = PCQ.cell_complexities(q)
-    st = PCQ.bisimulation_stats(q)
     return (;
         cells = length(parts),
         parts,
         faces,
-        transitions = st[:num_transitions],
         max_p = maximum(parts),
         max_f = maximum(faces),
         mean_p = Statistics.mean(parts),
         mean_f = Statistics.mean(faces),
-        sum_f = sum(faces),
     )
 end
 
-function run_orientation(dual)
+function run_graph(dual)
     label = dual ? "DUAL (co-complete)" : "PRIMAL (complete)"
     graph = PCLF.generate_DeBruijn_edges(2, 1; dual = dual)
     nodes = sort(collect(graph.verts); by = string)
@@ -173,9 +133,8 @@ function run_orientation(dual)
         PCLF.get_sublevel_set(pclf.pieces[nodes[2]], 1.0),
     )
 
-    # Approach 1's own natural outer level, then imposed on approach 2. Taking it from approach 2
-    # would flatter approach 2; leaving each to its own would have them tile different sets, and the
-    # cell counts would measure coverage rather than efficiency.
+    # Approach 1's own natural outer level, imposed on approach 2. Taking it from approach 2 would
+    # flatter approach 2, and leaving each to its own would have them tile different sets.
     ΓX = maximum(MOI.get(build(common).opt, MOI.RawOptimizerAttribute("Γ")))
 
     println("\n", "#"^84, "\n$label De Bruijn, order 1\n", "#"^84)
@@ -186,14 +145,14 @@ function run_orientation(dual)
         pclf.JSRapprox
     )
     @printf(
-        "piece gap %.4f   induced common %d convex part(s)   ΓX = %.4f, %d rungs\n",
+        "piece gap %.4f   induced common %d convex part(s)   ΓX = %.4f, %d levels\n",
         gap,
         parts_common,
         ΓX,
-        RUNGS
+        LEVELS
     )
-    # The certificate itself. A polyhedral piece is the gauge `V_s(x) = max_i |(G x)_i| / w_i`, so
-    # its Γ-sublevel set is the symmetric polytope `{x : |G x| ≤ Γ w}`.
+    # A polyhedral piece is the gauge `V_s(x) = max_i |(G x)_i| / w_i`, whose Γ-sublevel set is the
+    # symmetric polytope `{x : |G x| ≤ Γ w}`.
     println("  the certificate, one polyhedral piece per node:")
     for nd in nodes
         pc = pclf.pieces[nd]
@@ -210,10 +169,9 @@ function run_orientation(dual)
         end
     end
 
-    # Build both arms first, then time both. A timed region pays garbage collection proportional to
-    # the live heap, so an arm timed while the other does not yet exist is timed on a lighter heap:
-    # building and timing in one pass favours whichever arm goes first, by enough to reverse a
-    # verdict. Both quotients are alive for both measurements here.
+    # Build both arms before timing either. A timed region pays garbage collection proportional to
+    # the live heap, so timing an arm while the other does not yet exist favours whichever goes
+    # first, by enough to reverse the verdict.
     arm(cert) = (; b = build(cert; ΓX = ΓX), cert)
     a1, a2 = arm(common), arm(pclf)
     a1 = (;
@@ -248,13 +206,13 @@ function run_orientation(dual)
     return (; label, tag = dual ? "dual" : "primal", nodes, gap, parts_common, a1, a2)
 end
 
-primal = run_orientation(false)
-dual = run_orientation(true)
+primal = run_graph(false)
+dual = run_graph(true)
 
 println("\n", "="^84, "\nRESULT\n", "="^84)
 @printf(
     "%-20s %6s %6s %9s %9s %8s %8s %8s %9s\n",
-    "orientation",
+    "graph",
     "gap",
     "parts",
     "cells (1)",
@@ -282,26 +240,26 @@ end
 println("="^84)
 println(
     """
-Read this beside experiment 2, which flips the same orientation with pieces that nearly coincide.
-The two channels behind approach 2's advantage are separate, and the certificate decides which of
-them is open.
+Read this beside experiment 2, which runs the same two graphs with pieces that nearly coincide. The
+two channels behind approach 2's advantage are separate, and the certificate decides which is open.
 
 On the PRIMAL graph the induced common is the union of the node pieces, so it fragments as they
-separate: approach 1's cells inherit the fragmentation and approach 2's do not. That channel is wide
-open here, and it is what the `maxp` columns measure.
+separate: approach 1's cells inherit the fragmentation and approach 2's do not. That is what the
+`maxp` columns measure.
 
 On the DUAL graph the induced common is their intersection, which stays convex however different the
-pieces are. Approach 1 pays nothing for the diversity, the simplicity channel is closed, and all that
-is left is the per-node reduction — which diversity works against. Whether approach 2 still comes out
-ahead there is what the speed-up column answers.""",
+pieces are. Approach 1 pays nothing for the diversity, so the simplicity channel is closed and only
+the per-node reduction is left — which diversity works against. Whether approach 2 still comes out
+ahead is what the speed-up column answers.""",
 )
 
+# ── figures ──────────────────────────────────────────────────────────────────────────────────────
+# The same set as experiment 2, deliberately: the two are meant to be read side by side.
 if FIGURES
     d = joinpath(@__DIR__, "figures")
     mkpath(d)
 
-    # Under equal aspect Plots derives the height from the width and the data, so a height fixed
-    # independently of the data over-constrains the layout and Plots aborts.
+    # Under equal aspect Plots derives the height from the data; fixing it independently aborts.
     function panelsize(p; w = 520, chrome = 95)
         (xlo, xhi), (ylo, yhi) = Plots.xlims(p), Plots.ylims(p)
         return (
@@ -310,8 +268,8 @@ if FIGURES
         )
     end
 
-    # Approach 1's quotient: one plane, because the induced common has a single node. This is the
-    # object the earlier method works on, and the figure to set against the layered one beside it.
+    # Approach 1's quotient is a single plane, since the induced common has one node. Set it against
+    # the layered figure below.
     for r in (primal, dual)
         p = plot(;
             aspect_ratio = :equal,
@@ -334,9 +292,8 @@ if FIGURES
         println("wrote exp3_$(r.tag)_approach1_quotient.png")
     end
 
-    # Facets per cell. Log counts: most cells are simple, the tail is not, and the tail is what the
-    # construction pays for. Drawn before the 3-D block, since `yscale = :log10` has been observed to
-    # disturb later Plots figures and everything Plots-based must precede the CairoMakie import anyway.
+    # Facets per cell, on a log count: most cells are simple, and the construction pays for the tail.
+    # `fillrange` pins both series to one baseline, which a log axis otherwise picks per series.
     for r in (primal, dual)
         bins =
             range(0, 1.02 * max(maximum(r.a1.s.faces), maximum(r.a2.s.faces)); length = 45)
@@ -376,10 +333,9 @@ if FIGURES
         println("wrote exp3_$(r.tag)_facets_histogram.png")
     end
 
-    # ── 3-D: approach 2's quotient, with the graph node as a vertical axis ───────────────────────
-    # Both packages export `plot`, so every Plots figure above had to come first — and the import
-    # is deliberate: `using CairoMakie` makes every bare `plot` in this session ambiguous, which
-    # breaks redrawing a figure from a REPL that has the script loaded.
+    # ── 3-D: approach 2's quotient, the graph node as a vertical axis ────────────────────────────
+    # `import`, not `using`: both packages export `plot`, so every Plots figure had to come first,
+    # and `using CairoMakie` would make every bare `plot` ambiguous in a REPL holding this file.
     import CairoMakie
 
     for r in (primal, dual)

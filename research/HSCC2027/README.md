@@ -75,6 +75,8 @@ count of geometric operations underneath it, which is what decides the time and 
 | `experiment2_primal_and_dual.jl` | experiment 2 |
 | `experiment3_diverse_pieces.jl` | experiment 3 |
 | `run_all.jl` | all three, in order |
+| `Project.toml`, `Manifest.toml` | the pinned environment |
+| `cache/` | experiment 1's quotients, once built |
 | `figures/` | output |
 
 Each experiment is a single self-contained file: it defines its own system, certificate and figures,
