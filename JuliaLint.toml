@@ -1,0 +1,23 @@
+# Lint configuration for the Julia VS Code extension (JuliaWorkspaces / julialint).
+#
+# Test files, examples, research scripts and Literate docs load shared files through
+# `include(joinpath(dirname(dirname(pathof(Dionysos))), ...))` or a `PROBLEMS` constant, so
+# they run from any directory (and from the Literate build dir). The linter can only resolve
+# string-literal / `joinpath(@__DIR__, ...)` paths and flags every other one as a
+# "computed include". Silence `include_errors` there; the library (`src/`, `ext/`) keeps it.
+
+[[override]]
+paths = [
+    "test/**",
+    "examples/**",
+    "research/**",
+    "docs/**",
+    "bench/**",
+    "problems/**",
+    "BipedRobot/**",
+    "control_server/**",
+    "paper/**",
+]
+
+[override.rules]
+include_errors = "off"
