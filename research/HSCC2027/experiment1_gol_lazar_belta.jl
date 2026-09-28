@@ -18,7 +18,8 @@
 # build time requires.
 
 using StaticArrays, LinearAlgebra, HiGHS, LazySets, Plots, Printf, Spot, JLD2, LaTeXStrings
-import HybridSystems, Statistics
+import HybridSystems, Statistics, PNGFiles
+import Plots.PlotMeasures: mm
 import MathOptInterface as MOI
 
 using Dionysos
@@ -290,7 +291,7 @@ end
 
 a1 = run(
     "approach1",
-    "APPROACH 1 — determinise the PCLF, then build on the induced common",
+    "APPROACH 1 — build on the common Lyapunov function the PCLF induces",
     common,
 )
 a2 = run(
@@ -339,10 +340,191 @@ end
 println("="^84)
 
 # ── figures ──────────────────────────────────────────────────────────────────────────────────────
+# ── the witness runs ─────────────────────────────────────────────────────────────────────────
+# The certified sets say which points satisfy φ, not what the two quantifiers mean. One point
+# certified under both does: the controller's single run against the environment's whole tree,
+# and ∀ certifies a subset of ∃, so a ∀-certified point serves both. Labels are read off the
+# concrete regions rather than off a cell, so the picture is about the system, not a quotient.
+spec = Dionysos.spot_stepper(φ)
+acc = Set(OPDS.accepting_states(spec))
+A = UT.mode_matrices(f)
+
+function labels_at(z, D)
+    ls = Symbol[]
+    z ∈ D && push!(ls, :D)
+    for (nm, R) in REGIONS
+        z ∈ R && push!(ls, Symbol(nm))
+    end
+    return Tuple(ls)
+end
+
+"Every word the environment can play from `z`, each branch cut where the good prefix completes."
+function environment_tree(D, z; nmax)
+    branches = NamedTuple{(:X, :word), Tuple{Vector{Vector{Float64}}, Vector{Int}}}[]
+    function walk(path, word, qa, k)
+        if qa in acc
+            push!(branches, (; X = copy(path), word = copy(word)))
+            return true
+        end
+        k == nmax && return false
+        for m in eachindex(A)
+            yn = A[m] * path[end]
+            push!(path, yn)
+            push!(word, m)
+            ok = walk(path, word, OPDS.step(spec, qa, labels_at(yn, D)), k + 1)
+            pop!(path)
+            pop!(word)
+            ok || return false
+        end
+        return true
+    end
+    z = collect(Float64, z)
+    closed = walk([z], Int[], OPDS.step(spec, OPDS.init_state(spec), labels_at(z, D)), 0)
+    depth = isempty(branches) ? 0 : maximum(length(b.word) for b in branches)
+    return (; branches, closed, depth, leaves = length(branches))
+end
+
+"An interior point of a quotient cell; for a union, of its first convex part."
+function cell_point(S)
+    V = LazySets.vertices_list(
+        UT._as_hpolytope(S isa LazySets.UnionSetArray ? S.array[1] : S),
+    )
+    return sum(V) / length(V)
+end
+
+# The paper's point `a` is preferred, unless its tree is shallow: one or two levels show nothing
+# the certified set does not. The point must also carry a controller on BOTH quotients, since the
+# same point is drawn on both figures.
+const TREE_MAX = 7
+ctrl1 = PCQ.solve_concrete_problem(a1.syn.opt)
+ctrl2 = PCQ.solve_concrete_problem(a2.syn.opt)
+
+"The controlled run from `z`, or `nothing` if no controller starts there."
+function controlled_run(opt, ctrl, z)
+    mem = try
+        PCQ.initial_controller_memory(opt, z)
+    catch
+        return nothing
+    end
+    return PCQ.simulate_closed_loop(f, ctrl, z, mem; N = 2 * TREE_MAX)
+end
+
+"Whether the concrete run `X` completes a good prefix of φ."
+function accepts(X, D)
+    qa = OPDS.step(spec, OPDS.init_state(spec), labels_at(X[1], D))
+    for z in X[2:end]
+        qa = OPDS.step(spec, qa, labels_at(z, D))
+    end
+    return qa in acc
+end
+
+witness, sim1, sim2 = let q = a1.built.quotient, D = a1.built.D
+    cands = [(x = collect(Float64, x0), from = "the paper's point a")]
+    for qid in a1.ver.won
+        push!(cands, (x = cell_point(q.states[qid].set), from = "a ∀-certified cell"))
+    end
+    # Only the first candidate needs the membership test; the others are interior to a cell the
+    # ∀ fixed point returned.
+    ranked = NamedTuple[]
+    for (i, c) in enumerate(cands)
+        i == 1 && !any(c.x ∈ q.states[qid].set for qid in a1.ver.won) && continue
+        t = environment_tree(D, c.x; nmax = TREE_MAX)
+        t.closed && push!(ranked, (; c..., t))
+    end
+    isempty(ranked) &&
+        error("no ∀-certified point whose tree closes within $TREE_MAX steps")
+    sort!(
+        ranked;
+        by = w -> (w.from == "the paper's point a" && w.t.depth ≥ 3, w.t.depth),
+        rev = true,
+    )
+
+    pick = nothing
+    for w in ranked
+        z = SVector{2}(w.x)
+        s1 = controlled_run(a1.syn.opt, ctrl1, z)
+        s1 === nothing && continue
+        s2 = controlled_run(a2.syn.opt, ctrl2, z)
+        s2 === nothing && continue
+        pick = (w, s1, s2)
+        break
+    end
+    pick === nothing && error("no witness point carries a controller on both quotients")
+    pick
+end
+xw = SVector{2}(witness.x)
+
+# `simulate_closed_loop` stops when the controller is no longer defined. For a satisfied good
+# prefix that is acceptance, but leaving the domain looks the same from outside, and only the
+# first is a witness.
+for (nm, s, D) in (("approach 1", sim1, a1.built.D), ("approach 2", sim2, a2.built.D))
+    accepts(s.X, D) || error(
+        "[$nm] the controlled run does not satisfy φ; it left the controller's domain",
+    )
+end
+@printf("\nwitness point    (%.3f, %.3f), %s\n", xw[1], xw[2], witness.from)
+@printf(
+    "  synthesis ∃    approach 1: %d steps, approach 2: %d steps\n",
+    length(sim1.U),
+    length(sim2.U)
+)
+# The same runs appear on both figures: they are runs of the system, not of a quotient.
+@printf(
+    "  verification ∀ %d runs, deepest %d steps, identical on both\n",
+    witness.t.leaves,
+    witness.t.depth
+)
+
+# Only two of the environment's runs are drawn: the whole tree was a tangle in which no single
+# run could be followed. The shortest and the longest bracket the spread; the title has the
+# count.
+const RUN_COLOURS = [:black, :blue]
+word_label(w) = isempty(w) ? "ε" : join(w, "")
+shown = let bs = sort(witness.t.branches; by = b -> length(b.word))
+    length(bs) ≤ 2 ? bs : [bs[1], bs[end]]
+end
+
 if FIGURES
     d = joinpath(@__DIR__, "figures")
     mkpath(d)
-    out(fig, n) = (savefig(fig, joinpath(d, n)); println("wrote ", n))
+
+    # ACM sigconf puts two columns of 3.33 in on the page, and Plots measures `size` in pixels at
+    # 100 dpi rather than in points, so 333 px is one column; giving 241 here would make the figure
+    # 2.41 in wide and every label half again too big. Computer Modern throughout: GR draws maths
+    # with its own CM-like engine whatever the text font, so asking for CM everywhere keeps the tick
+    # numbers and the `\mathcal` labels one family. `paper_figures_exp1.jl` replaces these with
+    # acmart's Libertine.
+    COL_PX = 333
+    LBL = 16
+    paper!(p) = plot!(
+        p;
+        fontfamily = "Computer Modern",
+        tickfontsize = 9,
+        guidefontsize = 11,
+        legendfontsize = 9,
+        grid = false,
+        framestyle = :axes,
+        left_margin = 1mm,
+        right_margin = 1mm,
+        top_margin = 1mm,
+        bottom_margin = 1mm,
+        dpi = 300,
+    )
+
+    "Trim the uniform border off a PNG. `pad` leaves a hair of margin so nothing is shaved."
+    function crop_png(path; pad = 3)
+        img = PNGFiles.load(path)
+        bg = img[1, 1]
+        rows = findall(i -> any(!=(bg), view(img, i, :)), axes(img, 1))
+        cols = findall(j -> any(!=(bg), view(img, :, j)), axes(img, 2))
+        (isempty(rows) || isempty(cols)) && return nothing
+        r = max(first(rows) - pad, 1):min(last(rows) + pad, size(img, 1))
+        c = max(first(cols) - pad, 1):min(last(cols) + pad, size(img, 2))
+        PNGFiles.save(path, img[r, c])
+        return nothing
+    end
+    out(fig, n) =
+        (savefig(fig, joinpath(d, n)); crop_png(joinpath(d, n)); println("wrote ", n))
 
     # `linealpha` is pinned on every overlay here: plotting the quotient with `show_contours = true`
     # leaves a subplot-level line alpha of 0.5 that later series inherit, and the outlines vanish.
@@ -354,7 +536,7 @@ if FIGURES
                 fillalpha = 0.0,
                 linecolor = REGION_COLOURS[i],
                 linealpha = 1.0,
-                linewidth = 2.5,
+                linewidth = 1.3,
                 label = "",
             )
         end
@@ -371,36 +553,20 @@ if FIGURES
         return l
     end
     # Under equal aspect Plots derives the height from the data; fixing it independently aborts.
-    function rowsize(l, n; w = 430, chrome = 95)
+    function rowsize(l, n; w = COL_PX, chrome = 58)
         (xlo, xhi), (ylo, yhi) = l
         return (
             w * n,
             round(Int, w * clamp((yhi - ylo) / max(xhi - xlo, eps()), 0.35, 2.2)) + chrome,
         )
     end
-    function certified(q, res, title)
-        p = plot(; aspect_ratio = :equal, legend = false, title = title, titlefontsize = 9)
-        for (ids, c) in ((res.lost, LOST), (res.won, WON))
-            isempty(ids) && continue
-            plot!(
-                p,
-                q;
-                what = :states,
-                state_ids = collect(ids),
-                show_contours = false,
-                user_color = c,
-                fillalpha = 1.0,
-            )
-        end
-        return outline!(p)
-    end
-
     # ── figure: approach 1's quotient ────────────────────────────────────────────────────────────
     p = plot(;
         aspect_ratio = :equal,
         legend = false,
-        titlefontsize = 9,
-        title = "Approach 1 — the induced common's quotient, $(a1.s.cells) cells",
+        title = "",
+        xlabel = L"x_1",
+        ylabel = L"x_2",
     )
     plot!(
         p,
@@ -408,193 +574,14 @@ if FIGURES
         what = :states,
         by = :state,
         show_contours = true,
-        linewidth = 0.3,
+        linewidth = 0.2,
         fillalpha = 0.9,
     )
     outline!(p)
+    paper!(p)
     l = align!([p])
     plot!(p; size = rowsize(l, 1))
     out(p, "exp1_approach1_quotient.png")
-
-    # ── the witness runs ─────────────────────────────────────────────────────────────────────────
-    # The certified sets say which points satisfy φ, not what the two quantifiers mean. One point
-    # certified under both does: the controller's single run against the environment's whole tree,
-    # and ∀ certifies a subset of ∃, so a ∀-certified point serves both. Labels are read off the
-    # concrete regions rather than off a cell, so the picture is about the system, not a quotient.
-    spec = Dionysos.spot_stepper(φ)
-    acc = Set(OPDS.accepting_states(spec))
-    A = UT.mode_matrices(f)
-
-    function labels_at(z, D)
-        ls = Symbol[]
-        z ∈ D && push!(ls, :D)
-        for (nm, R) in REGIONS
-            z ∈ R && push!(ls, Symbol(nm))
-        end
-        return Tuple(ls)
-    end
-
-    "Every word the environment can play from `z`, each branch cut where the good prefix completes."
-    function environment_tree(D, z; nmax)
-        branches = NamedTuple{(:X, :word), Tuple{Vector{Vector{Float64}}, Vector{Int}}}[]
-        function walk(path, word, qa, k)
-            if qa in acc
-                push!(branches, (; X = copy(path), word = copy(word)))
-                return true
-            end
-            k == nmax && return false
-            for m in eachindex(A)
-                yn = A[m] * path[end]
-                push!(path, yn)
-                push!(word, m)
-                ok = walk(path, word, OPDS.step(spec, qa, labels_at(yn, D)), k + 1)
-                pop!(path)
-                pop!(word)
-                ok || return false
-            end
-            return true
-        end
-        z = collect(Float64, z)
-        closed =
-            walk([z], Int[], OPDS.step(spec, OPDS.init_state(spec), labels_at(z, D)), 0)
-        depth = isempty(branches) ? 0 : maximum(length(b.word) for b in branches)
-        return (; branches, closed, depth, leaves = length(branches))
-    end
-
-    "An interior point of a quotient cell; for a union, of its first convex part."
-    function cell_point(S)
-        V = LazySets.vertices_list(
-            UT._as_hpolytope(S isa LazySets.UnionSetArray ? S.array[1] : S),
-        )
-        return sum(V) / length(V)
-    end
-
-    "The terminal set, the formula's target, outlined on a panel."
-    function target!(p, D)
-        for P in (D isa LazySets.UnionSetArray ? D.array : [D])
-            plot!(
-                p,
-                P;
-                fillalpha = 0.0,
-                linecolor = :black,
-                linestyle = :dash,
-                linealpha = 1.0,
-                linewidth = 1.5,
-                label = "",
-            )
-        end
-        return p
-    end
-
-    # The paper's point `a` is preferred, unless its tree is shallow: one or two levels show nothing
-    # the certified set does not. The point must also carry a controller on BOTH quotients, since the
-    # same point is drawn on both figures.
-    const TREE_MAX = 7
-    ctrl1 = PCQ.solve_concrete_problem(a1.syn.opt)
-    ctrl2 = PCQ.solve_concrete_problem(a2.syn.opt)
-
-    "The controlled run from `z`, or `nothing` if no controller starts there."
-    function controlled_run(opt, ctrl, z)
-        mem = try
-            PCQ.initial_controller_memory(opt, z)
-        catch
-            return nothing
-        end
-        return PCQ.simulate_closed_loop(f, ctrl, z, mem; N = 2 * TREE_MAX)
-    end
-
-    "Whether the concrete run `X` completes a good prefix of φ."
-    function accepts(X, D)
-        qa = OPDS.step(spec, OPDS.init_state(spec), labels_at(X[1], D))
-        for z in X[2:end]
-            qa = OPDS.step(spec, qa, labels_at(z, D))
-        end
-        return qa in acc
-    end
-
-    witness, sim1, sim2 = let q = a1.built.quotient, D = a1.built.D
-        cands = [(x = collect(Float64, x0), from = "the paper's point a")]
-        for qid in a1.ver.won
-            push!(cands, (x = cell_point(q.states[qid].set), from = "a ∀-certified cell"))
-        end
-        # Only the first candidate needs the membership test; the others are interior to a cell the
-        # ∀ fixed point returned.
-        ranked = NamedTuple[]
-        for (i, c) in enumerate(cands)
-            i == 1 && !any(c.x ∈ q.states[qid].set for qid in a1.ver.won) && continue
-            t = environment_tree(D, c.x; nmax = TREE_MAX)
-            t.closed && push!(ranked, (; c..., t))
-        end
-        isempty(ranked) &&
-            error("no ∀-certified point whose tree closes within $TREE_MAX steps")
-        sort!(
-            ranked;
-            by = w -> (w.from == "the paper's point a" && w.t.depth ≥ 3, w.t.depth),
-            rev = true,
-        )
-
-        pick = nothing
-        for w in ranked
-            z = SVector{2}(w.x)
-            s1 = controlled_run(a1.syn.opt, ctrl1, z)
-            s1 === nothing && continue
-            s2 = controlled_run(a2.syn.opt, ctrl2, z)
-            s2 === nothing && continue
-            pick = (w, s1, s2)
-            break
-        end
-        pick === nothing &&
-            error("no witness point carries a controller on both quotients")
-        pick
-    end
-    xw = SVector{2}(witness.x)
-
-    # `simulate_closed_loop` stops when the controller is no longer defined. For a satisfied good
-    # prefix that is acceptance, but leaving the domain looks the same from outside, and only the
-    # first is a witness.
-    for (nm, s, D) in (("approach 1", sim1, a1.built.D), ("approach 2", sim2, a2.built.D))
-        accepts(s.X, D) || error(
-            "[$nm] the controlled run does not satisfy φ; it left the controller's domain",
-        )
-    end
-    @printf("\nwitness point    (%.3f, %.3f), %s\n", xw[1], xw[2], witness.from)
-    @printf(
-        "  synthesis ∃    approach 1: %d steps, approach 2: %d steps\n",
-        length(sim1.U),
-        length(sim2.U)
-    )
-    # The same runs appear on both figures: they are runs of the system, not of a quotient.
-    @printf(
-        "  verification ∀ %d runs, deepest %d steps, identical on both\n",
-        witness.t.leaves,
-        witness.t.depth
-    )
-
-    # Only two of the environment's runs are drawn: the whole tree was a tangle in which no single
-    # run could be followed. The shortest and the longest bracket the spread; the title has the
-    # count.
-    const RUN_COLOURS = [:black, :blue]
-    word_label(w) = isempty(w) ? "ε" : join(w, "")
-    function run!(p, X, col, lab)
-        xs, ys = first.(X), last.(X)
-        plot!(
-            p,
-            xs,
-            ys;
-            color = col,
-            linealpha = 1.0,
-            linewidth = 2.2,
-            marker = :circle,
-            markersize = 3.5,
-            markerstrokewidth = 0,
-            label = lab,
-        )
-        return p
-    end
-
-    shown = let bs = sort(witness.t.branches; by = b -> length(b.word))
-        length(bs) ≤ 2 ? bs : [bs[1], bs[end]]
-    end
 
     # ── figure: the problem as the paper states it ───────────────────────────────────────────────
     # A working pair X₁ ⊆ X₂, pairwise disjoint regions of interest, and a terminal pair D₁ ⊆ D₂
@@ -617,8 +604,9 @@ if FIGURES
     p = plot(;
         aspect_ratio = :equal,
         legend = false,
-        titlefontsize = 9,
-        title = "Gol-Lazar-Belta Example 3.1 — the problem",
+        title = "",
+        xlabel = L"x_1",
+        ylabel = L"x_2",
     )
     for P in X_pieces
         plot!(
@@ -628,7 +616,7 @@ if FIGURES
             fillcolor = :grey93,
             linecolor = :grey70,
             linealpha = 1.0,
-            linewidth = 1.0,
+            linewidth = 0.6,
             label = "",
         )
     end
@@ -638,12 +626,14 @@ if FIGURES
         fillalpha = 0.0,
         linecolor = :black,
         linealpha = 1.0,
-        linewidth = 2.0,
+        linewidth = 1.1,
         label = "",
     )
     # R₁ and R₂ are nudged off their centroids, where the run would cross the label. A nudge that
     # would leave its region is dropped.
-    LABEL_NUDGE = Dict("R1" => [0.9, 0.0], "R2" => [1.0, -0.9])
+    LABEL_NUDGE = Dict("R1" => [0.9, 0.0], "R2" => [2.6, -1.6])
+    # R_2 is too narrow to hold a 13 pt label, so its label sits outside the region.
+    LABEL_OUTSIDE = ("R2",)
     for (i, (nm, R)) in enumerate(REGIONS)
         plot!(
             p,
@@ -652,17 +642,17 @@ if FIGURES
             fillcolor = PROBLEM_COLOURS[i],
             linealpha = 1.0,
             linecolor = PROBLEM_COLOURS[i],
-            linewidth = 2.5,
+            linewidth = 1.3,
             label = "",
         )
         c = cell_point(R)
         c_lab = c + get(LABEL_NUDGE, nm, [0.0, 0.0])
-        c_lab ∈ UT._as_hpolytope(R) || (c_lab = c)
+        (nm in LABEL_OUTSIDE || c_lab ∈ UT._as_hpolytope(R)) || (c_lab = c)
         annotate!(
             p,
             c_lab[1],
             c_lab[2],
-            Plots.text(latexstring("R_", i), 12, PROBLEM_COLOURS[i], :center),
+            Plots.text(latexstring("R_", i), LBL, PROBLEM_COLOURS[i], :center),
         )
     end
     # D₂ filled, then D₁ opaque on top: the two differ by 4% in area, so the pair is only legible
@@ -675,7 +665,7 @@ if FIGURES
             fillcolor = :red,
             linecolor = :red,
             linealpha = 1.0,
-            linewidth = 1.2,
+            linewidth = 0.7,
             label = "",
         )
     end
@@ -686,39 +676,15 @@ if FIGURES
         fillcolor = :grey78,
         linecolor = :black,
         linealpha = 1.0,
-        linewidth = 1.5,
-        label = "",
-    )
-    run!(p, sim2.X, :black, "")
-    scatter!(
-        p,
-        [xw[1]],
-        [xw[2]];
-        color = :white,
-        markerstrokecolor = :black,
-        markerstrokewidth = 1.5,
-        markersize = 6,
+        linewidth = 0.8,
         label = "",
     )
     let c = cell_point(D1)
-        annotate!(p, c[1], c[2], Plots.text(L"\mathcal{D}_1", 12, :black, :center))
+        annotate!(p, c[1], c[2], Plots.text(L"\mathcal{D}_1", LBL, :black, :center))
     end
     # D₂ is named like X₂ below: outside the most top-right vertex that lies strictly outside D₁, so
     # the label points at the ring rather than at where the two boundaries touch.
-    let V = reduce(vcat, LazySets.vertices_list.(D_pieces)),
-        cs_D = LazySets.constraints_list(D1)
-
-        outside_D(w) = maximum(dot(c.a, w) - c.b for c in cs_D)
-        far = filter(w -> outside_D(w) > 1e-8, V)
-        cand = isempty(far) ? V : far
-        v = cand[argmax([w[1] + w[2] for w in cand])]
-        annotate!(
-            p,
-            1.10 * v[1] + 0.1,
-            1.10 * v[2] + 0.4,
-            Plots.text(L"\mathcal{D}_2", 12, :red, :center),
-        )
-    end
+    annotate!(p, 4.1, 4.2, Plots.text(L"\mathcal{D}_2", LBL, :red, :center))
     # The two are named on opposite sides so they cannot be confused: X₁ just inside its contour at
     # the bottom, X₂ just outside the outer boundary at the top.
     let V = LazySets.vertices_list(X1)
@@ -727,7 +693,7 @@ if FIGURES
             p,
             0.88 * v[1],
             0.88 * v[2],
-            Plots.text(L"\mathcal{X}_1", 12, :black, :center),
+            Plots.text(L"\mathcal{X}_1", LBL, :black, :center),
         )
     end
     # At a vertex strictly outside X₁, so the label sits where the two sets differ.
@@ -742,104 +708,13 @@ if FIGURES
             p,
             1.07 * v[1] + 0.5,
             1.07 * v[2],
-            Plots.text(L"\mathcal{X}_2", 12, :black, :center),
+            Plots.text(L"\mathcal{X}_2", LBL, :black, :center),
         )
     end
-    # To the right of the point, not below it: below, the label fell across the X₁ contour.
-    annotate!(p, xw[1] + 1.0, xw[2] - 0.5, Plots.text(L"x_0", 12, :black, :center))
+    paper!(p)
     l = align!([p])
     plot!(p; size = rowsize(l, 1))
     out(p, "exp1_problem.png")
-
-    # ── figure: approach 1 under both quantifiers ────────────────────────────────────────────────
-    # Both games on one figure, each carrying the runs from the witness point: the controller needs
-    # one of them to reach the target, the environment must be answered on all.
-    ps = [
-        certified(
-            a1.built.quotient,
-            a1.syn,
-            "Approach 1 — synthesis ∃: the controlled run",
-        ),
-        certified(
-            a1.built.quotient,
-            a1.ver,
-            "Approach 1 — verification ∀: $(witness.t.leaves) runs, $(length(shown)) drawn",
-        ),
-    ]
-    run!(ps[1], sim1.X, RUN_COLOURS[1], "word " * word_label(Int.(sim1.U)))
-    for (i, b) in enumerate(shown)
-        run!(ps[2], b.X, RUN_COLOURS[i], "word " * word_label(b.word))
-    end
-    # The regions go back on top: the runs cross them, and a boundary the eye cannot follow
-    # stops being a reference.
-    for p in ps
-        outline!(p)
-        target!(p, a1.built.D)
-        scatter!(
-            p,
-            [xw[1]],
-            [xw[2]];
-            color = :white,
-            markerstrokecolor = :black,
-            markerstrokewidth = 1.5,
-            markersize = 6,
-            label = "",
-        )
-        plot!(
-            p;
-            legend = :bottomright,
-            legendfontsize = 7,
-            background_color_legend = :white,
-        )
-    end
-    l = align!(ps)
-    out(plot(ps...; layout = (1, 2), size = rowsize(l, 2)), "exp1_approach1_spec.png")
-
-    # ── figure: approach 2 under both quantifiers ────────────────────────────────────────────────
-    # The same two games from the same point. Every layer's cells are drawn, so a state certified on
-    # one layer and not the other appears in both colours; the 3-D view below disambiguates it.
-    #
-    # The environment's runs are identical to approach 1's, being runs of the system and not of a
-    # quotient — which is the claim: the cheaper abstraction answers the same question. The
-    # controlled run need not be, since the two quotients admit different strategies.
-    ps = [
-        certified(
-            a2.built.quotient,
-            a2.syn,
-            "Approach 2 — synthesis ∃: the controlled run",
-        ),
-        certified(
-            a2.built.quotient,
-            a2.ver,
-            "Approach 2 — verification ∀: $(witness.t.leaves) runs, $(length(shown)) drawn",
-        ),
-    ]
-    run!(ps[1], sim2.X, RUN_COLOURS[1], "word " * word_label(Int.(sim2.U)))
-    for (i, b) in enumerate(shown)
-        run!(ps[2], b.X, RUN_COLOURS[i], "word " * word_label(b.word))
-    end
-    for p in ps
-        outline!(p)
-        target!(p, a2.built.D)
-        scatter!(
-            p,
-            [xw[1]],
-            [xw[2]];
-            color = :white,
-            markerstrokecolor = :black,
-            markerstrokewidth = 1.5,
-            markersize = 6,
-            label = "",
-        )
-        plot!(
-            p;
-            legend = :bottomright,
-            legendfontsize = 7,
-            background_color_legend = :white,
-        )
-    end
-    l = align!(ps)
-    out(plot(ps...; layout = (1, 2), size = rowsize(l, 2)), "exp1_approach2_spec.png")
 
     # ── figure: facets per cell ──────────────────────────────────────────────────────────────────
     # On a log count: most cells are simple, and the construction pays for the tail. `fillrange`
@@ -854,14 +729,11 @@ if FIGURES
         alpha = 0.55,
         color = :firebrick,
         linecolor = :firebrick,
-        label = "approach 1 (determinise first)",
+        label = "iCLF",
         xlabel = "facets per cell",
         ylabel = "cells",
         legend = :topright,
-        framestyle = :box,
-        grid = false,
         ylims = (0.7, 5e4),
-        size = (660, 410),
     )
     histogram!(
         h,
@@ -872,31 +744,63 @@ if FIGURES
         alpha = 0.55,
         color = :steelblue,
         linecolor = :steelblue,
-        label = "approach 2 (on the PCLF)",
+        label = "PCLF",
     )
-    vline!(h, [a1.s.max_f]; color = :firebrick, ls = :dash, lw = 1.5, label = "")
-    vline!(h, [a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.5, label = "")
+    vline!(h, [a1.s.max_f]; color = :firebrick, ls = :dash, lw = 0.9, label = "")
+    vline!(h, [a2.s.max_f]; color = :steelblue, ls = :dash, lw = 0.9, label = "")
+    paper!(h)
+    # the legend is a third of this figure at the shared 9 pt; the bars need the room
+    plot!(h; legendfontsize = 7)
+    plot!(h; size = (COL_PX, round(Int, 0.68 * COL_PX)))
     out(h, "exp1_facets_histogram.png")
 
     # ── figures: 3-D, one layer per graph node ───────────────────────────────────────────────────
     # `import`, not `using`: both packages export `plot`, so every Plots figure had to come first,
     # and `using CairoMakie` would make every bare `plot` ambiguous in a REPL holding this file.
     import CairoMakie
-    mk_out(mk, n) =
-        (CairoMakie.save(joinpath(d, n), mk; px_per_unit = 3); println("wrote ", n))
+    mk_out(mk, n) = (
+        CairoMakie.save(joinpath(d, n), mk; px_per_unit = 3);
+        crop_png(joinpath(d, n));
+        println("wrote ", n)
+    )
     node_z = Dict(nd => z for (nd, z) in zip(nodes, (0.0, 1.0)))
 
-    function layered(title; ids = nothing, traj = nothing)
-        mk = CairoMakie.Figure(; size = (900, 700))
+    # Makie draws its own text, so these two cannot take the LaTeX route the flat figures use. The
+    # next best thing is to hand Makie the same typeface acmart sets: TeX distributions ship Linux
+    # Libertine as OTF, which Makie can load, and `kpsewhich` finds it wherever it lives. Without a
+    # TeX installation Makie keeps its default and the labels are merely generic, not wrong.
+    libertine = let kp = Sys.which("kpsewhich")
+        p = kp === nothing ? "" : try
+                String(strip(read(`$kp LinLibertine_R.otf`, String)))
+            catch
+                ""
+            end
+        isfile(p) ? p : nothing
+    end
+    isnothing(libertine) &&
+        println("  (no Linux Libertine found; the 3-D labels keep Makie's own font)")
+
+    function layered(; ids = nothing, traj = nothing)
+        mk = CairoMakie.Figure(;
+            size = (900, 700),
+            fonts = isnothing(libertine) ? NamedTuple() : (; regular = libertine),
+        )
         ax = CairoMakie.Axis3(
             mk[1, 1];
             xlabel = "x₁",
             ylabel = "x₂",
-            zlabel = "memory (graph node)",
-            zticks = ([0.0, 1.0], ["node $(nodes[1])", "node $(nodes[2])"]),
+            zlabel = "",
+            # the De Bruijn node names — (1,) and (2,) — say nothing to a reader here, and the
+            # axis is only ever two layers, so they are named a and b
+            zticks = ([0.0, 1.0], ["node a", "node b"]),
             azimuth = 1.2π,
             elevation = 0.16π,
-            title = title,
+            xlabelsize = 34,
+            ylabelsize = 34,
+            zlabelsize = 34,
+            xticklabelsize = 28,
+            yticklabelsize = 28,
+            zticklabelsize = 28,
         )
         q = a2.built.quotient
         if ids === nothing
@@ -943,7 +847,7 @@ if FIGURES
                     last.(V),
                     fill(z + 0.005, length(V));
                     color = :black,
-                    linewidth = 2.0,
+                    linewidth = 1.1,
                 )
             end
         end
@@ -953,16 +857,12 @@ if FIGURES
     end
 
     # The quotient itself.
-    mk_out(
-        layered("Approach 2 — the quotient, one layer per graph node"),
-        "exp1_approach2_3d_quotient.png",
-    )
+    mk_out(layered(), "exp1_approach2_3d_quotient.png")
 
     # The certified set with the closed loop. The run is `sim2`, the one approach 2's flat figure
     # draws from the same witness point, so the figures read as one story.
     mk_out(
-        layered(
-            "Approach 2 — certified set (∃) and the closed loop";
+        layered(;
             ids = (; won = a2.syn.won, lost = a2.syn.lost),
             traj = (; sim2.X, sim2.M),
         ),

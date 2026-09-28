@@ -20,8 +20,9 @@
 # INTERSECTION, which stays convex, so that channel is closed and only the per-node reduction is
 # left.
 
-using JuMP, Clarabel, LazySets, Plots, Printf
-import HybridSystems, Statistics
+using JuMP, Clarabel, LazySets, Plots, Printf, LaTeXStrings
+import HybridSystems, Statistics, PNGFiles, JLD2
+import Plots.PlotMeasures: mm
 import MathOptInterface as MOI
 
 using Dionysos
@@ -36,6 +37,11 @@ gr()
 
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "1"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
+# Each graph builds seven quotients: one to fix the outer level, one per arm, and a warm-up plus
+# SAMPLES timed rounds per arm. CACHE=1 keeps the first three on disk, which is what makes redrawing
+# the figures cheap; TIMING=0 drops the other four, which are the measurement and are never cached.
+const USE_CACHE = get(ENV, "CACHE", "1") == "1"
+const TIMING = get(ENV, "TIMING", "1") == "1"
 const LEVELS = parse(Int, get(ENV, "LEVELS", "9"))
 const ATOL = 1e-3
 const SOLVER = JuMP.optimizer_with_attributes(
@@ -86,6 +92,24 @@ function build(cert; ΓX = nothing)
     )
 end
 
+"The quotient `cert` builds, from cache/ when it is there. Timed builds never come through here."
+function build_cached(name, tag, cert, ΓX)
+    path = joinpath(@__DIR__, "cache", "exp3_$(tag)_$(name)_$(LEVELS).jld2")
+    if USE_CACHE && isfile(path)
+        return JLD2.jldopen(path, "r") do file
+            return (; quotient = file["quotient"])
+        end
+    end
+    b = build(cert; ΓX = ΓX)
+    if USE_CACHE
+        mkpath(dirname(path))
+        JLD2.jldopen(path, "w") do file
+            return file["quotient"] = b.quotient
+        end
+    end
+    return (; b.quotient)
+end
+
 function timed(g, n)
     g()
     ts = Float64[]
@@ -113,6 +137,7 @@ end
 
 function run_graph(dual)
     label = dual ? "DUAL (co-complete)" : "PRIMAL (complete)"
+    tag = dual ? "dual" : "primal"
     graph = PCLF.generate_DeBruijn_edges(2, 1; dual = dual)
     nodes = sort(collect(graph.verts); by = string)
     pclf = PCLF.compute_polyhedral_pieces_pclf(
@@ -135,7 +160,22 @@ function run_graph(dual)
 
     # Approach 1's own natural outer level, imposed on approach 2. Taking it from approach 2 would
     # flatter approach 2, and leaving each to its own would have them tile different sets.
-    ΓX = maximum(MOI.get(build(common).opt, MOI.RawOptimizerAttribute("Γ")))
+    ΓX = let path = joinpath(@__DIR__, "cache", "exp3_$(tag)_GX_$(LEVELS).jld2")
+        if USE_CACHE && isfile(path)
+            JLD2.jldopen(path, "r") do file
+                return file["GX"]
+            end
+        else
+            v = maximum(MOI.get(build(common).opt, MOI.RawOptimizerAttribute("Γ")))
+            if USE_CACHE
+                mkpath(dirname(path))
+                JLD2.jldopen(path, "w") do file
+                    return file["GX"] = v
+                end
+            end
+            v
+        end
+    end
 
     println("\n", "#"^84, "\n$label De Bruijn, order 1\n", "#"^84)
     @printf(
@@ -172,23 +212,16 @@ function run_graph(dual)
     # Build both arms before timing either. A timed region pays garbage collection proportional to
     # the live heap, so timing an arm while the other does not yet exist favours whichever goes
     # first, by enough to reverse the verdict.
-    arm(cert) = (; b = build(cert; ΓX = ΓX), cert)
-    a1, a2 = arm(common), arm(pclf)
-    a1 = (;
-        a1...,
-        s = stats(a1.b.quotient),
-        t = timed(() -> build(a1.cert; ΓX = ΓX), SAMPLES),
-    )
-    a2 = (;
-        a2...,
-        s = stats(a2.b.quotient),
-        t = timed(() -> build(a2.cert; ΓX = ΓX), SAMPLES),
-    )
+    arm(name, cert) = (; b = build_cached(name, tag, cert, ΓX), cert)
+    a1, a2 = arm("approach1", common), arm("approach2", pclf)
+    time_arm(a) = TIMING ? timed(() -> build(a.cert; ΓX = ΓX), SAMPLES) : NaN
+    a1 = (; a1..., s = stats(a1.b.quotient), t = time_arm(a1))
+    a2 = (; a2..., s = stats(a2.b.quotient), t = time_arm(a2))
     for (name, a) in (("approach 1", a1), ("approach 2", a2))
         @printf(
-            "  %-10s %8.3f s  %5d cells  %6d poly   poly mean %5.2f max %3d   fac mean %6.2f max %4d\n",
+            "  %-10s %10s  %5d cells  %6d poly   poly mean %5.2f max %3d   fac mean %6.2f max %4d\n",
             name,
-            a.t,
+            TIMING ? @sprintf("%8.3f s", a.t) : "",
             a.s.cells,
             sum(a.s.parts),
             a.s.mean_p,
@@ -197,13 +230,20 @@ function run_graph(dual)
             a.s.max_f
         )
     end
-    @printf(
-        "  → approach 2 has %.2fx the cells of approach 1, and is %.2fx %s\n",
-        a2.s.cells / a1.s.cells,
-        max(a1.t, a2.t) / min(a1.t, a2.t),
-        a2.t < a1.t ? "FASTER" : "SLOWER"
-    )
-    return (; label, tag = dual ? "dual" : "primal", nodes, gap, parts_common, a1, a2)
+    if TIMING
+        @printf(
+            "  → approach 2 has %.2fx the cells of approach 1, and is %.2fx %s\n",
+            a2.s.cells / a1.s.cells,
+            max(a1.t, a2.t) / min(a1.t, a2.t),
+            a2.t < a1.t ? "FASTER" : "SLOWER"
+        )
+    else
+        @printf(
+            "  → approach 2 has %.2fx the cells of approach 1 (TIMING=0, no times)\n",
+            a2.s.cells / a1.s.cells
+        )
+    end
+    return (; label, tag, nodes, gap, parts_common, a1, a2)
 end
 
 primal = run_graph(false)
@@ -225,7 +265,7 @@ println("\n", "="^84, "\nRESULT\n", "="^84)
 println("-"^84)
 for r in (primal, dual)
     @printf(
-        "%-20s %6.3f %6d %9d %9d %8.2f %8d %8d %8.2fx\n",
+        "%-20s %6.3f %6d %9d %9d %8.2f %8d %8d %9s\n",
         r.label,
         r.gap,
         r.parts_common,
@@ -234,7 +274,7 @@ for r in (primal, dual)
         r.a2.s.cells / r.a1.s.cells,
         r.a1.s.max_p,
         r.a2.s.max_p,
-        r.a1.t / r.a2.t
+        TIMING ? @sprintf("%.2fx", r.a1.t / r.a2.t) : "—"
     )
 end
 println("="^84)
@@ -259,12 +299,50 @@ if FIGURES
     d = joinpath(@__DIR__, "figures")
     mkpath(d)
 
+    # ACM sigconf puts two columns of 3.33 in on the page, and Plots measures `size` in pixels at
+    # 100 dpi, so 333 px is one column. Computer Modern throughout: GR draws maths with its own
+    # CM-like engine whatever the text font, so asking for CM everywhere keeps the tick numbers and
+    # the labels one family. `paper_figures_exp3.jl` replaces these with acmart's Libertine.
+    COL_PX = 333
+    paper!(p) = plot!(
+        p;
+        fontfamily = "Computer Modern",
+        tickfontsize = 9,
+        guidefontsize = 11,
+        legendfontsize = 7,
+        grid = false,
+        framestyle = :axes,
+        left_margin = 1mm,
+        right_margin = 1mm,
+        top_margin = 1mm,
+        bottom_margin = 1mm,
+        dpi = 300,
+    )
+
+    "Trim the uniform border off a PNG. `pad` leaves a hair of margin so nothing is shaved."
+    function crop_png(path; pad = 3)
+        img = PNGFiles.load(path)
+        bg = img[1, 1]
+        rows = findall(i -> any(!=(bg), view(img, i, :)), axes(img, 1))
+        cols = findall(j -> any(!=(bg), view(img, :, j)), axes(img, 2))
+        (isempty(rows) || isempty(cols)) && return nothing
+        r = max(first(rows) - pad, 1):min(last(rows) + pad, size(img, 1))
+        c = max(first(cols) - pad, 1):min(last(cols) + pad, size(img, 2))
+        PNGFiles.save(path, img[r, c])
+        return nothing
+    end
+    out(fig, nm) =
+        (savefig(fig, joinpath(d, nm)); crop_png(joinpath(d, nm)); println("wrote ", nm))
+
     # Under equal aspect Plots derives the height from the data; fixing it independently aborts.
-    function panelsize(p; w = 520, chrome = 95)
+    function panelsize(p; w = COL_PX, chrome = 58)
         (xlo, xhi), (ylo, yhi) = Plots.xlims(p), Plots.ylims(p)
         return (
             w,
-            round(Int, w * clamp((yhi - ylo) / max(xhi - xlo, eps()), 0.35, 2.2)) + chrome,
+            round(
+                Int,
+                (w - chrome) * clamp((yhi - ylo) / max(xhi - xlo, eps()), 0.35, 2.2),
+            ) + chrome,
         )
     end
 
@@ -274,9 +352,9 @@ if FIGURES
         p = plot(;
             aspect_ratio = :equal,
             legend = false,
-            titlefontsize = 10,
-            title = "$(r.label) — induced common, $(r.a1.s.cells) cells, " *
-                    "worst $(r.a1.s.max_p) parts",
+            title = "",
+            xlabel = L"x_1",
+            ylabel = L"x_2",
         )
         plot!(
             p,
@@ -284,12 +362,12 @@ if FIGURES
             what = :states,
             by = :state,
             show_contours = true,
-            linewidth = 0.3,
+            linewidth = 0.2,
             fillalpha = 0.9,
         )
+        paper!(p)
         plot!(p; size = panelsize(p))
-        savefig(p, joinpath(d, "exp3_$(r.tag)_approach1_quotient.png"))
-        println("wrote exp3_$(r.tag)_approach1_quotient.png")
+        out(p, "exp3_$(r.tag)_approach1_quotient.png")
     end
 
     # Facets per cell, on a log count: most cells are simple, and the construction pays for the tail.
@@ -305,16 +383,12 @@ if FIGURES
             alpha = 0.55,
             color = :firebrick,
             linecolor = :firebrick,
-            label = "approach 1 (determinise first)",
+            label = "iCLF",
             xlabel = "facets per cell",
             ylabel = "cells",
             legend = :topright,
-            framestyle = :box,
-            grid = false,
+            title = "",
             ylims = (0.7, 5e3),
-            size = (660, 410),
-            title = r.label,
-            titlefontsize = 10,
         )
         histogram!(
             h,
@@ -325,12 +399,15 @@ if FIGURES
             alpha = 0.55,
             color = :steelblue,
             linecolor = :steelblue,
-            label = "approach 2 (on the PCLF)",
+            label = "PCLF",
         )
-        vline!(h, [r.a1.s.max_f]; color = :firebrick, ls = :dash, lw = 1.5, label = "")
-        vline!(h, [r.a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.5, label = "")
-        savefig(h, joinpath(d, "exp3_$(r.tag)_facets_histogram.png"))
-        println("wrote exp3_$(r.tag)_facets_histogram.png")
+        vline!(h, [r.a1.s.max_f]; color = :firebrick, ls = :dash, lw = 1.8, label = "")
+        vline!(h, [r.a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.8, label = "")
+        paper!(h)
+        # wide and short: a histogram carries its information horizontally, and this is the figure
+        # that can afford to be short in a two-column layout
+        plot!(h; size = (COL_PX, round(Int, 0.44 * COL_PX)))
+        out(h, "exp3_$(r.tag)_facets_histogram.png")
     end
 
     # ── 3-D: approach 2's quotient, the graph node as a vertical axis ────────────────────────────
@@ -338,20 +415,41 @@ if FIGURES
     # and `using CairoMakie` would make every bare `plot` ambiguous in a REPL holding this file.
     import CairoMakie
 
+    # Makie draws its own text, so these two cannot take the LaTeX route the flat figures use. The
+    # next best thing is to hand Makie the same typeface acmart sets: TeX distributions ship Linux
+    # Libertine as OTF, which Makie can load, and `kpsewhich` finds it wherever it lives.
+    libertine = let kp = Sys.which("kpsewhich")
+        p = kp === nothing ? "" : try
+                String(strip(read(`$kp LinLibertine_R.otf`, String)))
+            catch
+                ""
+            end
+        isfile(p) ? p : nothing
+    end
+
     for r in (primal, dual)
         q = r.a2.b.quotient
         node_z = Dict(nd => z for (nd, z) in zip(r.nodes, (0.0, 1.0)))
-        mk = CairoMakie.Figure(; size = (900, 700))
+        mk = CairoMakie.Figure(;
+            size = (900, 700),
+            fonts = isnothing(libertine) ? NamedTuple() : (; regular = libertine),
+        )
         ax = CairoMakie.Axis3(
             mk[1, 1];
             xlabel = "x₁",
             ylabel = "x₂",
-            zlabel = "memory (graph node)",
-            zticks = ([0.0, 1.0], ["node $(r.nodes[1])", "node $(r.nodes[2])"]),
+            zlabel = "",
+            # the De Bruijn node names say nothing to a reader here, and the axis is only ever two
+            # layers, so they are named a and b
+            zticks = ([0.0, 1.0], ["node a", "node b"]),
             azimuth = 1.2π,
             elevation = 0.16π,
-            title = "$(r.label) — PCLF quotient, $(r.a2.s.cells) cells, " *
-                    "worst $(r.a2.s.max_p) parts",
+            xlabelsize = 34,
+            ylabelsize = 34,
+            zlabelsize = 34,
+            xticklabelsize = 28,
+            yticklabelsize = 28,
+            zticklabelsize = 28,
         )
         DI.plot_augmented_bisimulation!(
             ax,
@@ -361,7 +459,9 @@ if FIGURES
             alpha = 0.35,
             show_contours = false,
         )
-        CairoMakie.save(joinpath(d, "exp3_$(r.tag)_approach2_3d.png"), mk; px_per_unit = 3)
-        println("wrote exp3_$(r.tag)_approach2_3d.png")
+        nm = "exp3_$(r.tag)_approach2_3d.png"
+        CairoMakie.save(joinpath(d, nm), mk; px_per_unit = 3)
+        crop_png(joinpath(d, nm))
+        println("wrote ", nm)
     end
 end
