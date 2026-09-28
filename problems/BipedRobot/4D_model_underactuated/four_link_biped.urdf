@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<robot name="four_link_planar_biped">
+  <material name="link_blue"><color rgba="0.10 0.25 0.85 1.0"/></material>
+  <material name="motor_red"><color rgba="0.85 0.10 0.10 1.0"/></material>
+
+  <!-- Grounded links use +z from their proximal joint. -->
+  <link name="grounded_tibia">
+    <inertial><origin xyz="0 0 0.086" rpy="0 0 0"/><mass value="0.0172"/>
+      <inertia ixx="0.0001696149333" ixy="0" ixz="0" iyy="0.0001696149333" iyz="0" izz="0.0001696149333"/></inertial>
+    <visual><origin xyz="0 0 0.086" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.172"/></geometry><material name="link_blue"/></visual>
+  </link>
+  <link name="grounded_femur">
+    <inertial><origin xyz="0 0 0.101" rpy="0 0 0"/><mass value="0.0202"/>
+      <inertia ixx="0.0002747469333" ixy="0" ixz="0" iyy="0.0002747469333" iyz="0" izz="0.0002747469333"/></inertial>
+    <visual><origin xyz="0 0 0.101" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.202"/></geometry><material name="link_blue"/></visual>
+  </link>
+  <!-- Swing links use -z from their proximal joint. -->
+  <link name="swing_femur">
+    <inertial><origin xyz="0 0 -0.101" rpy="0 0 0"/><mass value="0.0202"/>
+      <inertia ixx="0.0002747469333" ixy="0" ixz="0" iyy="0.0002747469333" iyz="0" izz="0.0002747469333"/></inertial>
+    <visual><origin xyz="0 0 -0.101" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.202"/></geometry><material name="link_blue"/></visual>
+  </link>
+  <link name="swing_tibia">
+    <inertial><origin xyz="0 0 -0.086" rpy="0 0 0"/><mass value="0.0172"/>
+      <inertia ixx="0.0001696149333" ixy="0" ixz="0" iyy="0.0001696149333" iyz="0" izz="0.0001696149333"/></inertial>
+    <visual><origin xyz="0 0 -0.086" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.172"/></geometry><material name="link_blue"/></visual>
+  </link>
+
+  <!-- The two original motor masses are retained, both located at the hip. -->
+  <link name="hip_motor_1">
+    <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
+      <inertia ixx="0.0163216" ixy="0" ixz="0" iyy="0.0163216" iyz="0" izz="0.0163216"/></inertial>
+    <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
+  </link>
+  <link name="hip_motor_2">
+    <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
+      <inertia ixx="0.0118336" ixy="0" ixz="0" iyy="0.0118336" iyz="0" izz="0.0118336"/></inertial>
+    <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
+  </link>
+  <!-- Knee motors retain the original 0.4 kg mass and inertia but have no
+       intervening actuated joint: q2 and q4 are directly actuated. -->
+  <link name="grounded_knee_motor">
+    <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
+      <inertia ixx="0.0118336" ixy="0" ixz="0" iyy="0.0118336" iyz="0" izz="0.0118336"/></inertial>
+    <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
+  </link>
+  <link name="swing_knee_motor">
+    <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
+      <inertia ixx="0.0118336" ixy="0" ixz="0" iyy="0.0118336" iyz="0" izz="0.0118336"/></inertial>
+    <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
+  </link>
+
+  <!-- q2: grounded femur relative to grounded tibia. -->
+  <joint name="grounded_knee" type="revolute">
+    <parent link="grounded_tibia"/><child link="grounded_femur"/>
+    <origin xyz="0 0 0.172" rpy="0 0 0"/><axis xyz="0 1 0"/>
+    <limit lower="-3.14159265359" upper="3.14159265359" effort="100" velocity="20"/>
+  </joint>
+  <!-- q3: swing femur relative to grounded femur; zero means femurs side-by-side. -->
+  <joint name="hip" type="revolute">
+    <parent link="grounded_femur"/><child link="swing_femur"/>
+    <origin xyz="0 0 0.202" rpy="0 0 0"/><axis xyz="0 1 0"/>
+    <limit lower="-3.14159265359" upper="3.14159265359" effort="100" velocity="20"/>
+  </joint>
+  <!-- q4: swing tibia relative to swing femur; zero means straight. -->
+  <joint name="swing_knee" type="revolute">
+    <parent link="swing_femur"/><child link="swing_tibia"/>
+    <origin xyz="0 0 -0.202" rpy="0 0 0"/><axis xyz="0 1 0"/>
+    <limit lower="-3.14159265359" upper="3.14159265359" effort="100" velocity="20"/>
+  </joint>
+  <joint name="hip_motor_1_mount" type="fixed">
+    <parent link="grounded_femur"/><child link="hip_motor_1"/><origin xyz="0 0 0.202" rpy="0 0 0"/>
+  </joint>
+  <joint name="hip_motor_2_mount" type="fixed">
+    <parent link="grounded_femur"/><child link="hip_motor_2"/><origin xyz="0 0 0.202" rpy="0 0 0"/>
+  </joint>
+  <joint name="grounded_knee_motor_mount" type="fixed">
+    <parent link="grounded_tibia"/><child link="grounded_knee_motor"/><origin xyz="0 0 0.172" rpy="0 0 0"/>
+  </joint>
+  <joint name="swing_knee_motor_mount" type="fixed">
+    <parent link="swing_femur"/><child link="swing_knee_motor"/><origin xyz="0 0 -0.202" rpy="0 0 0"/>
+  </joint>
+</robot>
