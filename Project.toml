@@ -44,7 +44,7 @@ DionysosSymbolicsExt = ["Symbolics", "IntervalArithmetic"]
 DionysosRigidBodyDynamicsExt = ["RigidBodyDynamics", "MeshCat", "MeshCatMechanisms"]
 
 [compat]
-CSV = "0.10"
+CSV = "0.10, 1.1"
 DataFrames = "1"
 DataStructures = "0.18, 0.19"
 Distributed = "1.10"
