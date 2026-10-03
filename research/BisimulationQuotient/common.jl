@@ -48,11 +48,55 @@ function export_optimizer_jld2(optimizer, filename::AbstractString)
 end
 
 function import_optimizer_jld2(filename::AbstractString)
-    return jldopen(filename, "r") do file
+    optimizer = jldopen(filename, "r") do file
         v = file["format_version"]
         v == 1 || error("Unsupported optimizer file format_version=$v")
         return file["optimizer"]
     end
+    _migrate_quotient!(optimizer)
+    return optimizer
+end
+
+"""
+Rebuild a quotient that JLD2 reconstructed because the struct gained a field since it was written.
+
+When a cached struct's field list no longer matches the code's, JLD2 does not error and does not fill
+a default: it hands back a `JLD2.ReconstructedMutable`, which carries the old fields and **is not the
+real type**. Every method dispatching on `::PCBisimulationQuotient` then fails with a `MethodError`
+somewhere far from the load, which is a nasty way to lose an afternoon -- `print_bisimulation_stats`,
+`num_slices` and the co-safe solver all break at once.
+
+That happened when `enabled` was added to record which modes each graph node may emit. Caches predate
+it, so the field is restored as **empty**, which every consumer reads as "unknown, assume every mode
+is enabled" -- exactly the assumption in force when the cache was written, so an old cache keeps
+answering what it always answered rather than silently gaining freedom.
+"""
+function _migrate_quotient!(optimizer)
+    q = try
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
+    catch
+        return optimizer
+    end
+    (q === nothing || q isa PCQ.PCBisimulationQuotient) && return optimizer
+
+    states = q.states
+    isempty(states) && return optimizer
+    # Read the parameters off the stored dict, not off a sample element. The cached `S` is the
+    # UnionAll `UnionSetArray{T, PT} where {T, PT}`, while a sample's `typeof` is the concrete
+    # instantiation, and rebuilding with the concrete one makes every stored dict unconvertible.
+    S, U = valtype(states).parameters[1], valtype(states).parameters[2]
+
+    rebuilt = PCQ.PCBisimulationQuotient{S, U}(
+        states,
+        q.part_ids,
+        q.next_id,
+        q.slices,
+        Dict{U, Set{Int}}(),
+    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"), rebuilt)
+    @info "Migrated a quotient cached before the `enabled` field existed; " *
+          "its modes are treated as unrestricted, as they were when it was built."
+    return optimizer
 end
 
 # ---------------------------------------------------------
@@ -233,6 +277,8 @@ function build_quotient(
     level_tol::Union{Nothing, Float64} = nothing,
     max_levels::Union{Nothing, Int} = nothing,
     max_slices::Int = 10,
+    nb_levels::Union{Nothing, Int} = nothing,
+    ΓX::Union{Nothing, Float64} = nothing,
     print_level::Int = 1,
     backend = nothing,
 )
@@ -246,6 +292,20 @@ function build_quotient(
         MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), level_tol)
     isnothing(max_levels) ||
         MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), max_levels)
+    # `nb_levels` forces a fixed geometric ladder instead of stopping at the first level that clears
+    # the regions. Without it a region-free problem is degenerate: `all_nodes_clear_regions` is
+    # satisfied immediately, so τD = τX, there is ONE level, and the quotient is one cell per node.
+    # Setting it is what makes a region-free comparison possible at all -- and that case is the one
+    # that isolates the graph and the matrices from the observation refinement.
+    isnothing(nb_levels) ||
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("nb_levels"), nb_levels)
+    # `ΓX` pins the OUTER level instead of deriving it from the pieces. Without it the ladder starts at
+    # `compute_tau_X(pclf, X)`, which is a gauge of the certificate -- and the induced common's gauge is
+    # not the PCLF pieces' gauge, so two arms of the same comparison start from different τX, tile
+    # different sets, and their cell counts stop being comparable. Fixing ΓX and `nb_levels` together
+    # fixes the whole ladder: τX, τX·γ, …, and since γ is shared by graph invariance, both arms then
+    # get identical levels, the same terminal set D, and the same covered region.
+    isnothing(ΓX) || MOI.set(optimizer, MOI.RawOptimizerAttribute("ΓX"), ΓX)
     isnothing(backend) ||
         MOI.set(optimizer, MOI.RawOptimizerAttribute("polyhedra_backend"), backend)
 
@@ -462,6 +522,55 @@ function plot_synthesis_result(
 end
 
 # Green over red rather than red over green: the winning region is the result, so it goes on top.
+"""
+    align_panels!(panels) -> ((xlo, xhi), (ylo, yhi))
+
+Put every panel on one window: the union of what Plots auto-scaled each of them to.
+
+**Do not hard-code axis limits from the working set `X`.** A quotient's cells tile the certificate's
+SUBLEVEL family, not `X`, and that family reaches well beyond it -- the covered region is a star, not
+a box. Limits taken from `X` therefore crop the result, showing the middle of the picture and hiding
+whatever the figure was made to show. This has now been the cause of three bad figures in this
+campaign (N10's two panels at ±10 against a ±13 covered region, and N1's at ±2.2), which is why the
+fix lives here rather than in any one script.
+
+Reading the limits back off the panels is also the cheap way round: bounding the cells directly means
+a support-function LP per part over thousands of cells, while each panel already knows its own extent
+from the shapes it just drew. The union matters because two arms cover differently sized regions, and
+on separate windows a small region and a large one look alike.
+"""
+function align_panels!(panels)
+    xs = reduce(vcat, [collect(Plots.xlims(p)) for p in panels])
+    ys = reduce(vcat, [collect(Plots.ylims(p)) for p in panels])
+    lims = (extrema(xs), extrema(ys))
+    for p in panels
+        xlims!(p, lims[1]...)
+        ylims!(p, lims[2]...)
+    end
+    return lims
+end
+
+"""
+    panel_row_size(lims, n; width, chrome) -> (w, h)
+
+Figure size for a row of `n` panels at `aspect_ratio = :equal` over the window `lims`.
+
+Under equal aspect, Plots derives the plot area's HEIGHT from its width and the data's aspect ratio; a
+figure height fixed independently of the data then over-constrains the layout, and when the window is
+wide the derived height plus titles and margins exceeds it and Plots aborts with
+`AssertionError: total_plotarea_vertical > 0mm`. Deriving the height from `lims` instead lets the row
+fit whatever window [`align_panels!`](@ref) settled on -- which is not known until the cells are drawn,
+so it cannot be hard-coded.
+
+`chrome` is the vertical room for the panel titles and margins. The aspect is clamped so a degenerate
+window yields neither a sliver nor a figure thousands of pixels tall.
+"""
+function panel_row_size(lims, n; width = 420, chrome = 95, lo = 0.35, hi = 2.2)
+    (xlo, xhi), (ylo, yhi) = lims
+    aspect = clamp((yhi - ylo) / max(xhi - xlo, eps()), lo, hi)
+    return (width * n, round(Int, width * aspect) + chrome)
+end
+
 function _plot_winning_losing!(
     panel,
     quotient,

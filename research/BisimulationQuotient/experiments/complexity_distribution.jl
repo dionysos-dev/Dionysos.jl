@@ -147,7 +147,6 @@ fig = plot(
 )
 
 mkpath(FIGURE_DIR)
-savefig(fig, joinpath(FIGURE_DIR, "complexity_distribution.pdf"))
 savefig(fig, joinpath(FIGURE_DIR, "complexity_distribution.png"))
 println("\nwrote complexity_distribution.{pdf,png}")
 display(fig)

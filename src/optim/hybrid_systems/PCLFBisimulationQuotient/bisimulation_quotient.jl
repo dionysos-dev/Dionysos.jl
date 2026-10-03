@@ -31,21 +31,47 @@ the shells the states were carved from.
 decide which states to split, so its order is the order they are split in, and a different
 order gives a different (still sound) quotient. A `Set` would leave that unspecified and the
 construction irreproducible; the linear removal it costs is under a percent of the build.
+
+`enabled` records which modes each node of the Lyapunov graph may emit, and exists because the
+quotient outlives the graph: it is what gets cached and handed to the solvers, and by then "this
+state has no successor under mode `m`" can no longer be traced back to its cause. A mode the
+language forbids and a mode whose successor escaped the covered region look identical, and a
+universal answer has to treat them oppositely -- see [`UT.PathCompleteFramework.enabled_modes`](@ref).
+An empty `enabled` means "unknown", which every consumer must read as "assume every mode is
+enabled everywhere", so quotients built before this field existed stay sound.
 """
 mutable struct PCBisimulationQuotient{S, U}
     states::Dict{Int, PCAbstractState{S, U}}
     part_ids::Dict{U, Vector{Int}}
     next_id::Int
     slices::Dict{U, Vector{S}}
+    enabled::Dict{U, Set{Int}}
 end
 
-function PCBisimulationQuotient{S, U}(slices::Dict{U, Vector{S}}) where {S, U}
+function PCBisimulationQuotient{S, U}(
+    slices::Dict{U, Vector{S}};
+    enabled::Dict{U, Set{Int}} = Dict{U, Set{Int}}(),
+) where {S, U}
     return PCBisimulationQuotient{S, U}(
         Dict{Int, PCAbstractState{S, U}}(),
         Dict{U, Vector{Int}}(),
         1,
         slices,
+        enabled,
     )
+end
+
+"""
+    modes_enabled_at(T::PCBisimulationQuotient, node) -> Union{Nothing, Set{Int}}
+
+The modes `node` may emit, or `nothing` when the quotient does not know.
+
+`nothing` is not an error: it is the answer for a quotient built before `enabled` was recorded, and
+callers must fall back to "every mode is enabled", which is the assumption that was in force then.
+"""
+function modes_enabled_at(T::PCBisimulationQuotient, node)
+    isempty(T.enabled) && return nothing
+    return get(T.enabled, node, Set{Int}())
 end
 
 function add_state!(

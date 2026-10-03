@@ -143,6 +143,11 @@ makedocs(;
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", nothing) == "true",
         assets = ["assets/extra_styles.css", "assets/citations.css"],
+        # One reference page per module, and `Optim` holds every solver family, so it renders
+        # past Documenter's 200 KiB default and fails the build. Splitting it would change every
+        # anchor under `reference/Optim`, and a page of this size is no problem for a reader.
+        size_threshold = 400 * 1024,
+        size_threshold_warn = 200 * 1024,
     ),
     pages = _PAGES,
     # The following ensures that we only include the docstrings from

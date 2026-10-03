@@ -52,7 +52,11 @@ model = Model(Dionysos.Optimizer);
 # state space as one full turn, and telling the solver that coordinate wraps (below), is both
 # the honest model and a third fewer cells than pretending the angle runs from $-\pi$ to $2\pi$.
 
-@variable(model, -π <= x1 <= π)
+# `float(π)` rather than `π`: JuMP 1.31 accepts an `Irrational` bound and then drops it    #src
+# silently, leaving the variable half-bounded, which the abstraction cannot discretize.    #src
+# `-π` already is a `Float64`, negating an irrational converting it, which is why only     #src
+# the upper bound was lost.                                                                #src
+@variable(model, -π <= x1 <= float(π))
 @variable(model, -10.0 <= x2 <= 10.0)
 @variable(model, -3.0 <= u <= 3.0);
 
