@@ -84,12 +84,13 @@ Those are the ones to look at while working: they cost nothing beyond the run.
 
 The paper's figures are the same plots with their axis numbers, labels and legends typeset by LaTeX,
 so that they are set in acmart's own fonts — Libertine text with newtxmath — and not in Computer
-Modern. One script per experiment produces them:
+Modern. They live in `paper_figures/`, outside what the capsule runs, since they need a TeX
+installation; one script per experiment produces them, run from this folder:
 
 ```
-julia --project=. paper_figures_exp1.jl   # seven figures
-julia --project=. paper_figures_exp2.jl   # five
-julia --project=. paper_figures_exp3.jl   # five
+julia --project=. paper_figures/paper_figures_exp1.jl   # seven figures
+julia --project=. paper_figures/paper_figures_exp2.jl   # five
+julia --project=. paper_figures/paper_figures_exp3.jl   # five
 ```
 
 Each includes its experiment once with `FIGURES=0`, then redraws the flat figures through pgfplots:
@@ -104,7 +105,7 @@ Run each script *after* its experiment, never the other way round: both write th
 and the experiment's version is the Computer Modern one. `pdflatex` and `pdftocairo` have to be on
 `PATH`; nothing else here needs them.
 
-Three files carry the shared machinery. `paper_fonts.jl` holds the single-axis form and
+Three files in the same folder carry the shared machinery. `paper_fonts.jl` holds the single-axis form and
 `paper_stack.jl` the stacked one, which puts several panels on shared limits under one x axis —
 `exp{2,3}_facets_histogram_stacked.png` use it to read the primal histogram against the dual in the
 width of one column. `paper_hist.jl` holds the facets-per-cell histogram itself, which all three
@@ -118,11 +119,7 @@ experiments draw the same way.
 | `experiment2_primal_and_dual.jl` | experiment 2 |
 | `experiment3_diverse_pieces.jl` | experiment 3 |
 | `run_all.jl` | all three, in order |
-| `paper_figures_exp1.jl` | experiment 1's figures, typeset by LaTeX |
-| `paper_figures_exp2.jl` | experiment 2's, the stacked histogram included |
-| `paper_figures_exp3.jl` | experiment 3's, likewise |
-| `paper_fonts.jl`, `paper_stack.jl` | the typesetting itself, one axis and several |
-| `paper_hist.jl` | the facets-per-cell histogram, shared by the three |
+| `paper_figures/` | the paper's figures, typeset by LaTeX: one script per experiment and the shared machinery (`paper_fonts.jl`, `paper_stack.jl`, `paper_hist.jl`); optional, needs TeX |
 | `Project.toml`, `Manifest.toml` | the pinned environment |
 | `cache/` | the untimed quotients, once built |
 | `figures/` | output |

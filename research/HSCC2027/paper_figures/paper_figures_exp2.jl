@@ -1,6 +1,6 @@
 # Every experiment 2 figure that LaTeX typesets, in the paper's own fonts.
 #
-#     julia --project=. paper_figures_exp2.jl          [CACHE=0]
+#     julia --project=. paper_figures/paper_figures_exp2.jl   [CACHE=0]
 #
 # Run after `experiment2_primal_and_dual.jl`, which draws the same figures through GR alone — fast,
 # self-contained, no LaTeX, and therefore in Computer Modern rather than acmart's Libertine. This
@@ -21,14 +21,14 @@
 ENV["FIGURES"] = "0"
 ENV["TIMING"] = "0"           # the timed builds are the measurement, and no figure needs them
 ENV["CACHE"] = get(ENV, "CACHE", "1")
-include(joinpath(@__DIR__, "experiment2_primal_and_dual.jl"))
+include(joinpath(dirname(@__DIR__), "experiment2_primal_and_dual.jl"))
 include(joinpath(@__DIR__, "paper_fonts.jl"))
 include(joinpath(@__DIR__, "paper_hist.jl"))
 include(joinpath(@__DIR__, "paper_stack.jl"))
 
 has_latex() || error("needs pdflatex and pdftocairo on PATH")
 
-figdir = joinpath(@__DIR__, "figures")
+figdir = joinpath(dirname(@__DIR__), "figures")
 arms(r) = (r.a1.s.faces, r.a2.s.faces)
 
 # ── approach 1's quotient, one per graph ─────────────────────────────────────────────────────────

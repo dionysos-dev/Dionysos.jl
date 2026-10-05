@@ -1,6 +1,6 @@
 # Every experiment 1 figure that LaTeX typesets, in the paper's own fonts.
 #
-#     julia --project=. paper_figures_exp1.jl          [CACHE=0]
+#     julia --project=. paper_figures/paper_figures_exp1.jl   [CACHE=0]
 #
 # Run after `experiment1_gol_lazar_belta.jl`, which draws the same figures through GR alone — fast,
 # self-contained, no LaTeX, and therefore in Computer Modern rather than acmart's Libertine. This
@@ -22,12 +22,12 @@
 ENV["FIGURES"] = "0"          # the witness runs are computed outside that guard
 ENV["TIMING"] = "0"           # the timed builds are the measurement, and no figure needs them
 ENV["CACHE"] = get(ENV, "CACHE", "1")
-include(joinpath(@__DIR__, "experiment1_gol_lazar_belta.jl"))
+include(joinpath(dirname(@__DIR__), "experiment1_gol_lazar_belta.jl"))
 include(joinpath(@__DIR__, "paper_fonts.jl"))
 include(joinpath(@__DIR__, "paper_hist.jl"))
 
 has_latex() || error("needs pdflatex and pdftocairo on PATH")
-d = joinpath(@__DIR__, "figures")
+d = joinpath(dirname(@__DIR__), "figures")
 
 # ── the sets the experiment's skipped figure block would have built ──────────────────────────────
 τD = ΓX * γ^(NB - 1)
