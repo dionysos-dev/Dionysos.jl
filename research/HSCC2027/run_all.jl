@@ -7,7 +7,7 @@
 # every figure, TIMING=0 to keep the counts and drop the measurement, CACHE=0 to ignore `cache/`.
 #
 # The figures this writes are GR's, in Computer Modern. The paper's are the same plots typeset by
-# LaTeX: run `paper_figures_exp{1,2,3}.jl` afterwards, which needs `pdflatex` on PATH.
+# LaTeX: run `paper_figures/paper_figures_exp{1,2,3}.jl` afterwards, which needs `pdflatex` on PATH.
 
 for script in (
     "experiment1_gol_lazar_belta.jl",

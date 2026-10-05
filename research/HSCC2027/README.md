@@ -105,11 +105,11 @@ Run each script *after* its experiment, never the other way round: both write th
 and the experiment's version is the Computer Modern one. `pdflatex` and `pdftocairo` have to be on
 `PATH`; nothing else here needs them.
 
-Three files in the same folder carry the shared machinery. `paper_fonts.jl` holds the single-axis form and
-`paper_stack.jl` the stacked one, which puts several panels on shared limits under one x axis —
-`exp{2,3}_facets_histogram_stacked.png` use it to read the primal histogram against the dual in the
-width of one column. `paper_hist.jl` holds the facets-per-cell histogram itself, which all three
-experiments draw the same way.
+Three files in the same folder carry the shared machinery. `paper_fonts.jl` holds the single-axis
+form and `paper_stack.jl` the stacked one, which puts several panels on shared limits under one
+x axis — `exp{2,3}_facets_histogram_stacked.png` use it to read the primal histogram against the
+dual in the width of one column. `paper_hist.jl` holds the facets-per-cell histogram itself, which
+all three experiments draw the same way.
 
 ## Contents
 
@@ -129,8 +129,8 @@ and shares no code with the others.
 
 ## Experiment 1: the Gol–Lazar–Belta benchmark
 
-The system, the three observation regions, the co-safe LTL formula and the initial point are those of
-Example 3.1 of [1].
+The system, the three observation regions and the co-safe LTL formula are those of Example 3.1 of
+[1]. The initial point of the figures is x₀ = (−3.8, −7.25), which both quotients certify under ∀.
 
 The system is `x⁺ = A_σ x` with two modes:
 

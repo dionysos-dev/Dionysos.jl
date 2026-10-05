@@ -4,11 +4,11 @@
 #
 # Self-contained: this file defines its own system, certificate, levels and figures.
 #
-# The system, the three observation regions, the co-safe LTL formula and the initial point are those
-# of Example 3.1 of Gol, Ding, Lazar and Belta, "Finite bisimulations for switched linear systems",
-# IEEE TAC 59(12):3122-3134, 2014. The certificate is NOT theirs: theirs is a common polyhedral
-# function built by hand, certifying 0.94, and the path-complete framework searches instead and
-# returns a markedly tighter one on the same system.
+# The system, the three observation regions and the co-safe LTL formula are those of Example 3.1
+# of Gol, Ding, Lazar and Belta, "Finite bisimulations for switched linear systems", IEEE TAC
+# 59(12):3122-3134, 2014. The certificate is NOT theirs: theirs is a common polyhedral function
+# built by hand, certifying 0.94, and the path-complete framework searches instead and returns a
+# markedly tighter one on the same system. The initial point of the figures is ours (`x0` below).
 #
 # Both approaches build a quotient and then answer the same specification under both quantifiers:
 # synthesis, where the modes belong to the controller, and verification, where they belong to the
@@ -83,7 +83,9 @@ R3 = LazySets.HPolytope(
 const REGIONS = [("R1", R1), ("R2", R2), ("R3", R3)]
 problem = PR.BisimulationQuotientProblem(f, X, [R1, R2, R3])
 φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
-x0 = SVector(-4.0, -7.0)          # point `a` of the paper
+# The initial point of the paper's figures: ∀-certified on both quotients. Gol et al.'s point
+# (-4, -7) is not, under this certificate.
+x0 = SVector(-3.8, -7.25)
 ap_to_obs = Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3)
 
 # ── the certificate ──────────────────────────────────────────────────────────────────────────────
@@ -392,9 +394,9 @@ function cell_point(S)
     return sum(V) / length(V)
 end
 
-# The paper's point `a` is preferred, unless its tree is shallow: one or two levels show nothing
-# the certified set does not. The point must also carry a controller on BOTH quotients, since the
-# same point is drawn on both figures.
+# `x0` is drawn unless its tree is shallow (one or two levels show nothing the certified set does
+# not) or it carries no controller on one of the two quotients, since the same point is drawn on
+# both figures; a ∀-certified cell's centre then replaces it, and the printed line says so.
 const TREE_MAX = 7
 ctrl1 = PCQ.solve_concrete_problem(a1.syn.opt)
 ctrl2 = PCQ.solve_concrete_problem(a2.syn.opt)
@@ -419,7 +421,7 @@ function accepts(X, D)
 end
 
 witness, sim1, sim2 = let q = a1.built.quotient, D = a1.built.D
-    cands = [(x = collect(Float64, x0), from = "the paper's point a")]
+    cands = [(x = collect(Float64, x0), from = "x0")]
     for qid in a1.ver.won
         push!(cands, (x = cell_point(q.states[qid].set), from = "a ∀-certified cell"))
     end
@@ -433,11 +435,7 @@ witness, sim1, sim2 = let q = a1.built.quotient, D = a1.built.D
     end
     isempty(ranked) &&
         error("no ∀-certified point whose tree closes within $TREE_MAX steps")
-    sort!(
-        ranked;
-        by = w -> (w.from == "the paper's point a" && w.t.depth ≥ 3, w.t.depth),
-        rev = true,
-    )
+    sort!(ranked; by = w -> (w.from == "x0" && w.t.depth ≥ 3, w.t.depth), rev = true)
 
     pick = nothing
     for w in ranked
