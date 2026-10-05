@@ -60,3 +60,14 @@ examples/AdaptiveCruiseControl/*.gif
 
 # Experiment/benchmark output directories, wherever they appear
 outputs/
+
+# Draft of the velocity-control paper (build output)
+research/VelocityControl/paper/main.pdf
+# Downloaded reference PDFs stay local (third-party copyright); only the index is tracked
+research/VelocityControl/paper/references/*.pdf
+
+# Slides and talk material stay local
+presentation/
+
+# Rendered write-ups of the biped model; they are shared as published artifacts, not tracked here
+problems/BipedRobot/4D_model/*.html
