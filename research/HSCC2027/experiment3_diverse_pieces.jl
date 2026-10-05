@@ -1,6 +1,6 @@
 # EXPERIMENT 3 — the same two graphs, with node pieces that do not coincide.
 #
-#     julia --project=. experiment3_diverse_pieces.jl        [LEVELS=n] [SAMPLES=n] [FIGURES=0]
+#     julia --project=. experiment3_diverse_pieces.jl   [LEVELS=n] [SAMPLES=n] [FIGURES=0] [CACHE=0] [TIMING=0]
 #
 # Self-contained: this file defines its own system, certificate, levels and figures.
 #

@@ -23,58 +23,13 @@ ENV["TIMING"] = "0"           # the timed builds are the measurement, and no fig
 ENV["CACHE"] = get(ENV, "CACHE", "1")
 include(joinpath(@__DIR__, "experiment2_primal_and_dual.jl"))
 include(joinpath(@__DIR__, "paper_fonts.jl"))
+include(joinpath(@__DIR__, "paper_hist.jl"))
 include(joinpath(@__DIR__, "paper_stack.jl"))
 
 has_latex() || error("needs pdflatex and pdftocairo on PATH")
 
-"Widest cell of either arm, over the graphs given — the binning two panels have to share."
-widest(rs...) = maximum(max(maximum(r.a1.s.faces), maximum(r.a2.s.faces)) for r in rs)
-
-"""
-The facets-per-cell histogram for one graph, bars only — the axes come from LaTeX.
-
-`top` is where the bins stop. It defaults to this graph's own widest cell, which is what a figure
-standing on its own wants; panels meant to be read against each other pass the pair's widest instead,
-so that a bar of a given width means the same in both.
-"""
-function facets_hist(r; top = widest(r))
-    bins = range(0, 1.02 * top; length = 45)
-    h = histogram(
-        r.a1.s.faces;
-        bins,
-        yscale = :log10,
-        fillrange = 0.7,
-        alpha = 0.55,
-        color = :firebrick,
-        linecolor = :firebrick,
-        label = "",
-        legend = false,
-        ylims = (0.7, 5e3),
-    )
-    histogram!(
-        h,
-        r.a2.s.faces;
-        bins,
-        yscale = :log10,
-        fillrange = 0.7,
-        alpha = 0.55,
-        color = :steelblue,
-        linecolor = :steelblue,
-        label = "",
-    )
-    vline!(h, [r.a1.s.max_f]; color = :firebrick, ls = :dash, lw = 1.8, label = "")
-    vline!(h, [r.a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.8, label = "")
-    return h
-end
-
-# Julia's :firebrick and :steelblue, as RGB, so the legend swatches match the bars
-const HIST_DEFS = [
-    raw"\definecolor{firebrick}{RGB}{178,34,34}",
-    raw"\definecolor{steelblue}{RGB}{70,130,180}",
-]
-const HIST_LEGEND =
-    [("firebrick, line width=2pt", "iCLF"), ("steelblue, line width=2pt", "PCLF")]
 figdir = joinpath(@__DIR__, "figures")
+arms(r) = (r.a1.s.faces, r.a2.s.faces)
 
 # ── approach 1's quotient, one per graph ─────────────────────────────────────────────────────────
 for r in (primal, dual)
@@ -95,26 +50,9 @@ for r in (primal, dual)
 end
 
 # ── facets per cell, one per graph ───────────────────────────────────────────────────────────────
-# Most cells are simple and the construction pays for the tail, so the count is logarithmic.
-# `fillrange` pins both series to one baseline, which a log axis otherwise picks per series.
 for r in (primal, dual)
     out = joinpath(figdir, "exp2_$(r.tag)_facets_histogram.png")
-    latex_axes(
-        facets_hist(r),
-        out;
-        xlab = raw"\text{facets per cell}",
-        ylab = raw"\text{cells}",
-        height_pt = 105,
-        # a fifth the height of the square panels, so the shared 11/14 pt is far too big here;
-        # the legend takes the tick size too
-        tick_pt = 9,
-        label_pt = 10,
-        ylog = true,
-        defs = HIST_DEFS,
-        # The dashed lines mark each arm's worst cell. They are deliberately absent from the legend,
-        # which keeps it to two entries; the caption carries the numbers, and the script prints them.
-        legend = HIST_LEGEND,
-    )
+    hist_axes(facets_hist(arms(r)...), out)
     println("wrote ", basename(out))
 end
 
@@ -122,9 +60,11 @@ end
 # The pair above stand alone; this one is for reading the graphs against each other. Shared x and y
 # limits and a single x axis, so a bar at a given height means the same in both rows, and the whole
 # comparison fits one column where two separate figures would not.
-let out = joinpath(figdir, "exp2_facets_histogram_stacked.png"), top = widest(primal, dual)
+let out = joinpath(figdir, "exp2_facets_histogram_stacked.png"),
+    top = widest(arms(primal)..., arms(dual)...)
+
     latex_axes_stacked(
-        [facets_hist(primal; top), facets_hist(dual; top)],
+        [facets_hist(arms(primal)...; top), facets_hist(arms(dual)...; top)],
         out;
         rows = ["primal", "dual"],
         xlab = raw"\text{facets per cell}",
@@ -133,11 +73,10 @@ let out = joinpath(figdir, "exp2_facets_histogram_stacked.png"), top = widest(pr
         ylog = true,
         defs = HIST_DEFS,
         legend = HIST_LEGEND,
-        # the dual's cells are far simpler, so its right half is empty and the legend costs nothing
-        # there; over the primal it would sit on the worst-cell line
+        # the dual's cells are far simpler, so its right half of the shared axis is empty and the
+        # legend costs nothing there; over the primal it would sit on the worst-cell line
         legend_row = 2,
-        # a column both panels leave empty: right of the tall first bars, right of the dual's
-        # two dashed lines, and left of the primal's
+        # a column both panels leave empty: right of the tall first bars, clear of the dashed lines
         row_at = (0.30, 0.95),
     )
     println("wrote ", basename(out))

@@ -2,8 +2,12 @@
 #
 #     julia --project=. run_all.jl
 #
-# Expected total runtime: a few minutes on a laptop. Set SAMPLES=3 for medians over three timed
-# rounds instead of one, and FIGURES=0 to skip every figure.
+# About twenty minutes from a cold `cache/`, most of it experiment 1. The switches are the ones the
+# experiments take: SAMPLES=3 for medians over three timed rounds instead of one, FIGURES=0 to skip
+# every figure, TIMING=0 to keep the counts and drop the measurement, CACHE=0 to ignore `cache/`.
+#
+# The figures this writes are GR's, in Computer Modern. The paper's are the same plots typeset by
+# LaTeX: run `paper_figures_exp{1,2,3}.jl` afterwards, which needs `pdflatex` on PATH.
 
 for script in (
     "experiment1_gol_lazar_belta.jl",

@@ -1,6 +1,6 @@
 # EXPERIMENT 1 — the Gol-Lazar-Belta benchmark, both approaches, both quantifiers.
 #
-#     julia --project=. experiment1_gol_lazar_belta.jl     [SAMPLES=n] [FIGURES=0] [CACHE=0]
+#     julia --project=. experiment1_gol_lazar_belta.jl   [SAMPLES=n] [FIGURES=0] [CACHE=0] [TIMING=0]
 #
 # Self-contained: this file defines its own system, certificate, levels and figures.
 #
@@ -35,7 +35,11 @@ gr()
 
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "1"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
+# Each arm builds its quotient once for the figures and the counts, then a warm-up plus SAMPLES more
+# times to be timed. CACHE=1 keeps the first on disk, which is what makes redrawing the figures
+# cheap; TIMING=0 drops the rest, which are the measurement and are never cached.
 const USE_CACHE = get(ENV, "CACHE", "1") == "1"
+const TIMING = get(ENV, "TIMING", "1") == "1"
 const ATOL = 1e-3
 const SCALE = 6.0
 const RAYS_DEG = [0.0, 32.6, 65.8, 91.5, 112.6, 131.4, 152.0, 180.0]
@@ -308,14 +312,10 @@ a2 = run(
 # `Σ polytopes` is the other half of the story and needs no timing: abstracting a concrete set tests
 # it against every cell, and a cell is a union of polytopes, so it costs one feasibility LP per
 # polytope. Solving touches no set at all.
-t_build =
-    USE_CACHE ? (NaN, NaN) :
-    (timed(() -> build(a1.cert), SAMPLES), timed(() -> build(a2.cert), SAMPLES))
-t_syn = (timed(() -> solve(f, a1.built), SAMPLES), timed(() -> solve(f, a2.built), SAMPLES))
-t_ver = (
-    timed(() -> solve(f_forall, a1.built), SAMPLES),
-    timed(() -> solve(f_forall, a2.built), SAMPLES),
-)
+pair(g1, g2) = TIMING ? (timed(g1, SAMPLES), timed(g2, SAMPLES)) : (NaN, NaN)
+t_build = pair(() -> build(a1.cert), () -> build(a2.cert))
+t_syn = pair(() -> solve(f, a1.built), () -> solve(f, a2.built))
+t_ver = pair(() -> solve(f_forall, a1.built), () -> solve(f_forall, a2.built))
 
 println("\n", "="^84, "\nRESULT — ratio above 1 favours approach 2\n", "="^84)
 @printf("%-34s %13s %13s %10s\n", "", "approach 1", "approach 2", "1 / 2")
@@ -332,7 +332,7 @@ for (nm, u, v) in (
     ("solve ∀, a graph fixed point (s)", t_ver[1], t_ver[2]),
 )
     if isnan(u)
-        @printf("%-34s %13s %13s %10s\n", nm, "cached", "cached", "—")
+        @printf("%-34s %13s %13s %10s\n", nm, "—", "—", "—")
     else
         @printf("%-34s %13.2f %13.2f %10.2f\n", nm, u, v, u / v)
     end

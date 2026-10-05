@@ -46,15 +46,19 @@ julia --project=. experiment2_primal_and_dual.jl
 julia --project=. experiment3_diverse_pieces.jl
 ```
 
-`SAMPLES=n` reports the median of `n` timed rounds instead of one. Each round rebuilds everything, so
-`n = 3` roughly triples the runtime. `FIGURES=0` skips the figures. All three keep their untimed
-quotients in `cache/`; `CACHE=0` rebuilds them instead, which is what the reported build time
-requires. Experiments 2 and 3 also take `TIMING=0`, which drops the timed builds and leaves the
-counts — that is how the figure scripts avoid paying for a measurement they do not use.
+All three take the same four switches. `SAMPLES=n` reports the median of `n` timed rounds instead of
+one; each round rebuilds everything, so `n = 3` roughly triples the runtime. `FIGURES=0` skips the
+figures. `CACHE=0` rebuilds the untimed quotients instead of reading them from `cache/`. `TIMING=0`
+drops the timed rounds and leaves the counts, which is how the figure scripts avoid paying for a
+measurement they do not use.
 
-After precompilation and with `cache/` warm, experiment 1 takes about five minutes, experiment 2 well
-under one and experiment 3 about ten; a cold cache costs each of them several minutes more. Every arm
-is built twice in any case, once for the figures and the counts and once to be timed.
+The two are independent: a timed round builds from scratch whatever the cache holds, so `CACHE=1`
+with `TIMING=1` — the default — reads the figures' quotients off disk and still measures honestly.
+
+Measured here from a cold `cache/`, precompilation aside: experiment 1 eleven minutes, experiment 2
+three and experiment 3 six, and the three figure scripts two, one and three on top. A warm cache
+saves each experiment one untimed build per arm; `TIMING=0` saves the rest. Every arm is built twice
+by default, once for the figures and the counts and once to be timed.
 
 Every experiment builds both quotients first and times them afterwards, with both alive. This is not
 incidental: a timed region pays garbage collection proportional to the live heap, so an arm timed
@@ -66,6 +70,12 @@ Even so, absolute times on a loaded machine are not reliable: identical work has
 of two between runs here. The counts are deterministic and reproduce exactly, and it is those that
 carry the mechanism. Where a time was of the same order as its own noise, it was replaced by the
 count of geometric operations underneath it, which is what decides the time and can be checked.
+
+**Experiment 2 needs `SAMPLES=3` or more.** Its builds are the shortest of the three — half a second
+on the dual graph — and a single round is not enough to separate them: one run here put approach 2 at
+1.40 s against approach 1's 1.10 s, reversing the verdict, where five rounds gave 0.50 s against
+1.16 s. The cell and polytope counts are unaffected, and experiments 1 and 3 build long enough that
+one round settles them.
 
 ## The figures in the paper
 
@@ -94,9 +104,11 @@ Run each script *after* its experiment, never the other way round: both write th
 and the experiment's version is the Computer Modern one. `pdflatex` and `pdftocairo` have to be on
 `PATH`; nothing else here needs them.
 
-`paper_fonts.jl` holds the single-axis form and `paper_stack.jl` the stacked one, which puts several
-panels on shared limits under one x axis. `exp3_facets_histogram_stacked.png` uses it to read the
-primal histogram against the dual in the width of one column.
+Three files carry the shared machinery. `paper_fonts.jl` holds the single-axis form and
+`paper_stack.jl` the stacked one, which puts several panels on shared limits under one x axis —
+`exp{2,3}_facets_histogram_stacked.png` use it to read the primal histogram against the dual in the
+width of one column. `paper_hist.jl` holds the facets-per-cell histogram itself, which all three
+experiments draw the same way.
 
 ## Contents
 
@@ -110,6 +122,7 @@ primal histogram against the dual in the width of one column.
 | `paper_figures_exp2.jl` | experiment 2's, the stacked histogram included |
 | `paper_figures_exp3.jl` | experiment 3's, likewise |
 | `paper_fonts.jl`, `paper_stack.jl` | the typesetting itself, one axis and several |
+| `paper_hist.jl` | the facets-per-cell histogram, shared by the three |
 | `Project.toml`, `Manifest.toml` | the pinned environment |
 | `cache/` | the untimed quotients, once built |
 | `figures/` | output |

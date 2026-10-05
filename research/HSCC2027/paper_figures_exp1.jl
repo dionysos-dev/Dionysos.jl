@@ -20,9 +20,11 @@
 # between four minutes and twelve, and it collapses the ordering rule to "experiment, then this".
 
 ENV["FIGURES"] = "0"          # the witness runs are computed outside that guard
+ENV["TIMING"] = "0"           # the timed builds are the measurement, and no figure needs them
 ENV["CACHE"] = get(ENV, "CACHE", "1")
 include(joinpath(@__DIR__, "experiment1_gol_lazar_belta.jl"))
 include(joinpath(@__DIR__, "paper_fonts.jl"))
+include(joinpath(@__DIR__, "paper_hist.jl"))
 
 has_latex() || error("needs pdflatex and pdftocairo on PATH")
 d = joinpath(@__DIR__, "figures")
@@ -170,57 +172,10 @@ for (name, arm, sim) in (("exp1_approach1", a1, sim1), ("exp1_approach2", a2, si
 end
 
 # ── facets per cell ──────────────────────────────────────────────────────────────────────────────
-# Most cells are simple and the construction pays for the tail, so the count is logarithmic.
-# `fillrange` pins both series to one baseline, which a log axis otherwise picks per series.
-let bins = range(0, 1.02 * max(maximum(a1.s.faces), maximum(a2.s.faces)); length = 45)
-    h = histogram(
-        a1.s.faces;
-        bins,
-        yscale = :log10,
-        fillrange = 0.7,
-        alpha = 0.55,
-        color = :firebrick,
-        linecolor = :firebrick,
-        label = "",
-        legend = false,
-        ylims = (0.7, 5e4),
-    )
-    histogram!(
-        h,
-        a2.s.faces;
-        bins,
-        yscale = :log10,
-        fillrange = 0.7,
-        alpha = 0.55,
-        color = :steelblue,
-        linecolor = :steelblue,
-        label = "",
-    )
-    vline!(h, [a1.s.max_f]; color = :firebrick, ls = :dash, lw = 1.8, label = "")
-    vline!(h, [a2.s.max_f]; color = :steelblue, ls = :dash, lw = 1.8, label = "")
-
-    out = joinpath(d, "exp1_facets_histogram.png")
-    latex_axes(
-        h,
-        out;
-        xlab = raw"\text{facets per cell}",
-        ylab = raw"\text{cells}",
-        height_pt = 105,
-        # a fifth the height of the square panels, so the shared 11/14 pt is far too big here;
-        # the legend takes the tick size too
-        tick_pt = 9,
-        label_pt = 10,
-        ylog = true,
-        # Julia's :firebrick and :steelblue, as RGB, so the legend swatches match the bars
-        defs = [
-            raw"\definecolor{firebrick}{RGB}{178,34,34}",
-            raw"\definecolor{steelblue}{RGB}{70,130,180}",
-        ],
-        legend = [
-            ("firebrick, line width=2pt", "iCLF"),
-            ("steelblue, line width=2pt", "PCLF"),
-        ],
-    )
+# This quotient's tail runs an order of magnitude higher than experiments 2 and 3, so the count axis
+# goes to 5e4 rather than their 5e3.
+let out = joinpath(d, "exp1_facets_histogram.png")
+    hist_axes(facets_hist(a1.s.faces, a2.s.faces; ymax = 5e4), out)
     println("wrote ", basename(out))
 end
 
