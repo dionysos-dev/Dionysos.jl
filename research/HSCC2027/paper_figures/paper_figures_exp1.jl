@@ -216,11 +216,16 @@ let p = plot(;
         size = (241, 272),
         # pgfplots sizes the axis box itself and ignores Plots' `size`; width alone would stretch
         # the plot and destroy equal aspect, so the height carries the data's own ratio.
+        #
+        # The thin frame closes the axis box at the data limits, as the raster's frame does in the
+        # `latex_axes` figures this one sits beside; the ticks stay on the left and bottom.
         extra_kwargs = Dict(
             :subplot => Dict(
                 "width" => "241pt",
                 "height" => "272pt",
                 "scale only axis" => "true",
+                "after end axis/.code" =>
+                    raw"{\draw[line width=0.4pt] (rel axis cs:0,0) rectangle (rel axis cs:1,1);}",
             ),
         ),
     )
