@@ -42,7 +42,7 @@ node *means*:
 The primal graph is **complete** and deterministic; the dual is **incomplete** and non-deterministic.
 That single change acts on the two routes through two separate channels.
 
-### 2a. What determinisation costs — the dominant channel
+### 2a. What the induced common costs — the dominant channel
 
 Writing the edge condition as $V_d(A_mx)\le\gamma V_s(x)$ for every edge $(s,m,d)$:
 
@@ -64,8 +64,8 @@ every node emits one mode but is entered by all.
 | **primal** | ✓ | ✗ | $V_{\min}$ — the **union**, which fragments as the pieces separate |
 | **dual** | ✗ | ✓ | $V_{\max}$ — the **intersection**, convex whatever the pieces |
 
-**Determinising a dual graph costs coverage; determinising a primal one costs convexity.** Route 2
-pays neither, because it never determinises.
+**The common induced on a dual graph costs coverage; the one induced on a primal graph costs
+convexity.** Route 2 pays neither, because it never forms a common function at all.
 
 Two consequences used throughout:
 
@@ -214,9 +214,9 @@ between the two orientations — 7 on GLB's primal against 13 on its dual — be
 more slowly ($\gamma = 0.924$ against $0.867$). **Matching rung counts across orientations is wrong**;
 matching depth is what is required.
 
-**Timing.** Route 1's determinisation is inside its timed closure — handed a PCLF it must produce the
-common before it can build anything. (Measured at **0.0 %** of route 1's time in every configuration:
-the cost is not the determinisation step but what it returns.)
+**Timing.** Route 1 forms the induced common inside its timed closure — handed a PCLF it must produce
+that function before it can build anything. (Measured at **0.0 %** of route 1's time in every
+configuration: the cost is not forming it but what it returns.)
 
 An anomaly recorded here was never resolved on its own configuration: on the GLB primal row the
 *same* build took 666 s in the warm-up and 1 276 s in the timed round, for identical output, while

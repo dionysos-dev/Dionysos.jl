@@ -5,10 +5,10 @@ oracle:
 
 | | |
 | :-- | :-- |
-| **route 1** | determinise the PCLF into a common Lyapunov function (`build_common_lyapunov`), then run the single-node construction on it |
+| **route 1** | take the common Lyapunov function the PCLF induces (`build_common_lyapunov`), then run the single-node construction on it |
 | **route 2** | run the construction directly on the PCLF, one partition per node |
 
-Both certify the same rate — determinisation preserves it, which is what makes a *cost* comparison
+Both certify the same rate — the induced common preserves it, which is what makes a *cost* comparison
 between them meaningful in the first place. This campaign measures what each costs.
 
 ## The finished experiments are in `research/HSCC2027/`

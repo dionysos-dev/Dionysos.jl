@@ -327,7 +327,7 @@ fmt(t) = @sprintf("%.2f [%.2f-%.2f]", t.med, t.lo, t.hi)
 """
 What one route must do, end to end: from the PCLF it is handed to the quotient it produces.
 
-`pre` is the work that comes BEFORE the build -- route 1's determinisation. It lives inside the closure
+`pre` is the work that comes BEFORE the build -- route 1 forming its induced common. It lives inside the closure
 so the time reported is the whole bill rather than its second half; an earlier version of this script
 computed the common outside and silently handed route 1 a free step.
 """
@@ -550,7 +550,7 @@ number of parts is therefore the number of reachable subsets, and the two graphs
           separates into singletons, three states, and the common is the non-convex UNION of the two
           pieces.
 
-Which is the counter-intuitive part worth seeing: the determinisation that *succeeds* in separating
+Which is the counter-intuitive part worth seeing: the induced common that *succeeds* in separating
 states is the one that produces the more complicated certificate, and every cell route 1 later builds
 inherits that shape.
 """
@@ -821,7 +821,7 @@ function both_cases(ex, sys, gname, dual, order, inst)
         inst === first(INSTANCES) &&
         certificate_figure(gname, p2, p1, dir, stem)
 
-    # Route 1's build is timed WITH its determinisation, because that is what a user pays: handed a
+    # Route 1's build is timed WITH its induced common, because that is what a user pays: handed a
     # PCLF, route 1 must produce the common before it can build anything. Excluding it -- which an
     # earlier version of this script did -- silently hands route 1 a free step. On the dual graph it
     # costs nothing (|S| = 2, the observer construction is trivial), but the primal graph's common is a
@@ -1152,7 +1152,7 @@ println(
     """
 
 Reading it. Every column is route 1 divided by route 2, so **above 1 means route 2 is better**.
-`build time` includes route 1's determinisation. The primal graph is the CONTROL and should come out at
+`build time` includes route 1 forming its induced common. The primal graph is the CONTROL and should come out at
 or below 1 on the count columns -- its node records the past and still serves every mode, so lifting
 buys nothing.
 

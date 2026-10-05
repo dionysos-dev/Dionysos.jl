@@ -130,7 +130,7 @@ also already in your bibliography, and it is the "papier limitant" of your own c
 | **`ahmadi2016lower`** | Ahmadi & Jungers, *Lower bounds on complexity of Lyapunov functions for switched linear systems*, Nonlinear Analysis: Hybrid Systems 2016 — **the reference that carries this link.** It is what licenses your abstract's phrasing, "that complexity admits no bound uniform over stable switched systems" |
 | `AJPR:14` | Ahmadi, Jungers, Parrilo & Roozbehani, *Joint spectral radius and path-complete graph Lyapunov functions*, SICON 2014 — the foundational PCLF reference |
 | `JunAhm_2017` | Jungers, Ahmadi, Parrilo & Roozbehani, *A characterization of Lyapunov inequalities for stability of switched systems*, IEEE TAC 2017 |
-| `AAJP2017` | Angeli, Athanasopoulos, Jungers & Philippe, *Path-Complete Graphs and Common Lyapunov Functions*, HSCC 2017 — **the observer/subset construction** that determinises a PCLF; this is the object route 1 builds |
+| `AAJP2017` | Angeli, Athanasopoulos, Jungers & Philippe, *Path-Complete Graphs and Common Lyapunov Functions*, HSCC 2017 — **the observer/subset construction** that induces a common function from a PCLF; this is the object route 1 builds |
 | `philippe2018path` | Philippe, Athanasopoulos, Angeli & Jungers, *On path-complete Lyapunov functions: geometry and comparison*, IEEE TAC 2018 |
 | `Jung09` | Jungers, *The Joint Spectral Radius: Theory and Applications*, Springer 2009 — for universality, if you state it |
 
@@ -145,10 +145,11 @@ cite `ahmadi2016lower`.
 So the argument becomes, cleanly:
 
 > A PCLF is the cheaper certificate to obtain at a given template complexity. But the prior
-> construction consumes a *common* function, so using a PCLF with it requires determinising it first —
-> and determinisation is exactly what destroys the low complexity that made the PCLF attractive.
+> construction consumes a *common* function, so using a PCLF with it means building the common the
+> PCLF induces — and that induced function is exactly what destroys the low complexity that made the
+> PCLF attractive.
 
-**And be precise about what determinisation costs**, because "exponential" alone is too loose and the
+**And be precise about what the induced common costs**, because "exponential" alone is too loose and the
 complete-graph case is not exponential:
 
 | graph | induced common | cost |
@@ -159,8 +160,8 @@ complete-graph case is not exponential:
 
 The bisimulation algorithm's primitives — set difference, pre-image, emptiness — are superlinear in
 the number of convex parts a cell carries. That is the entire cost argument, and your measurements
-give it a number: on the Gol–Lazar–Belta example the worst cell holds **399** parts after
-determinisation against **42** without it.
+give it a number: on the Gol–Lazar–Belta example the worst cell holds **399** parts on the induced
+common against **42** on the PCLF itself.
 
 **7. The idea.** Do not build the induced common. Run the bisimulation construction **on the PCLF
 directly**, one partition per graph node.
@@ -182,7 +183,7 @@ states can be an order of magnitude cheaper to compute.* It is memorable, it is 
 and it reframes the contribution from "an optimisation" to "the cost model was wrong".
 
 **A one-line thesis that covers both the result and the extension.** *The structure of the certificate
-should be preserved, not flattened.* Determinisation flattens a graph-indexed certificate into a
+should be preserved, not flattened.* Inducing a common function flattens a graph-indexed certificate into a
 single function; everything downstream then pays for the geometry that flattening creates. This one
 sentence carries the speed result *and* the constrained-switching extension, which is why I would put
 it in the abstract.
@@ -190,7 +191,7 @@ it in the abstract.
 **Constrained switching is not merely an extension — it is where the argument becomes structural.**
 Under a switching constraint the admissible mode sequences are given by an automaton, so the problem
 *is* graph-structured. A common Lyapunov function has no place to put that structure; a path-complete
-certificate does, because its graph can be composed with the constraint automaton. Determinising then
+certificate does, because its graph can be composed with the constraint automaton. Flattening it then
 throws away precisely the object the problem hands you. Framed this way the contribution stops being
 "we are faster" and becomes "this is the right certificate for this class of systems" — a much better
 position to defend.
@@ -211,7 +212,7 @@ because the computational claim is the one you are making anyway.
 
 | | claim | why it needs its own experiment |
 | :--- | :--- | :--- |
-| **1** | Building directly on the PCLF is **several times faster** than determinising it first, on a benchmark the reader already knows, and it answers the same specification under both quantifiers. | credibility — external problem, external specification |
+| **1** | Building directly on the PCLF is **several times faster** than building on the common it induces, on a benchmark the reader already knows, and it answers the same specification under both quantifiers. | credibility — external problem, external specification |
 | **2** | The speed-up comes from **two different mechanisms**, and **cell count is the wrong cost proxy**: route 2 is faster whether it builds more cells or fewer. | otherwise a reader assumes "faster = smaller quotient" and the contribution looks like an optimisation |
 
 Everything else the campaign measured — the $g > \lvert S\rvert$ threshold, the piece-diversity sweep,
@@ -231,7 +232,7 @@ path-complete Lyapunov function on the order-1 primal De Bruijn graph, two nodes
 template. The terminal set $D$ is fixed by the construction's own rule — the first level clearing
 $R_1, R_2, R_3$ — which is also how their $\Gamma_D = 5.063$ is fixed.
 
-**The two arms.** Route 1 determinises the PCLF into a common Lyapunov function and runs the
+**The two arms.** Route 1 takes the common Lyapunov function the PCLF induces and runs the
 single-node construction on it. Route 2 runs the construction on the PCLF directly, one partition per
 node.
 
@@ -239,7 +240,7 @@ node.
 
 | | cells | worst cell | build |
 | :--- | --: | --: | --: |
-| route 1 — determinise first | 6 613 | **399 parts** | 1 276 s |
+| route 1 — the induced common | 6 613 | **399 parts** | 1 276 s |
 | route 2 — directly on the PCLF | **10 158** | **42 parts** | **182 s** |
 
 The sentence the experiment exists to produce: **route 2 builds 1.5× more cells, with cells an order
@@ -270,8 +271,8 @@ two quotients would partition different regions and the cell counts would answer
 
 The defensible framing, which is also the more useful one:
 
-> Given a path-complete certificate, the prior construction can only be used by determinising it
-> first. That is route 1. We compare against it on the same certificate.
+> Given a path-complete certificate, the prior construction can only be used on the common function
+> that certificate induces. That is route 1. We compare against it on the same certificate.
 
 Stated that way the baseline is unimpeachable and the comparison is purely algorithmic.
 

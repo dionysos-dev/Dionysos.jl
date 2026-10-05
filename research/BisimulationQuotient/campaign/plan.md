@@ -51,7 +51,7 @@ Three measurements made in September 2026 reset what the experiments should be:
 
 | # | folder | one line | status |
 | :-- | :--- | :--- | :--- |
-| N1 | [`N1_quotient_cost/`](N1_quotient_cost/) | building on the PCLF directly costs less than determinising first | done — the three experiments are in `research/HSCC2027/` |
+| N1 | [`N1_quotient_cost/`](N1_quotient_cost/) | building on the PCLF directly costs less than building on the common it induces | done — the three experiments are in `research/HSCC2027/` |
 | N2 | [`N2_constrained_switching/`](N2_constrained_switching/) | their matrices, unstable without the constraint, route 1 cannot start | **done: ∃ 44.2→37.0 %, ∀ 18.0→26.7 %, opposite directions as predicted**; needed two library fixes; 3 proof obligations open |
 | N3 | [`N3_bisimulation_vs_simulation/`](N3_bisimulation_vs_simulation/) | **bisimulation vs alternating simulation as the spec hardens** — the grid is fine on reachability and collapses on co-safe LTL | **done, result established** |
 | N4 | [`N4_soundness_regressions/`](N4_soundness_regressions/) | **is the object actually a bisimulation?** three open anomalies | **done: all three closed, 0 violations in 8 367 samples** |
