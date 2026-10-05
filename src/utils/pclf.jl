@@ -81,8 +81,8 @@ Write the edge condition as `V_d(A_m x) ≤ γ V_s(x)` for every edge `(s, m, d)
 
 On De Bruijn graphs exactly one holds: the primal (a node records the last mode played) is complete
 and not co-complete; the dual (a node commits to the mode played next, and any node may follow) is
-co-complete and not complete. So determinising a dual graph necessarily *loses coverage*, and
-determinising a primal one necessarily *loses convexity*. See [`build_common_lyapunov`](@ref).
+co-complete and not complete. So the common induced on a dual graph necessarily *loses coverage*, and
+the one induced on a primal graph necessarily *loses convexity*. See [`build_common_lyapunov`](@ref).
 """
 function is_co_complete(G::LabDigraph, modes)
     return all(any(e -> e[2] == s && e[3] == m, G.edges) for s in G.verts for m in modes)
