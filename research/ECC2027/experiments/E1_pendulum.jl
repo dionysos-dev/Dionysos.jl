@@ -441,7 +441,7 @@ function table_row(name, label)
 end
 write_table(
     "table_e1.tex",
-    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "hold"],
+    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "torque"],
     [table_row(:T, "(T)"), (table_row(name, "($name)") for name in keys(VARIANTS))...];
     align = "lrrrrrrr",
 )
