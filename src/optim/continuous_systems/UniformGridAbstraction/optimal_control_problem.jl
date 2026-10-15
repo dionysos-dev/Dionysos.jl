@@ -168,7 +168,8 @@ function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
     abstract_system::SY.AbstractSymbolicModel,
 )
-    @warn("The `state_cost` is not yet fully implemented")
+    concrete_problem.state_cost === nothing ||
+        @warn("The `state_cost` is not yet fully implemented")
 
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
