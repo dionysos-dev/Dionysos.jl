@@ -6,47 +6,50 @@
   <!-- Grounded links use +z from their proximal joint. -->
   <link name="grounded_tibia">
     <inertial><origin xyz="0 0 0.086" rpy="0 0 0"/><mass value="0.0172"/>
-      <inertia ixx="0.0001696149333" ixy="0" ixz="0" iyy="0.0001696149333" iyz="0" izz="0.0001696149333"/></inertial>
+      <inertia ixx="4.240373333333332e-05" ixy="0" ixz="0" iyy="4.240373333333332e-05" iyz="0" izz="4.240373333333332e-05"/></inertial>
     <visual><origin xyz="0 0 0.086" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.172"/></geometry><material name="link_blue"/></visual>
   </link>
   <link name="grounded_femur">
     <inertial><origin xyz="0 0 0.101" rpy="0 0 0"/><mass value="0.0202"/>
-      <inertia ixx="0.0002747469333" ixy="0" ixz="0" iyy="0.0002747469333" iyz="0" izz="0.0002747469333"/></inertial>
+      <inertia ixx="6.868673333333335e-05" ixy="0" ixz="0" iyy="6.868673333333335e-05" iyz="0" izz="6.868673333333335e-05"/></inertial>
     <visual><origin xyz="0 0 0.101" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.202"/></geometry><material name="link_blue"/></visual>
   </link>
   <!-- Swing links use -z from their proximal joint. -->
   <link name="swing_femur">
     <inertial><origin xyz="0 0 -0.101" rpy="0 0 0"/><mass value="0.0202"/>
-      <inertia ixx="0.0002747469333" ixy="0" ixz="0" iyy="0.0002747469333" iyz="0" izz="0.0002747469333"/></inertial>
+      <inertia ixx="6.868673333333335e-05" ixy="0" ixz="0" iyy="6.868673333333335e-05" iyz="0" izz="6.868673333333335e-05"/></inertial>
     <visual><origin xyz="0 0 -0.101" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.202"/></geometry><material name="link_blue"/></visual>
   </link>
   <link name="swing_tibia">
     <inertial><origin xyz="0 0 -0.086" rpy="0 0 0"/><mass value="0.0172"/>
-      <inertia ixx="0.0001696149333" ixy="0" ixz="0" iyy="0.0001696149333" iyz="0" izz="0.0001696149333"/></inertial>
+      <inertia ixx="4.240373333333332e-05" ixy="0" ixz="0" iyy="4.240373333333332e-05" iyz="0" izz="4.240373333333332e-05"/></inertial>
     <visual><origin xyz="0 0 -0.086" rpy="0 0 0"/><geometry><cylinder radius="0.012" length="0.172"/></geometry><material name="link_blue"/></visual>
   </link>
 
-  <!-- The two original motor masses are retained, both located at the hip. -->
+  <!-- Inertia data. Links: uniform thin rods, I = m L^2/12 about their centre of mass (the
+       <inertial> origin, at the middle of the link). Motors: point masses (0.4 kg each, two at the
+       hip), with no rotor inertia. Same model as BipedModel.jl (Multibody2D). -->
+  <!-- The two motor masses are located at the hip. -->
   <link name="hip_motor_1">
     <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
-      <inertia ixx="0.0163216" ixy="0" ixz="0" iyy="0.0163216" iyz="0" izz="0.0163216"/></inertial>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
   </link>
   <link name="hip_motor_2">
     <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
-      <inertia ixx="0.0118336" ixy="0" ixz="0" iyy="0.0118336" iyz="0" izz="0.0118336"/></inertial>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
   </link>
-  <!-- Knee motors retain the original 0.4 kg mass and inertia but have no
-       intervening actuated joint: q2 and q4 are directly actuated. -->
+  <!-- Knee motors are 0.4 kg point masses with no intervening actuated joint:
+       q2 and q4 are directly actuated. -->
   <link name="grounded_knee_motor">
     <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
-      <inertia ixx="0.0118336" ixy="0" ixz="0" iyy="0.0118336" iyz="0" izz="0.0118336"/></inertial>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
   </link>
   <link name="swing_knee_motor">
     <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="0.4"/>
-      <inertia ixx="0.0118336" ixy="0" ixz="0" iyy="0.0118336" iyz="0" izz="0.0118336"/></inertial>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <visual><geometry><sphere radius="0.025"/></geometry><material name="motor_red"/></visual>
   </link>
 

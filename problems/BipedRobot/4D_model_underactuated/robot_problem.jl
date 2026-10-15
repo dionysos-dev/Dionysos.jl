@@ -1,30 +1,43 @@
-# Underactuated four-link biped, velocity-controlled design model.
+# Underactuated four-link biped: mechanism, velocity-controlled design models and footstep problem.
 #
-# Unlike the fully actuated 4-D model (`../4D_model/robot_problem.jl`, `ẋ = u`), the
-# grounded ankle `q₁` is *not* actuated: only the three motor joints (grounded knee
-# `q₂`, hip `q₃`, swing knee `q₄`) track commanded velocities, and the ankle obeys
-# the first, unactuated Euler–Lagrange row of the multibody model. The state is
-# the velocity-controlled design state of `BipedFourLink`,
+# The robot is defined **once**, symbolically, with `Multibody2D` (`symbolic_model`): everything
+# else in this file is derived from that definition (the forward kinematics, the compiled dynamics
+# of the centre-simulation example, the normal-form model of the local-growth-bound example) or is
+# the footstep scenario built on top of it (obstacle carving, target set, grids, plots). It is the
+# same robot as `four_link_biped.urdf`, which `BipedFourLink.jl` simulates with RigidBodyDynamics
+# (checked in `tests/test_biped_four_link.jl`); no RigidBodyDynamics is needed here.
 #
-#     x = [q̇₁, q₁, q₂, q₃, q₄],   u = [v₂, v₃, v₄],
+# Unlike the fully actuated 4-D model (`../4D_model/robot_problem.jl`, `ẋ = u`), the grounded ankle
+# `q₁` is *not* actuated: only the three motor joints (grounded knee `q₂`, hip `q₃`, swing knee
+# `q₄`) track commanded velocities `u = [v₂, v₃, v₄]`, held constant over a sampling period (the
+# actuated accelerations are zero), and the ankle obeys the first, unactuated Euler–Lagrange row of
+# the multibody model: `q₁` falls like an inverted pendulum, and the controller keeps it in the
+# domain only through the configuration of the motor joints and the Coriolis coupling. The 5-D state
+# has the ankle variable first, so that the carving, the target set and the plots apply to both
+# descriptions of the ankle:
 #
-# with `ẋ = BipedFourLink.velocity_controlled_derivative(model, x, u)` (commands held
-# constant over a sampling period, i.e. `input_accelerations = 0`). `q₁` falls like
-# an inverted pendulum; the controller keeps it in the domain only through the
-# configuration of the motor joints and the Coriolis coupling.
+#     x = [q̇₁, q₁, q₂, q₃, q₄]    (VelocityControlledDynamics, compiled, for centre simulation)
+#     x = [p₁, q₁, q₂, q₃, q₄]    (reduced_dynamics, symbolic, from the normal form, for the local
+#                                  growth bound; p₁ = ∂L/∂q̇₁ is the ankle momentum)
 #
-# The dynamics are nonlinear in `(q̇₁, q₁)`, so the exact-lattice argument of the
-# fully actuated model holds for the three motor coordinates only: the abstraction
-# built with `CENTER_SIMULATION` is **not** a certified over-approximation here.
-# The closed-loop trajectory of the concrete system is what validates a controller.
+# Angle convention: all joint angles, velocities and the ankle coordinate are **positive
+# counter-clockwise** in the `(x, z)` plane (`x` pointing forwards, `z` up), the convention of
+# `Multibody2D.jl`. A positive `q₁` leans the robot backwards, a positive `q₃` swings the swing
+# foot forwards, and the knee bends backwards for a negative `q₄`.
+#
+# The dynamics are nonlinear in the ankle coordinates, so the exact-lattice argument of the fully
+# actuated model holds for the three motor coordinates only: an abstraction built with
+# `CENTER_SIMULATION` is **not** a certified over-approximation here (the local growth bound of
+# `LocalGrowthAbstraction.jl` is). The closed-loop trajectory of the concrete system is what
+# validates a controller.
 module UnderactuatedRobotProblem
 
-using LinearAlgebra
 using StaticArrays
 using MathematicalSystems
 import LazySets
 import Plots
-import RigidBodyDynamics as RBD
+import Symbolics
+using Symbolics: Num
 
 using Dionysos
 const DI = Dionysos
@@ -33,42 +46,139 @@ const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
 
-include(joinpath(@__DIR__, "BipedFourLink.jl"))
-import .BipedFourLink as BFL
+# `mass_matrix` is also exported by MathematicalSystems: only what is unambiguous is imported, the
+# rest (`Multibody2D.mass_matrix`, `bias_vector`, `position`) is qualified.
+include(joinpath(@__DIR__, "Multibody2D.jl"))
+using .Multibody2D: MultibodySystem, add_frame!, add_point!, normal_form
 
-const URDF_FILE = joinpath(@__DIR__, "four_link_biped.urdf")
-
-"""
-    build_model(urdf_file = URDF_FILE)
-
-The `BipedFourLink` locked-ankle design model of the four-link biped.
-"""
-build_model(urdf_file::AbstractString = URDF_FILE) = BFL.build_model(urdf_file)
-
-# Index of each coordinate in the state `x = [q̇₁, q₁, q₂, q₃, q₄]`.
-const IDX_Q̇1 = 1
+# Index of each coordinate in the state `x = [ankle, q₁, q₂, q₃, q₄]`.
+const IDX_ANKLE = 1
 const IDX_Q = SVector(2, 3, 4, 5)
 
 joint_angles(x) = SVector(x[2], x[3], x[4], x[5])
 
 # ============================================================
-# Geometry & kinematics
+# Mechanism: the symbolic model and its numbers
 # ============================================================
 
 """
-    Geometry{T}
+    symbolic_model() -> NamedTuple
 
-Segment lengths of the four-link biped, matching `four_link_biped.urdf`: tibias
-(ankle → knee, knee → foot) of `tibia` and femurs (knee → hip) of `femur`.
-[`check_against_module`](@ref) verifies the forward kinematics below against the
-`RigidBodyDynamics` model.
+The four-link biped as a [`MultibodySystem`](@ref Multibody2D.MultibodySystem) with symbolic
+parameters, and its normal form.
+
+Frames (all translations in the parent frame, all angles relative to the parent, counter-clockwise):
+
+* `RF1`: rotated by `q₁` about the world, no translation (grounded tibia, ankle at the origin);
+* `RF2`: `[0, L2]` from `RF1`, rotated by `q₂` (grounded knee);
+* `RF3`: `[0, L1]` from `RF2`, rotated by `q₃` (hip);
+* `RF4`: `[0, -L1]` from `RF3`, rotated by `q₄` (swing knee).
+
+Bodies: a tibia (`m2`, length `L2`) and a femur (`m1`, length `L1`) on each leg, modelled as thin
+rods `I = m L² / 12` about their centres; motor point masses `mM` at the grounded and swing knees and
+`2 mM` at the hip (in the frames `RF2`, `RF4`, `RF3`), with no rotor inertia; the swing foot is a
+massless point at the end of the swing tibia. This is exactly the model of `four_link_biped.urdf`.
+
+The input matrix is `B = [0 0 0; I₃]`: the last three coordinates are actuated, `q₁` is not.
+
+Returns `(; sys, nf, B, parameters)` with `parameters` the `NamedTuple` of symbolic variables
+`(L1, L2, m1, m2, mM, g)`. Building it takes a few seconds (the normal form is the costly part):
+build it once and pass it to the functions below.
 """
-Base.@kwdef struct Geometry{T <: Real}
-    tibia::T = 0.172
-    femur::T = 0.202
+function symbolic_model()
+    Symbolics.@variables q[1:4] qd[1:4] L1 L2 m1 m2 mM g
+    sys = MultibodySystem(collect(q), collect(qd); gravity = g)
+
+    rf1 = add_frame!(sys, :RF1, sys.world, [0, 0], q[1])
+    rf2 = add_frame!(sys, :RF2, rf1, [0, L2], q[2])
+    rf3 = add_frame!(sys, :RF3, rf2, [0, L1], q[3])
+    rf4 = add_frame!(sys, :RF4, rf3, [0, -L1], q[4])
+
+    # Links: position = center of mass, inertia of a thin rod about its center.
+    add_point!(sys, :link1, rf1, [0, L2 / 2]; mass = m2, inertia = m2 * L2^2 / 12)
+    add_point!(sys, :link2, rf2, [0, L1 / 2]; mass = m1, inertia = m1 * L1^2 / 12)
+    add_point!(sys, :link3, rf3, [0, -L1 / 2]; mass = m1, inertia = m1 * L1^2 / 12)
+    add_point!(sys, :link4, rf4, [0, -L2 / 2]; mass = m2, inertia = m2 * L2^2 / 12)
+    # Motors: point masses at the joints.
+    add_point!(sys, :grounded_knee, rf2, [0, 0]; mass = mM, inertia = 0)
+    add_point!(sys, :hip, rf3, [0, 0]; mass = 2 * mM, inertia = 0)
+    add_point!(sys, :swing_knee, rf4, [0, 0]; mass = mM, inertia = 0)
+    add_point!(sys, :swing_foot, rf4, [0, -L2]; mass = 0, inertia = 0)
+
+    B = Num[
+        0 0 0
+        1 0 0
+        0 1 0
+        0 0 1
+    ]
+    nf = normal_form(sys, B)
+    return (; sys, nf, B, parameters = (; L1, L2, m1, m2, mM, g))
 end
 
-default_geometry() = Geometry{Float64}()
+"""
+    default_parameters() -> NamedTuple
+
+Numerical values of the parameters of [`symbolic_model`](@ref), those of `four_link_biped.urdf`:
+femur `L1 = 0.202` m and tibia `L2 = 0.172` m (different but similar), femur/tibia masses
+`m1 = 0.0202`, `m2 = 0.0172` kg and motor mass `mM = 0.4` kg, which is by far the dominant mass (the
+hip carries `2 mM`), `g = 9.81`.
+"""
+default_parameters() =
+    (; L1 = 0.202, L2 = 0.172, m1 = 0.0202, m2 = 0.0172, mM = 0.4, g = 9.81)
+
+"""
+    substitute_parameters(model, expressions, values = default_parameters())
+
+Replace the symbolic parameters of `model` (`model.parameters`) by the numbers `values` (a
+`NamedTuple` with the same keys) in `expressions`, a symbolic expression or an array of them. What
+is left is symbolic in the coordinates (and the inputs) only: this is the step "build the model
+symbolically, put the numbers in later".
+"""
+function substitute_parameters(model, expressions, values = default_parameters())
+    assignments = Dict(
+        getfield(model.parameters, k) => float(getfield(values, k)) for
+        k in keys(model.parameters)
+    )
+    expressions isa AbstractArray &&
+        return Symbolics.substitute.(expressions, Ref(assignments))
+    return Symbolics.substitute(expressions, assignments)
+end
+
+# Compile a numerical symbolic expression (no free parameter) into a Julia function of `args`.
+function _compile(expression, args...)
+    f = Symbolics.build_function(expression, args...; expression = Val(false), cse = true)
+    return f isa Tuple ? first(f) : f
+end
+
+# ============================================================
+# Geometry & kinematics (derived from the symbolic model)
+# ============================================================
+
+"""
+    Geometry(model = symbolic_model(), values = default_parameters())
+
+Segment lengths of the four-link biped (`tibia = values.L2`, `femur = values.L1`) and the forward
+kinematics of its joints, **compiled from the symbolic positions** of `model`: there is no second
+copy of the kinematics to keep consistent with the dynamics. `default_geometry()` is the one of
+`default_parameters()`.
+"""
+struct Geometry{T <: Real, F}
+    tibia::T
+    femur::T
+    joint_positions::F
+end
+
+function Geometry(model = symbolic_model(), values = default_parameters())
+    sys = model.sys
+    names = (:grounded_knee, :hip, :swing_knee, :swing_foot)
+    positions = reduce(
+        vcat,
+        [substitute_parameters(model, Multibody2D.position(sys[n]), values) for n in names],
+    )
+    return Geometry(float(values.L2), float(values.L1), _compile(positions, sys.q))
+end
+
+default_geometry() = Geometry()
 
 """
     cartesian_coordinates(q, geometry)
@@ -76,33 +186,30 @@ default_geometry() = Geometry{Float64}()
 World `(x, z)` positions of the joints for `q = [q₁, q₂, q₃, q₄]`, grounded ankle
 at the origin: `(grounded_foot, grounded_knee, hip, swing_knee, swing_foot)`.
 
-Absolute segment angles from the upward vertical (positive towards `+x`): grounded
-tibia `q₁`, grounded femur `q₁ + q₂`; the swing femur `φ₃ = q₁ + q₂ + q₃` and swing
-tibia `φ₄ = φ₃ + q₄` hang downwards. `q = 0` is the robot standing straight with the
-two legs side by side.
+Absolute segment angles from the upward vertical (positive counter-clockwise, i.e.
+towards `-x`): grounded tibia `q₁`, grounded femur `q₁ + q₂`; the swing femur
+`φ₃ = q₁ + q₂ + q₃` and swing tibia `φ₄ = φ₃ + q₄` hang downwards. `q = 0` is the robot
+standing straight with the two legs side by side.
 """
 function cartesian_coordinates(q::SVector{4}, geometry::Geometry)
-    Lt, Lf = geometry.tibia, geometry.femur
-    φ1 = q[1]
-    φ2 = φ1 + q[2]
-    φ3 = φ2 + q[3]
-    φ4 = φ3 + q[4]
-    grounded_foot = SVector(0.0, 0.0)
-    grounded_knee = grounded_foot + Lt * SVector(sin(φ1), cos(φ1))
-    hip = grounded_knee + Lf * SVector(sin(φ2), cos(φ2))
-    swing_knee = hip - Lf * SVector(sin(φ3), cos(φ3))
-    swing_foot = swing_knee - Lt * SVector(sin(φ4), cos(φ4))
-    return (grounded_foot, grounded_knee, hip, swing_knee, swing_foot)
+    p = geometry.joint_positions(q)
+    return (
+        SVector(0.0, 0.0),
+        SVector(p[1], p[2]),
+        SVector(p[3], p[4]),
+        SVector(p[5], p[6]),
+        SVector(p[7], p[8]),
+    )
 end
 
 swing_foot_position(q::SVector{4}, geometry::Geometry) =
     cartesian_coordinates(q, geometry)[5]
 
 # Per-coordinate gradient bounds of the swing-foot map on the state
-# `[q̇₁, q₁, q₂, q₃, q₄]`: each joint rotates the rest of the chain about itself, so
+# `[ankle, q₁, q₂, q₃, q₄]`: each joint rotates the rest of the chain about itself, so
 # the foot moves by at most the pivot-to-foot distance per radian (ankle: both
 # legs; grounded knee: femur + swing leg; hip: swing leg; swing knee: tibia). The
-# foot does not depend on q̇₁.
+# foot does not depend on the ankle velocity or momentum.
 function swing_foot_gradient_bound(geometry::Geometry)
     Lt, Lf = geometry.tibia, geometry.femur
     return SVector(0.0, 2 * (Lt + Lf), 2 * Lf + Lt, Lf + Lt, Lt)
@@ -118,112 +225,77 @@ swing_foot_deviation_bound(geometry::Geometry, radius::AbstractVector) =
     sum(swing_foot_gradient_bound(geometry) .* abs.(radius))
 
 # ============================================================
-# Velocity-controlled dynamics (from `BipedFourLink`)
+# Velocity-controlled design models
 # ============================================================
 
-# Preallocated RigidBodyDynamics buffers for one thread.
-struct _DynamicsBuffers{S, R, J}
-    state::S
-    result::R
-    joints::J # (q₁, q₂, q₃, q₄) joints of the design mechanism
-    i1::Int   # velocity index of q₁
-end
-
-function _buffers(model::BFL.BipedModel)
-    mechanism = model.mechanism
-    joints =
-        (model.q1_joint, (RBD.findjoint(mechanism, name) for name in model.joint_names)...)
-    state = RBD.MechanismState(mechanism)
-    i1 = first(RBD.velocity_range(state, joints[1]))
-    return _DynamicsBuffers(state, RBD.DynamicsResult(mechanism), joints, i1)
-end
-
 """
-    VelocityControlledDynamics(model)
+    VelocityControlledDynamics(; model = symbolic_model(), values = default_parameters())
 
 Callable `(x, u) -> ẋ` for the velocity-controlled design state
 `x = [q̇₁, q₁, q₂, q₃, q₄]` and commanded motor velocities `u = [v₂, v₃, v₄]`:
 
-    q̈₁ = -c₁(q, [q̇₁, u]) / M₁₁(q),   q̇₁ = x₁,   (q̇₂, q̇₃, q̇₄) = u,
+    q̈₁ = h₁(q, [q̇₁, u]) / D₁₁(q),   q̇₁ = x₁,   (q̇₂, q̇₃, q̇₄) = u,
 
-which is `BipedFourLink.velocity_controlled_derivative(model, x, u)` with its default
-`input_accelerations = 0`. That function allocates a fresh mechanism state and
-dynamics result on every call (≈ 170 µs); this one reuses per-thread buffers on the
-same mechanism and returns an `SVector`, which is what makes an abstraction with
-millions of RK4 roll-outs affordable. [`check_against_module`](@ref) compares the two.
+with `D` the mass matrix and `h = ∂L/∂q − Ḋ q̇` the bias vector of the symbolic `model`
+(`Multibody2D`), the first row of `D q̈ = h + Bτ` with zero actuated accelerations. `values` are the
+numbers (lengths, masses, gravity).
+
+The symbolic expression of `q̈₁` is built once, with the numbers substituted, and compiled: a call
+allocates nothing and is thread safe, which is what makes an abstraction with millions of RK4
+roll-outs affordable. Use it for centre-simulation abstractions; for the local growth bound, whose
+Jacobian bounds need the symbolic expressions, see [`reduced_dynamics`](@ref).
 """
-struct VelocityControlledDynamics{M, B}
-    model::M
-    buffers::Vector{B}
+struct VelocityControlledDynamics{F}
+    ankle_acceleration::F
 end
 
-function VelocityControlledDynamics(model::BFL.BipedModel)
-    # `maxthreadid` also covers interactive threads; the call never yields, so a
-    # task cannot migrate between reading its thread id and releasing the buffer.
-    return VelocityControlledDynamics(
+function VelocityControlledDynamics(;
+    model = symbolic_model(),
+    values = default_parameters(),
+)
+    sys = model.sys
+    q̈1 = substitute_parameters(
         model,
-        [_buffers(model) for _ in 1:Threads.maxthreadid()],
+        Multibody2D.bias_vector(sys)[1] / Multibody2D.mass_matrix(sys)[1, 1],
+        values,
     )
+    return VelocityControlledDynamics(_compile(q̈1, [sys.qd[1]; sys.q], sys.qd[2:4]))
 end
 
 function (f::VelocityControlledDynamics)(x, u)
-    buf = f.buffers[Threads.threadid()]
-    state, result, joints = buf.state, buf.result, buf.joints
-    RBD.set_configuration!(state, joints[1], x[2])
-    RBD.set_velocity!(state, joints[1], x[1])
-    for i in 1:3
-        RBD.set_configuration!(state, joints[i + 1], x[i + 2])
-        RBD.set_velocity!(state, joints[i + 1], u[i])
-    end
-    RBD.mass_matrix!(result.massmatrix, state)
-    RBD.dynamics_bias!(
-        result.dynamicsbias,
-        result.accelerations,
-        result.jointwrenches,
-        state,
-    )
-    i1 = buf.i1
-    q̈1 = -parent(result.dynamicsbias)[i1] / result.massmatrix[i1, i1]
-    return SVector(q̈1, x[1], u[1], u[2], u[3])
+    return SVector(f.ankle_acceleration(x, u), x[1], u[1], u[2], u[3])
 end
 
 """
-    check_against_module(model; geometry, n = 50, atol = 1e-9)
+    reduced_dynamics(model) -> NamedTuple
 
-Compare, at `n` random states and inputs, [`VelocityControlledDynamics`](@ref) with
-`BipedFourLink.velocity_controlled_derivative` and [`cartesian_coordinates`](@ref)
-with the `RigidBodyDynamics` joint positions. Errors on any mismatch.
+The 5-dimensional velocity-controlled model extracted from the normal form `x = (q, v_a, p_u)` of
+`model`, with the **ankle momentum first**: the state is `x = (p₁, q₁, q₂, q₃, q₄)` (`p₁ = ∂L/∂q̇₁`,
+the slot of `q̇₁` in [`VelocityControlledDynamics`](@ref)), the input `u = v_a = (q̇₂, q̇₃, q̇₄)` and
+
+    ẋ = (ṗ₁, q̇₁, v₂, v₃, v₄),     q̇₁ = D₁₁⁻¹ (p₁ - D₁ₐ v_a),     ṗ₁ = ∂L/∂q₁,
+
+i.e. the `p_u` and `q̇` rows of the normal form. The rows of the actuated velocities are dropped: the
+commanded velocities are held constant over each sampling period. `ṗ₁` is independent of the
+torques, so no torque appears in the result.
+
+Returns `(; f, x, u)`, all symbolic, with the parameters of `model` still free: put the numbers in
+with [`substitute_parameters`](@ref).
 """
-function check_against_module(
-    model::BFL.BipedModel;
-    geometry::Geometry = default_geometry(),
-    n::Int = 50,
-    atol = 1e-9,
-)
-    f = VelocityControlledDynamics(model)
-    for k in 1:n
-        # Deterministic, well-spread samples without a dependency on `Random`.
-        s(j) = sin(12.9898 * k + 78.233 * j)
-        x = SVector(ntuple(j -> s(j), 5))
-        u = SVector(ntuple(j -> 2 * s(j + 5), 3))
-        ẋ_ref = BFL.velocity_controlled_derivative(model, collect(x), collect(u))
-        isapprox(f(x, u), ẋ_ref; atol = atol) ||
-            error("fast dynamics disagree with BipedFourLink at x = $x, u = $u")
-
-        q = joint_angles(x)
-        rbd_state = BFL.state_from_coordinates(model, collect(q))
-        _, knee, hip, swing_knee, swing_foot = cartesian_coordinates(q, geometry)
-        for (p, ref) in (
-            (knee, BFL.world_position(model, rbd_state, "grounded_knee")),
-            (hip, BFL.world_position(model, rbd_state, "hip")),
-            (swing_knee, BFL.world_position(model, rbd_state, "swing_knee")),
-            (swing_foot, BFL.foot_position(model, rbd_state; foot = :swing)),
-        )
-            isapprox(p, SVector(ref[1], ref[3]); atol = atol) ||
-                error("forward kinematics disagree with the URDF at q = $q")
-        end
+function reduced_dynamics(model)
+    nf = model.nf
+    nf.actuated == [2, 3, 4] && nf.unactuated == [1] ||
+        error("expected the ankle q₁ to be the only unactuated coordinate")
+    # nf.state = [q₁ q₂ q₃ q₄ | v₂ v₃ v₄ | p₁]; `drift` is ẋ at τ = 0 (its rows do not depend on τ).
+    order = [8, 1, 2, 3, 4]
+    x = nf.state[order]
+    u = nf.state[5:7]
+    f = nf.drift[order]
+    for e in f
+        isempty(intersect(Symbolics.get_variables(e), nf.input)) ||
+            error("the reduced dynamics must not depend on the torques")
     end
-    return true
+    return (; f, x, u)
 end
 
 # ============================================================
@@ -251,7 +323,7 @@ function infeasible_cells(
     grad = swing_foot_gradient_bound(geometry)
     dev = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2)
 
-    # The swing foot does not depend on q̇₁: decide on the 4-D angle cells once.
+    # The swing foot does not depend on the ankle velocity/momentum: decide on the 4-D angle cells once.
     q_grid = MP.GridFree(MP.get_origin(state_grid)[IDX_Q], MP.get_h(state_grid)[IDX_Q])
     Q = LazySets.Hyperrectangle(;
         low = LazySets.low(X)[IDX_Q],
@@ -267,15 +339,15 @@ function infeasible_cells(
         MP.image_blocked_cells(q_foot, grad[IDX_Q], q_grid, Q, obstacles).positions
     removed_q = union(below_ground.positions, blocked_q)
 
-    # Lift to 5-D along the q̇₁ axis.
+    # Lift to 5-D along the ankle axis.
     h = MP.get_h(state_grid)
     k_lo = round(
         Int,
-        (LazySets.low(X)[IDX_Q̇1] - MP.get_origin(state_grid)[IDX_Q̇1]) / h[IDX_Q̇1],
+        (LazySets.low(X)[IDX_ANKLE] - MP.get_origin(state_grid)[IDX_ANKLE]) / h[IDX_ANKLE],
     )
     k_hi = round(
         Int,
-        (LazySets.high(X)[IDX_Q̇1] - MP.get_origin(state_grid)[IDX_Q̇1]) / h[IDX_Q̇1],
+        (LazySets.high(X)[IDX_ANKLE] - MP.get_origin(state_grid)[IDX_ANKLE]) / h[IDX_ANKLE],
     )
     removed = Set{NTuple{5, Int}}()
     sizehint!(removed, length(removed_q) * (k_hi - k_lo + 1))
@@ -289,30 +361,31 @@ end
 # Target set: configurations placing the swing foot at a foothold
 # ============================================================
 
-# Two-link inverse kinematics of the swing leg: absolute angles (φ₃, φ₄) placing
-# the swing foot at `hip + d`, with the knee bent backwards (`q₄ = φ₄ − φ₃ ≥ 0`, the
+# Two-link inverse kinematics of the swing leg: absolute angles (φ₃, φ₄), counter-clockwise,
+# placing the swing foot at `hip + d`, with the knee bent backwards (`q₄ = φ₄ − φ₃ ≤ 0`, the
 # human-like knee for walking towards `+x`), or `nothing` if unreachable.
 function _swing_leg_ik(d::SVector{2}, geometry::Geometry)
     L1, L2 = geometry.femur, geometry.tibia
     c = (d[1]^2 + d[2]^2 - L1^2 - L2^2) / (2 * L1 * L2)
     -1.0 <= c <= 1.0 || return nothing
-    # Same planar two-link problem as the fully actuated model with ψ = −φ.
+    # Same planar two-link problem as the fully actuated model, whose angles ψ are the
+    # counter-clockwise ones used here.
     ψ4_rel = -acos(c)
     A = L1 + L2 * cos(ψ4_rel)
     B = L2 * sin(ψ4_rel)
     ψ3 = atan(d[1], -d[2]) - atan(B, A)
-    φ3 = -ψ3
-    φ4 = -(ψ3 + ψ4_rel)
-    return φ3, φ4
+    return ψ3, ψ3 + ψ4_rel
 end
 
 """
-    target_cells(state_grid, foothold, geometry, X; nsub = 3)
+    target_cells(state_grid, foothold, geometry, X; nsub = 3, velocity = nothing)
 
 5-D grid cells containing a configuration with the grounded foot at the origin
 and the swing foot at the Cartesian point `foothold`. `(q₁, q₂)` are swept over
 their cells (`nsub` samples per axis per cell), `(q₃, q₄)` follow by inverse
-kinematics, and every q̇₁ cell of `X` is accepted.
+kinematics. The first state coordinate (the ankle velocity `q̇₁`, or the ankle momentum `p₁`)
+is free: every cell of `X` along it is accepted, or, with `velocity = (vlo, vhi)`,
+every cell lying entirely inside that range.
 """
 function target_cells(
     state_grid::MP.GridFree,
@@ -320,15 +393,28 @@ function target_cells(
     geometry::Geometry,
     X::LazySets.AbstractHyperrectangle;
     nsub::Int = 3,
+    velocity = nothing,
 )
     h = MP.get_h(state_grid)
     lo = SVector{5}(LazySets.low(X))
     hi = SVector{5}(LazySets.high(X))
-    q̇1_values = range(
+    ankle_values = range(
         MP.get_coord_by_pos(state_grid, MP.get_pos_by_coord(state_grid, lo))[1],
         hi[1];
         step = h[1],
     )
+    if velocity !== nothing
+        vlo, vhi = velocity
+        tol = 1e-9 * h[1]
+        ankle_values = [
+            v for
+            v in ankle_values if vlo - tol <= v - h[1] / 2 && v + h[1] / 2 <= vhi + tol
+        ]
+        isempty(ankle_values) && error(
+            "the velocity range $velocity contains no whole cell of width $(h[1]); " *
+            "the target must be made of cells entirely inside it",
+        )
+    end
 
     found = Set{NTuple{5, Int}}()
     for q1 in range(lo[2], hi[2]; step = h[2] / nsub)
@@ -339,8 +425,8 @@ function target_cells(
             φ3, φ4 = ik
             q3 = φ3 - (q1 + q2)
             q4 = φ4 - φ3
-            for q̇1 in q̇1_values
-                x = SVector(q̇1, q1, q2, q3, q4)
+            for a in ankle_values
+                x = SVector(a, q1, q2, q3, q4)
                 all(lo .<= x .<= hi) || continue
                 push!(found, MP.get_pos_by_coord(state_grid, x))
             end
@@ -376,7 +462,8 @@ end
 5-D state grid (steps `(dq̇1, dq1, dx, dx, dx)`), 3-D input grid of step
 `du = dx / tstep` and the sampling time. `tstep · du = dx` keeps the three motor
 coordinates on the lattice (each input moves them by exactly one cell); the ankle
-coordinates `(q̇₁, q₁)` follow the nonlinear dynamics and are rounded to the grid.
+coordinates follow the nonlinear dynamics and are rounded to the grid. `dq̇1` is the step of the
+first state coordinate: the ankle velocity `q̇₁` or the ankle momentum `p₁`.
 
 Returns `(; state_grid, input_grid, tstep, u_max, du)` with `u_max = du`.
 """
@@ -400,15 +487,15 @@ Base.@kwdef struct RobotDomainConfig{X1, X2, U1, U2}
 end
 
 """
-    system(; model, domain, removed_cells = nothing)
+    system(; dynamics = VelocityControlledDynamics(), domain, removed_cells = nothing)
 
 Continuous-time velocity-controlled system `ẋ = f(x, u)` with
-`f = VelocityControlledDynamics(model)`, state domain the box of `domain` minus the
+`f = dynamics` (a [`VelocityControlledDynamics`](@ref)), state domain the box of `domain` minus the
 `removed_cells` (a precomputed [`infeasible_cells`](@ref)). The abstraction
 discretizes it with its own `time_step` (RK4).
 """
 function system(;
-    model::BFL.BipedModel = build_model(),
+    dynamics = VelocityControlledDynamics(),
     domain::RobotDomainConfig,
     removed_cells = nothing,
 )
@@ -418,7 +505,7 @@ function system(;
     end
     U = LazySets.Hyperrectangle(; low = domain.u_lb, high = domain.u_ub)
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        VelocityControlledDynamics(model),
+        dynamics,
         5,
         3,
         X,
@@ -426,54 +513,78 @@ function system(;
     )
 end
 
-"""
-    balanced_start(f; q2 = 0.0, φ3 = 0.2, q4 = 0.0, q1_range = (-0.5, 0.5))
-
-Resting configuration `x = [0, q₁, q₂, q₃, q₄]` whose ankle is in static equilibrium
-(`q̈₁ = 0` at zero velocities) for the dynamics `f` (a
-[`VelocityControlledDynamics`](@ref)): the grounded knee at `q₂`, the swing femur at
-absolute angle `φ₃` (positive = behind the hip) and the swing knee at `q₄`; `q₁` is
-found by bisection on `q1_range` and `q₃ = φ₃ − q₁ − q₂`.
-
-The equilibrium is unstable (the ankle is an inverted pendulum), but it is the one
-start from which the ankle does not already fall at the first sample.
-"""
-function balanced_start(
-    f::VelocityControlledDynamics;
-    q2 = 0.0,
-    φ3 = 0.2,
-    q4 = 0.0,
-    q1_range = (-0.5, 0.5),
-)
-    config(q1) = SVector(0.0, q1, q2, φ3 - q1 - q2, q4)
-    q̈1(q1) = f(config(q1), SVector(0.0, 0.0, 0.0))[1]
-    a, b = q1_range
-    sign(q̈1(a)) != sign(q̈1(b)) ||
-        error("no ankle equilibrium in q1 ∈ $q1_range for this posture")
-    for _ in 1:60
-        m = (a + b) / 2
-        sign(q̈1(m)) == sign(q̈1(a)) ? (a = m) : (b = m)
-    end
-    return config((a + b) / 2)
+# The ankle velocity (first state coordinate) range of `velocity`, clipped to the box `X_box`;
+# `nothing` means the whole interval of definition.
+function _velocity_range(velocity, X_box, what)
+    lo, hi = LazySets.low(X_box)[IDX_ANKLE], LazySets.high(X_box)[IDX_ANKLE]
+    velocity === nothing && return (lo, hi)
+    vlo, vhi = velocity
+    vlo <= vhi ||
+        error("`$what` must be an interval (vlo, vhi) with vlo ≤ vhi, got $velocity")
+    (vhi >= lo && vlo <= hi) ||
+        error("`$what` = $velocity does not intersect the domain interval ($lo, $hi)")
+    return (max(vlo, lo), min(vhi, hi))
 end
 
 """
-    step_problem(concrete_system, state_grid; x0, foothold, geometry)
+    step_problem(concrete_system, state_grid; q0, foothold, geometry,
+                 initial_velocity = nothing, target_velocity = nothing)
 
-One footstep as a reach specification: from `x0` (a small box strictly inside its
-grid cell), reach a configuration placing the swing foot at `foothold`.
+One footstep as a reach specification: from the configuration `q0 = [q₁, q₂, q₃, q₄]`, with
+the ankle velocity (the first state coordinate) anywhere in `initial_velocity`, reach a
+configuration placing the swing foot at `foothold`, with the ankle velocity anywhere in
+`target_velocity`.
+
+Nothing is imposed on the velocity at the start or at the end: the swing foot has no
+reaction force from the ground, so requiring rest is needlessly conservative. Both
+`initial_velocity` and `target_velocity` are `(vlo, vhi)` ranges on the first state
+coordinate and default to `nothing`, the whole interval of definition of the state domain.
+The initial set is the box around the cell of `q0` (snapped to the grid, the box lies
+strictly inside the cell) times the initial velocity range: the controller must work from
+**every** velocity cell the range touches. The target is the set of cells lying entirely
+inside the target velocity range.
+
+Errors if the cell of `q0` is not in the state domain (outside its bounds or carved out): the
+initial set would be empty, which the synthesis can only report as a failure, without saying why.
 """
 function step_problem(
     concrete_system,
     state_grid;
-    x0::SVector{5},
+    q0::SVector{4},
     foothold::SVector{2} = SVector(0.2, 0.0),
     geometry::Geometry = default_geometry(),
+    initial_velocity = nothing,
+    target_velocity = nothing,
 )
     h = MP.get_h(state_grid)
-    _I_ = LazySets.Hyperrectangle(x0, 0.25 .* h)
     X_box = UT._outer_box(concrete_system.X)
-    _T_ = target_set(state_grid, foothold, geometry, X_box)
+    v_init = _velocity_range(initial_velocity, X_box, "initial_velocity")
+    v_target = _velocity_range(target_velocity, X_box, "target_velocity")
+
+    # Snap the configuration to the center of its cell so that the initial box is inside it.
+    snapped = MP.get_coord_by_pos(
+        state_grid,
+        MP.get_pos_by_coord(state_grid, SVector(zero(eltype(q0)), q0...)),
+    )
+    qc = snapped[IDX_Q]
+    r = 0.25 .* h[IDX_Q]
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(v_init[1], (qc .- r)...),
+        high = SVector(v_init[2], (qc .+ r)...),
+    )
+    SVector((v_init[1] + v_init[2]) / 2, qc...) in concrete_system.X || error(
+        "the cell of the initial configuration q0 = $q0 is not in the state domain (outside " *
+        "its bounds, or carved out: the swing foot is within the obstacle/ground margin); " *
+        "choose another configuration or refine the grid",
+    )
+
+    _T_ = target_set(
+        state_grid,
+        foothold,
+        geometry,
+        X_box;
+        velocity = target_velocity === nothing ? nothing : v_target,
+    )
     return PR.OptimalControlProblem(
         concrete_system,
         _I_,
@@ -491,7 +602,7 @@ end
 """
     draw_robot!(fig, x; geometry, alpha)
 
-Draw the grounded (blue) and swing (red) legs of the state `x = [q̇₁, q₁, q₂, q₃, q₄]`.
+Draw the grounded (blue) and swing (red) legs of the state `x = [ankle, q₁, q₂, q₃, q₄]`.
 """
 function draw_robot!(fig, x; geometry::Geometry = default_geometry(), alpha::Real = 1.0)
     gf, gk, hip, sk, sf = cartesian_coordinates(joint_angles(x), geometry)
@@ -556,6 +667,123 @@ function system_plot!(;
         Plots.plot!(fig; xlims = xlims, ylims = ylims, aspect_ratio = :equal)
         return fig
     end
+end
+
+# The slice, at the current `(q₁, q₂)`, of the carved cells in the `(q₃, q₄)` plane, as a background
+# `(panel, x) -> panel` for the state panel of the dashboard: the carving does not depend on the
+# ankle coordinate.
+function _blocked_slice(state_grid, removed, x_lb, x_ub)
+    h = MP.get_h(state_grid)
+    k3_range = round(Int, x_lb[4] / h[4]):round(Int, x_ub[4] / h[4])
+    k4_range = round(Int, x_lb[5] / h[5]):round(Int, x_ub[5] / h[5])
+    return function (panel, x)
+        pos = MP.get_pos_by_coord(state_grid, x)
+        shapes = Plots.Shape[]
+        for k3 in k3_range, k4 in k4_range
+            (pos[1], pos[2], pos[3], k3, k4) in removed || continue
+            c = MP.get_coord_by_pos(state_grid, (pos[1], pos[2], pos[3], k3, k4))
+            push!(
+                shapes,
+                Plots.Shape(
+                    [c[4] - h[4] / 2, c[4] + h[4] / 2, c[4] + h[4] / 2, c[4] - h[4] / 2],
+                    [c[5] - h[5] / 2, c[5] - h[5] / 2, c[5] + h[5] / 2, c[5] + h[5] / 2],
+                ),
+            )
+        end
+        isempty(shapes) ||
+            Plots.plot!(panel, shapes; color = :black, alpha = 0.35, lw = 0, label = "")
+        return panel
+    end
+end
+
+"""
+    plot_footstep(traj, state_grid, removed; x_lb, x_ub, tstep, file_prefix,
+                  geometry = default_geometry(), obstacle = nothing, foothold = nothing,
+                  ankle_label = "ankle", title, xlims = (-0.6, 0.6), ylims = (-0.05, 0.55),
+                  snapshot_every = 5)
+
+Save the three figures of a closed-loop footstep `traj` (a `Dionysos.System.Trajectory` with
+inputs, in the state `[ankle, q₁, q₂, q₃, q₄]`) and return their paths as
+`(; snapshot, ankle, animation)`, or `nothing` if the trajectory has no input (the controller had no
+action at the start: there is nothing to draw):
+
+* `file_prefix * ".png"`: the robot every `snapshot_every` steps, with the ground, the `obstacle` and
+  the `foothold`;
+* `file_prefix * "_ankle.png"`: the ankle angle `q₁` and the ankle coordinate (labelled
+  `ankle_label`, e.g. `"q̇₁ (rad/s)"` or `"p₁ (N m s)"`) against time, `tstep` being the sampling
+  period;
+* `file_prefix * ".gif"`: the animated dashboard (`Dionysos.animate_trajectory_dashboard`) with the
+  robot, the state panel `(q₃, q₄)` over the box `[x_lb, x_ub]` with the slice of the carved cells
+  `removed` ([`infeasible_cells`](@ref)) at the current `(q₁, q₂)` as a grey background, and the
+  input panel `(v₃, v₄)`; `title` is its title.
+"""
+function plot_footstep(
+    traj,
+    state_grid,
+    removed;
+    x_lb,
+    x_ub,
+    tstep,
+    file_prefix,
+    geometry::Geometry = default_geometry(),
+    obstacle = nothing,
+    foothold = nothing,
+    ankle_label = "ankle",
+    title = "Underactuated four-link biped — footstep",
+    xlims = (-0.6, 0.6),
+    ylims = (-0.05, 0.55),
+    snapshot_every::Int = 5,
+)
+    ST.inputs(traj) === nothing && return nothing
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
+    isempty(us) && return nothing
+    plot_robot = system_plot!(; geometry, obstacle, foothold, xlims, ylims)
+    snapshot = file_prefix * ".png"
+    ankle = file_prefix * "_ankle.png"
+    animation = file_prefix * ".gif"
+
+    fig = Plots.plot(; aspect_ratio = :equal, legend = false)
+    rest = zero(us[1])
+    for (k, x) in enumerate(xs)
+        (k - 1) % snapshot_every == 0 || k == length(xs) || continue
+        plot_robot(fig, x, k <= length(us) ? us[k] : rest)
+    end
+    Plots.savefig(fig, snapshot)
+    println("saved ", snapshot)
+
+    # The unactuated ankle: angle and ankle coordinate against time.
+    ts = tstep .* (0:(length(xs) - 1))
+    Plots.savefig(
+        Plots.plot(
+            ts,
+            [[x[2] for x in xs], [x[1] for x in xs]];
+            label = permutedims(["q₁ (rad)", ankle_label]),
+            xlabel = "time (s)",
+            title = "Unactuated ankle",
+        ),
+        ankle,
+    )
+    println("saved ", ankle)
+
+    DI.animate_trajectory_dashboard(
+        plot_robot,
+        traj;
+        Δt = tstep,
+        xdims = (4, 5),
+        udims = (2, 3),
+        xlabel_state = "q₃ (hip)",
+        ylabel_state = "q₄ (swing knee)",
+        xlabel_input = "v₃ (hip)",
+        ylabel_input = "v₄ (swing knee)",
+        xlims_state = (x_lb[4], x_ub[4]),
+        ylims_state = (x_lb[5], x_ub[5]),
+        state_background! = _blocked_slice(state_grid, removed, x_lb, x_ub),
+        title,
+        filename = animation,
+    )
+    println("saved ", animation)
+    return (; snapshot, ankle, animation)
 end
 
 end # module

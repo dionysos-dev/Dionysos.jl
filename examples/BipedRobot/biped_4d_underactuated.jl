@@ -1,15 +1,16 @@
 # # Underactuated four-link biped: one footstep over an obstacle
 #
 # Velocity-controlled design model of the four-link biped of
-# `problems/BipedRobot/4D_model_underactuated/BipedFourLink.jl`. Only the three
+# `problems/BipedRobot/4D_model_underactuated/robot_problem.jl` (a symbolic `Multibody2D` model, the
+# same robot as `four_link_biped.urdf`). Only the three
 # motor joints (grounded knee `q₂`, hip `q₃`, swing knee `q₄`) are commanded, in
 # velocity; the grounded ankle `q₁` is **unactuated** and obeys the first
 # Euler–Lagrange row of the multibody model. The state and input are
 #
 #     x = [q̇₁, q₁, q₂, q₃, q₄],   u = [v₂, v₃, v₄],
 #
-# with `ẋ = BipedFourLink.velocity_controlled_derivative(model, x, u)` (commands held
-# constant over a sampling period: `input_accelerations = 0`).
+# with `ẋ = [q̈₁, q̇₁, v₂, v₃, v₄]` (commands held constant over a sampling period, i.e. zero
+# actuated accelerations) and `q̈₁ = h₁ / D₁₁` from the first Euler–Lagrange row.
 #
 # Compared to the fully actuated 4-D example (`biped_4d_velocity.jl`, `ẋ = u`):
 #
@@ -21,15 +22,20 @@
 #   grid, so the `CENTER_SIMULATION` abstraction is **not certified** here. The
 #   closed-loop trajectory of the concrete (RK4-integrated) system below is what
 #   tells whether the footstep succeeds;
+# - angles are **counter-clockwise**: a positive `q₁` leans the robot backwards, a positive `q₃`
+#   swings the swing foot forwards and the knee bends backwards for a negative `q₄`;
 # - the multi-cell ankle moves are not swept-cell checked, so the solver's
 #   inter-sample warning may fire.
 #
 # The obstacle carving of the swing foot is still sound (Lipschitz pullback of the
-# forward kinematics), and the forward kinematics and dynamics used here are
-# checked against `BipedFourLink` at load time.
+# forward kinematics, compiled from the same symbolic model as the dynamics). RigidBodyDynamics is not
+# needed here (it is only used by `BipedFourLink.jl`, to simulate the whole robot with torques); the
+# symbolic model reproduces its dynamics to machine precision (`tests/test_biped_four_link.jl`).
+# The model is the one of the normal-form experiment (`biped_4d_normal_form.jl`); only the state
+# (`q̇₁` instead of `p₁`) and the abstraction differ.
 #
-# Run it with (the `BipedRobot` environment provides RigidBodyDynamics and
-# MeshCatMechanisms, which `BipedFourLink` needs):
+# Run it with (the `BipedRobot` environment provides Plots and the other packages, to which
+# Symbolics must be added):
 #
 # ```
 # julia -t auto --project=problems/BipedRobot examples/BipedRobot/biped_4d_underactuated.jl
@@ -40,7 +46,6 @@ using MathematicalSystems
 using Dionysos
 import MathOptInterface as MOI
 import LazySets
-import Plots
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -75,10 +80,9 @@ scenario_name = :step
 obstacle = @isdefined(OBSTACLE) ? OBSTACLE : [_triangle(0.0, 0.04, 0.03)]
 foothold = SVector(0.2, 0.0)
 
-geometry = RP.default_geometry()
-model = RP.build_model()
-RP.check_against_module(model; geometry = geometry)
-dynamics = RP.VelocityControlledDynamics(model)
+model = RP.symbolic_model()
+geometry = RP.Geometry(model)                         # kinematics, from the symbolic model
+dynamics = RP.VelocityControlledDynamics(; model)     # q̈₁ = h₁ / D₁₁, compiled
 
 # Set `DISC` before including this file to try another resolution. The motor
 # joints move by exactly one cell (`dx`) per step at speed `du = dx / tstep`; the
@@ -90,13 +94,13 @@ disc =
 # State box `[q̇₁, q₁, q₂, q₃, q₄]`: the robot "falls" when it leaves the ankle
 # bounds, which the reach specification forbids. Every posture placing the swing
 # foot on the foothold within these bounds has the ankle falling forwards
-# (q̈₁ ≳ 4 rad/s² at rest), so the step is a controlled fall into the foothold and
+# (q̈₁ ≲ -4 rad/s² at rest), so the step is a controlled fall into the foothold and
 # the q̇₁ range must leave room for it. The swing hip only needs to swing forwards
-# (q₃ < 0) and the swing knee to bend backwards (q₄ ≥ 0, the foot behind the knee).
+# (q₃ > 0) and the swing knee to bend backwards (q₄ ≤ 0, the foot behind the knee).
 # Set `X_BOUNDS = (x_lb, x_ub)` before including this file to change them.
 x_lb, x_ub =
     @isdefined(X_BOUNDS) ? X_BOUNDS :
-    (SVector(-1.5, -0.4, -0.8, -1.2, -0.2), SVector(1.5, 0.4, 0.8, 0.4, 1.2))
+    (SVector(-1.5, -0.4, -0.8, -0.4, -1.2), SVector(1.5, 0.4, 0.8, 1.2, 0.2))
 domain = RP.RobotDomainConfig(;
     x_lb = x_lb,
     x_ub = x_ub,
@@ -104,12 +108,25 @@ domain = RP.RobotDomainConfig(;
     u_ub = SVector(disc.u_max, disc.u_max, disc.u_max),
 )
 
-# Start at rest, swing leg straight and 0.2 rad behind the hip (as in the fully
-# actuated example), stance knee straight, ankle angle at its static equilibrium —
-# snapped to the grid, so the concrete run starts where the abstraction does.
+# The footstep starts from the configuration `q0 = [q₁, q₂, q₃, q₄]` (stance knee straight, the
+# swing foot 15 cm behind the stance foot: swing hip 0.2 rad behind, swing knee bent backwards
+# by 0.5 rad, which keeps the foot outside the carved neighbourhood of the obstacle) and ends on the
+# foothold. **No velocity is imposed**: the controller must work from every ankle velocity of
+# `INITIAL_VELOCITY` and may end with any ankle velocity of `TARGET_VELOCITY`; both are
+# `(vlo, vhi)` ranges on the ankle velocity `q̇₁` and default to its whole interval of definition
+# (`nothing`). The swing foot has no ground reaction force, so requiring rest is needlessly
+# conservative. Set `Q0`, `INITIAL_VELOCITY` or `TARGET_VELOCITY` before including this file to
+# change them, e.g. `INITIAL_VELOCITY = (-0.3, 0.3)`.
+q0 = @isdefined(Q0) ? Q0 : SVector(-0.05, 0.0, -0.2, -0.5)
+initial_velocity = @isdefined(INITIAL_VELOCITY) ? INITIAL_VELOCITY : nothing
+target_velocity = @isdefined(TARGET_VELOCITY) ? TARGET_VELOCITY : nothing
+
+# Concrete start of the closed-loop run below: the configuration `q0` with the ankle velocity in the
+# middle of the initial range, snapped to the grid so that the run starts where the abstraction does.
+v0 = initial_velocity === nothing ? (x_lb[1] + x_ub[1]) / 2 : sum(initial_velocity) / 2
 x0 = MP.get_coord_by_pos(
     disc.state_grid,
-    MP.get_pos_by_coord(disc.state_grid, RP.balanced_start(dynamics; φ3 = 0.2)),
+    MP.get_pos_by_coord(disc.state_grid, SVector(v0, q0...)),
 )
 println("x0 = ", x0, "  (q̈₁ at x0: ", dynamics(x0, SVector(0.0, 0.0, 0.0))[1], ")")
 
@@ -125,7 +142,7 @@ MP.get_pos_by_coord(disc.state_grid, x0) in removed && error(
     "ground): refine the grid",
 )
 
-concrete_system = RP.system(; model = model, domain = domain, removed_cells = removed)
+concrete_system = RP.system(; dynamics = dynamics, domain = domain, removed_cells = removed)
 
 # ------------------------------------------------------------
 # 2) Abstraction (center simulation of the RK4 roll-out)
@@ -166,15 +183,17 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 
 # ------------------------------------------------------------
-# 3) One footstep: reach the target foothold without falling
+# 3) One footstep: reach the target foothold without falling, with any velocity
 # ------------------------------------------------------------
 
 step_pb = RP.step_problem(
     concrete_system,
     disc.state_grid;
-    x0 = x0,
+    q0 = q0,
     foothold = foothold,
     geometry = geometry,
+    initial_velocity = initial_velocity,
+    target_velocity = target_velocity,
 )
 # The (x, u) -> 1 cost routes the synthesis to the deterministic Dijkstra.
 step_pb = PR.OptimalControlProblem(
@@ -221,91 +240,22 @@ println(
 # 4) Visualization
 # ------------------------------------------------------------
 
-# Define `RUN_PLOTS = false` before including this file to skip it. There is
-# nothing to draw when the controller has no action at `x0` already.
-run_plots = (@isdefined(RUN_PLOTS) ? RUN_PLOTS : true) && !isempty(us)
-rest = SVector(0.0, 0.0, 0.0)
-
-if run_plots
-    plot_robot = RP.system_plot!(;
-        geometry = geometry,
-        obstacle = obstacle,
-        foothold = foothold,
-        xlims = (-0.6, 0.6),
-        ylims = (-0.05, 0.55),
-    )
-
-    png_file = joinpath(@__DIR__, "biped_4d_underactuated_$(scenario_name).png")
-    gif_file = joinpath(@__DIR__, "biped_4d_underactuated_$(scenario_name).gif")
-    ankle_file = joinpath(@__DIR__, "biped_4d_underactuated_$(scenario_name)_ankle.png")
-
-    fig = Plots.plot(; aspect_ratio = :equal, legend = false)
-    for (k, x) in enumerate(xs)
-        k % 5 == 1 || k == length(xs) || continue
-        plot_robot(fig, x, k <= length(us) ? us[k] : rest)
-    end
-    Plots.savefig(fig, png_file)
-    println("saved ", png_file)
-
-    # The unactuated ankle: angle and velocity against time.
-    ts = disc.tstep .* (0:(length(xs) - 1))
-    Plots.savefig(
-        Plots.plot(
-            ts,
-            [[x[2] for x in xs], [x[1] for x in xs]];
-            label = ["q₁ (rad)" "q̇₁ (rad/s)"],
-            xlabel = "time (s)",
-            title = "Unactuated ankle",
-        ),
-        ankle_file,
-    )
-    println("saved ", ankle_file)
-
-    # State panel = the swing angles (q₃, q₄), with the slice of the carved region
-    # at the current (q₁, q₂): the carving does not depend on q̇₁.
-    h = MP.get_h(disc.state_grid)
-    k3_range = round(Int, x_lb[4] / h[4]):round(Int, x_ub[4] / h[4])
-    k4_range = round(Int, x_lb[5] / h[5]):round(Int, x_ub[5] / h[5])
-    blocked_slice! = function (p_state, x)
-        pos = MP.get_pos_by_coord(disc.state_grid, x)
-        shapes = Plots.Shape[]
-        for k3 in k3_range, k4 in k4_range
-            (pos[1], pos[2], pos[3], k3, k4) in removed || continue
-            c = MP.get_coord_by_pos(disc.state_grid, (pos[1], pos[2], pos[3], k3, k4))
-            push!(
-                shapes,
-                Plots.Shape(
-                    [c[4] - h[4] / 2, c[4] + h[4] / 2, c[4] + h[4] / 2, c[4] - h[4] / 2],
-                    [c[5] - h[5] / 2, c[5] - h[5] / 2, c[5] + h[5] / 2, c[5] + h[5] / 2],
-                ),
-            )
-        end
-        isempty(shapes) || Plots.plot!(
-            p_state,
-            shapes;
-            color = :black,
-            alpha = 0.35,
-            lw = 0,
-            label = "",
-        )
-        return p_state
-    end
-
-    DI.animate_trajectory_dashboard(
-        plot_robot,
-        traj;
-        Δt = disc.tstep,
-        xdims = (4, 5),
-        udims = (2, 3),
-        xlabel_state = "q₃ (hip)",
-        ylabel_state = "q₄ (swing knee)",
-        xlabel_input = "v₃ (hip)",
-        ylabel_input = "v₄ (swing knee)",
-        xlims_state = (x_lb[4], x_ub[4]),
-        ylims_state = (x_lb[5], x_ub[5]),
-        state_background! = blocked_slice!,
+# Define `RUN_PLOTS = false` before including this file to skip it. `RP.plot_footstep` also draws
+# nothing when the controller has no action at `x0` already (the default outcome of the experiment
+# without a controller): `traj` has no input then.
+if @isdefined(RUN_PLOTS) ? RUN_PLOTS : true
+    RP.plot_footstep(
+        traj,
+        disc.state_grid,
+        removed;
+        x_lb,
+        x_ub,
+        tstep = disc.tstep,
+        geometry,
+        obstacle,
+        foothold,
+        file_prefix = joinpath(@__DIR__, "biped_4d_underactuated_$(scenario_name)"),
+        ankle_label = "q̇₁ (rad/s)",
         title = "Underactuated four-link biped — footstep ($(scenario_name))",
-        filename = gif_file,
     )
-    println("saved ", gif_file)
 end # run_plots
