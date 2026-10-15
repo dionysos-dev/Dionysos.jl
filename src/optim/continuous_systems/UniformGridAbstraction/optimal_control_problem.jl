@@ -80,10 +80,14 @@ mutable struct OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimiz
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
-    # Optional input slew-rate constraint, expressed on *concrete* inputs
-    # (distance and boundary inputs); lifted to abstract input symbols and
+    # Optional constraint on consecutive inputs, expressed on *concrete* objects
+    # (inputs, and cells for a state-dependent one); lifted to abstract symbols and
     # forwarded to the discrete solver.
-    bounded_input_variation::Union{Nothing, OPDS.BoundedInputVariation}
+    bounded_input_variation::Union{
+        Nothing,
+        OPDS.BoundedInputVariation,
+        OPDS.StateInputVariation,
+    }
 
     # outputs
     abstract_optimizer::Union{Nothing, OPDS.OptimizerOptimalControlProblem}
@@ -242,6 +246,37 @@ function lift_bounded_input_variation(
 
     lift(u) = u === nothing ? nothing : SY.get_abstract_input(abstract_system, u)
     return OPDS.TabulatedInputVariation(
+        compatible;
+        target_input = lift(constraint.target_input),
+        initial_input = lift(constraint.initial_input),
+    )
+end
+
+"""
+    lift_bounded_input_variation(abstract_system, constraint::OPDS.StateInputVariation)
+
+Express a state-dependent constraint written on *concrete* objects on abstract
+symbols. The user's `compatible(cell, u⁻, u)` receives the cell of the abstract state
+(`SY.get_concrete_elem`) and the concrete inputs, and must hold for *every* state of
+the cell, e.g. a torque limit bounded over the cell. The boundary inputs are
+quantized with `SY.get_abstract_input`.
+
+The lifted constraint closes over `compatible`, so a controller carrying it cannot be
+reloaded in a fresh session.
+"""
+function lift_bounded_input_variation(abstract_system, constraint::OPDS.StateInputVariation)
+    f = constraint.compatible
+    symbols = collect(SY.enum_inputs(abstract_system))
+    first_input = SY.get_concrete_input(abstract_system, first(symbols))
+    concrete = Vector{typeof(first_input)}(undef, maximum(symbols))
+    for s in symbols
+        concrete[s] = SY.get_concrete_input(abstract_system, s)
+    end
+    compatible(q, a_prev, a) =
+        f(SY.get_concrete_elem(abstract_system, q), concrete[a_prev], concrete[a])
+
+    lift(u) = u === nothing ? nothing : SY.get_abstract_input(abstract_system, u)
+    return OPDS.StateInputVariation(
         compatible;
         target_input = lift(constraint.target_input),
         initial_input = lift(constraint.initial_input),

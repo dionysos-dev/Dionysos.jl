@@ -94,6 +94,7 @@ const TEST_FILES = [
     ("./optim/UniformGridAbstraction/noisy_growth.jl",),
     ("./optim/UniformGridAbstraction/linearized.jl",),
     ("./optim/UniformGridAbstraction/user_defined.jl",),
+    ("./optim/UniformGridAbstraction/state_input_variation.jl",),
     ("./optim/UniformGridAbstraction/reachability.jl",),
     ("./optim/UniformGridAbstraction/safety.jl",),
     ("./optim/UniformGridAbstraction/reach_and_stay.jl",),
