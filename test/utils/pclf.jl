@@ -268,12 +268,150 @@ end
     @test !PCLF.is_complete(H, 1:2)          # node 2 has no mode-1 edge
     @test !PCLF.is_deterministic(H, 1:2)     # node 1 branches on mode 1
 
+    # Which modes a node may emit has to survive the graph, because downstream a missing transition
+    # has two irreconcilable causes -- forbidden by the language, or a successor that escaped the
+    # modelled region -- and a universal answer must treat them oppositely.
+    @test PCLF.enabled_modes(H) == Dict(1 => Set([1, 2]), 2 => Set([2]))
+
+    no_11 = PCLF.edgeList_to_LabDigraph([(0, 1, 1), (0, 0, 2), (1, 0, 2)])
+    @test PCLF.enabled_modes(no_11) == Dict(0 => Set([1, 2]), 1 => Set([2]))
+
+    # A De Bruijn node records history only: every node admits every future word, so a result at one
+    # node is a result at all of them. A genuine language restriction is the opposite and the two
+    # must be distinguishable without inspecting edges by hand.
+    @test !PCLF.restricts_future(PCLF.generate_DeBruijn_edges(2, 1))
+    @test !PCLF.restricts_future(PCLF.generate_DeBruijn_edges(2, 2))
+    @test PCLF.restricts_future(no_11)
+    @test PCLF.restricts_future(H)
+
     for M in (2, 4)
         edges = [(s, mod(s + m - 1, M), m) for s in 0:(M - 1) for m in 1:M]
         R = PCLF.edgeList_to_LabDigraph(edges)
         @test PCLF.is_complete(R, 1:M)
         @test PCLF.is_deterministic(R, 1:M)
     end
+
+    # Co-completeness is the mirror property, and the two separate the De Bruijn graphs exactly:
+    # the primal records the last mode played, so every node emits every mode but is entered by only
+    # one; the dual commits to the mode to come, so every node emits one mode but is entered by all.
+    # Each therefore licenses exactly ONE closed-form common Lyapunov function.
+    for k in 1:2
+        primal = PCLF.generate_DeBruijn_edges(2, k)
+        dual = PCLF.generate_DeBruijn_edges(2, k; dual = true)
+        @test PCLF.is_complete(primal, 1:2) && !PCLF.is_co_complete(primal, 1:2)
+        @test PCLF.is_co_complete(dual, 1:2) && !PCLF.is_complete(dual, 1:2)
+    end
+
+    # k = 0 is one node with a self-loop per mode, so it is trivially both.
+    single = PCLF.generate_DeBruijn_edges(3, 0)
+    @test PCLF.is_complete(single, 1:3) && PCLF.is_co_complete(single, 1:3)
+
+    # The two properties are independent, not opposites: `H` is entered by both modes at both nodes
+    # while node 2 emits only mode 2, so it is co-complete WITHOUT being complete.
+    @test PCLF.is_co_complete(H, 1:2) && !PCLF.is_complete(H, 1:2)
+
+    # And a graph can be neither: drop the only mode-1 edge into node 2 and nothing supplies it.
+    neither = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (1, 2, 2), (2, 1, 2)])
+    @test !PCLF.is_complete(neither, 1:2) && !PCLF.is_co_complete(neither, 1:2)
+end
+
+# ------------------------------------------------------------------
+# The induced common: which closed form, and no redundant pieces
+# ------------------------------------------------------------------
+# `build_common_lyapunov` used to always run the observer/subset construction. That is not wrong, but
+# on a structured graph it enumerates subsets that cannot contribute: the sublevel set is a UNION over
+# observer states of an INTERSECTION over each state's nodes, so any state CONTAINING another is
+# redundant. On a complete graph the observer reaches both the full vertex set and every singleton,
+# and the full set's intersection then has to be carved out of each singleton -- turning two convex
+# polytopes into five disjoint parts, a fragmentation every quotient cell downstream inherits.
+@testset "the bisection bracket accounts for the template" begin
+    # `A = diag(0.6, 0.48)` is trivially stable, so a certificate exists for ANY template. Two
+    # independent defects conspired to report that it does not, and both are checkable by hand.
+    #
+    # The bisection tests `M w_u <= γ w_v` with `M = |G A G^{-1}|`, so the smallest feasible rate is
+    # the Perron root of `M`. A rotated `G` is a similarity transform, so that root is `0.6` whatever
+    # the angle. But the UPPER bracket was `‖A‖_∞ = 0.6` and the lower one `ρ(A) = 0.6`: the two meet
+    # exactly on the answer, `b - a > tol` fails immediately, the loop never executes, and `Inf` comes
+    # back. Widening the bracket to the M matrices' max row sum (`0.622` here, strictly above the
+    # answer) and testing feasibility AT `b` both fix it, and each alone would be enough.
+    θ = π / 6
+    Rot = [cos(θ) -sin(θ); sin(θ) cos(θ)]
+    f = HybridSystems.discreteswitchedsystem([[0.6 0.0; 0.0 0.48]])
+    G = PCLF.generate_DeBruijn_edges(1, 0)
+    optimizer = JuMP.optimizer_with_attributes(
+        Clarabel.Optimizer,
+        "max_iter" => 1000,
+        "verbose" => false,
+    )
+    rate(Gmats) = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+        f,
+        G,
+        optimizer;
+        Gmats = Gmats,
+        MLF = true,
+        verbose = false,
+    ).JSRapprox
+
+    rotated = rate(Dict(v => Rot for v in G.verts))
+    @test isfinite(rotated)
+    @test rotated ≈ 0.6 rtol = 1e-3
+
+    # The identity template must be unaffected: same spectrum, same answer, and it was already
+    # working, so this guards against the wider bracket loosening a case that was correct.
+    @test rate(:identity) ≈ 0.6 rtol = 1e-3
+
+    # An EXPANDING system now returns its true rate instead of `Inf`, and that is a deliberate
+    # behaviour change. With a fixed template and free positive weights a feasible rate always exists
+    # — equal weights work at the M matrices' max row sum — so `Inf` never meant "no certificate"
+    # here, only "the bracket was broken". Reporting 1.2 says how far the template is from working;
+    # `Inf` said nothing. Callers already ask `isfinite(rate) && rate < 1`, which 1.2 correctly fails.
+    unstable = HybridSystems.discreteswitchedsystem([[1.2 0.0; 0.0 1.1]])
+    expanding = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+        unstable,
+        G,
+        optimizer;
+        Gmats = Dict(v => Rot for v in G.verts),
+        MLF = true,
+        verbose = false,
+    ).JSRapprox
+    @test isfinite(expanding)
+    @test expanding ≈ 1.2 rtol = 1e-3   # the Perron root again, spectrum preserved by the rotation
+    @test expanding > 1                 # so it still fails the contraction test callers apply
+end
+
+@testset "induced common picks the closed form its graph licenses" begin
+    mk(G) = PCLF.PCLF(
+        G,
+        Dict(v => PCLF.PolyhedralPiece([1.0 0.0; 0.0 1.0], [1.0, 1.0]) for v in G.verts),
+        0.5,
+    )
+    states(p) = p.pieces[:clf].observer_states
+
+    primal = PCLF.generate_DeBruijn_edges(2, 1)
+    dual = PCLF.generate_DeBruijn_edges(2, 1; dual = true)
+
+    # Complete -> V_min: one singleton per node, so the sublevel set is the UNION.
+    @test Set(states(PCLF.build_common_lyapunov(mk(primal)))) ==
+          Set([Set([(1,)]), Set([(2,)])])
+    # Co-complete -> V_max: a single state holding every node, so it is the INTERSECTION.
+    @test states(PCLF.build_common_lyapunov(mk(dual))) == [Set([(1,), (2,)])]
+
+    # The observer route must reach the SAME function on the primal graph -- it differs only by
+    # enumerating the redundant full set, which the filter then removes.
+    @test Set(states(PCLF.build_common_lyapunov(mk(primal); mode = :observer))) ==
+          Set([Set([(1,)]), Set([(2,)])])
+
+    # A mode whose structural precondition fails must be refused, not silently returned: min_i V_i is
+    # simply not a common Lyapunov function on a graph that is not complete.
+    @test_throws ErrorException PCLF.build_common_lyapunov(mk(dual); mode = :min)
+    @test_throws ErrorException PCLF.build_common_lyapunov(mk(primal); mode = :max)
+    @test_throws ErrorException PCLF.build_common_lyapunov(mk(primal); mode = :nonsense)
+
+    # The filter itself, independent of any graph.
+    @test PCLF._drop_redundant_supersets([Set([1, 2]), Set([1]), Set([2])]) ==
+          [Set([1]), Set([2])]
+    @test PCLF._drop_redundant_supersets([Set([1]), Set([2])]) == [Set([1]), Set([2])]
+    @test PCLF._drop_redundant_supersets([Set([1, 2])]) == [Set([1, 2])]
 end
 
 # ------------------------------------------------------------------
@@ -440,6 +578,49 @@ end
         f,
         HiGHS.Optimizer,
     )
+end
+
+@testset "the bisection bracket respects the graph's language" begin
+    # The lower bracket used to be `max_m ρ(A_m)` over every mode of the system, which is valid only
+    # when every mode may repeat for ever. On a graph encoding a restricted language it is not, and
+    # the failure was silent: the bisection converged to the bracket floor and reported it as a
+    # certificate, identically for every template order.
+    A1 = [-0.65 0.32; -0.42 -0.92]      # ρ ≈ 0.8558
+    A2 = [0.65 0.32; -0.42 -0.92]       # ρ ≈ 0.8291
+    c = 1.25                            # ρ(c·A1) ≈ 1.0698 > 1: mode 1 alone diverges
+    f = HybridSystems.discreteswitchedsystem([c .* A1, A2])
+
+    optimizer = JuMP.optimizer_with_attributes(
+        Clarabel.Optimizer,
+        "max_iter" => 4000,
+        "verbose" => false,
+        "tol_feas" => 1e-6,
+        "tol_gap_abs" => 1e-6,
+        "tol_gap_rel" => 1e-6,
+    )
+    partition = PCLF.conic_partitions_2d(2)
+    rate(graph) = PCLF.compute_polyhedral_pieces_pclf(
+        f,
+        graph,
+        optimizer,
+        Dict(v => partition for v in graph.verts);
+        MLF = true,
+    ).JSRapprox
+
+    # A graph using only mode 2 must not be charged for mode 1: this returned ρ(c·A1) ≈ 1.0698.
+    only_mode_2 = PCLF.edgeList_to_LabDigraph([(0, 0, 2)])
+    @test rate(only_mode_2) <= 0.83
+
+    # Strict alternation admits neither mode twice in a row, so the rate is the 2-cycle's.
+    alternating = PCLF.edgeList_to_LabDigraph([(0, 1, 1), (1, 0, 2)])
+    @test rate(alternating) ≈ maximum(abs.(LA.eigvals(A2 * (c .* A1))))^0.5 rtol = 1e-3
+
+    # The constrained language is certifiable while the unconstrained system is not: the separation
+    # N10 rests on, and the reason the bracket has to be language-aware.
+    no_11 = PCLF.edgeList_to_LabDigraph([(0, 1, 1), (0, 0, 2), (1, 0, 2)])
+    unconstrained = PCLF.edgeList_to_LabDigraph([(0, 0, 1), (0, 0, 2)])
+    @test rate(no_11) < 1.0
+    @test rate(unconstrained) > 1.0
 end
 
 end # module TestMain

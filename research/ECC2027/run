@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# CodeOcean entry point: install the pinned environment, then regenerate all results.
+set -euo pipefail
+cd "$(dirname "$0")"
+julia --project=. -e 'import Pkg; Pkg.instantiate()'
+# The cart-pole abstractions are built in parallel; the paper's timings use every core.
+julia --project=. --threads=auto run_all.jl
+# CodeOcean keeps only /results; elsewhere the results stay in ./results.
+if [ -d /results ]; then
+    cp -r results/. /results/
+fi

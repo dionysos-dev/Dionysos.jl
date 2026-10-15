@@ -158,16 +158,88 @@ end
     @test us == [a, c1]
 end
 
-@testset "nondeterministic automata are rejected" begin
-    autom = SY.IndexedAutomatonList(3, 1)
-    SY.add_transition!(autom, 1, 2, 1)
-    SY.add_transition!(autom, 1, 3, 1) # two successors for (1, 1)
-    constraint = OPDS.BoundedInputVariation((u1, u2) -> 0.0, 1.0)
-    @test_throws ErrorException OPDS.compute_bounded_input_variation_controller(
+# ----------------------------------------------------------------------------
+# Non-deterministic automaton: `a` from 1 may land on 2 or 3, so its value is the
+# worse of the two continuations. At 3 the cheap `c` is incompatible with `a`, so
+# arriving via `a` forces the expensive `d`: V(1, a) = 1 + max(1, 5) = 6, which
+# still beats the deterministic detour `e` (cost 10).
+# ----------------------------------------------------------------------------
+@testset "min-max on a non-deterministic automaton" begin
+    a, b, c, d, e = 1, 2, 3, 4, 5
+    autom = SY.IndexedAutomatonList(4, 5)
+    SY.add_transition!(autom, 1, 2, a)
+    SY.add_transition!(autom, 1, 3, a)
+    SY.add_transition!(autom, 1, 2, e)
+    SY.add_transition!(autom, 2, 4, b)
+    SY.add_transition!(autom, 3, 4, c)
+    SY.add_transition!(autom, 3, 4, d)
+    cost(q, u) = (q, u) == (3, d) ? 5.0 : (q, u) == (1, e) ? 10.0 : 1.0
+
+    compatible = trues(5, 5)
+    compatible[a, c] = false
+    constraint = OPDS.TabulatedInputVariation(compatible)
+    ctrl, controllable, _, value_tab = OPDS.compute_bounded_input_variation_controller(
         autom,
-        [3],
-        constraint,
+        [4],
+        constraint;
+        cost_function = cost,
     )
+
+    @test 1 in controllable
+    @test value_tab[1] == 1.0 + 5.0
+    @test ST.output_control(ctrl, 0, 1) == a
+    # Whichever successor `a` lands on, the continuation is compatible with `a`.
+    @test ST.output_control(ctrl, a, 2) == b
+    @test ST.output_control(ctrl, a, 3) == d
+    # A fresh start at 3 may use the cheap input.
+    @test ST.output_control(ctrl, 0, 3) == c
+end
+
+# ----------------------------------------------------------------------------
+# Regression: a run must not be valued *through* a target. `F` from 1 enters the
+# target 2 too fast to stop (|F − rest| > Δ); continuing to 3 would end slowly, but
+# the closed loop stops at the first target reached, so 1 is not controllable.
+# ----------------------------------------------------------------------------
+@testset "no pass-through of the target" begin
+    R, S, F = 1, 2, 3
+    level = Dict(R => 0.0, S => 0.5, F => 1.0)
+    autom = SY.IndexedAutomatonList(3, 3)
+    SY.add_transition!(autom, 1, 2, F)
+    SY.add_transition!(autom, 2, 3, S)
+
+    constraint = OPDS.BoundedInputVariation(
+        (u1, u2) -> abs(level[u1] - level[u2]),
+        0.5;
+        target_input = R,
+    )
+    _, controllable, _, value_tab = OPDS.compute_bounded_input_variation_controller(
+        autom,
+        [2, 3],
+        constraint;
+        initial_set = [1],
+    )
+    @test 1 ∉ controllable
+    @test value_tab[1] == Inf
+end
+
+# ----------------------------------------------------------------------------
+# State-dependent constraint: on the 3×3 grid, the direction may only change at
+# state 3 (top-right corner). Going from 1 to 9 must therefore turn there.
+# ----------------------------------------------------------------------------
+@testset "state-dependent constraint" begin
+    autom = grid_automaton()
+    constraint = OPDS.StateInputVariation((q, u_prev, u) -> u == u_prev || q == 3)
+    ctrl, controllable, _, value_tab = OPDS.compute_bounded_input_variation_controller(
+        autom,
+        [9],
+        constraint;
+        initial_set = [1],
+    )
+    @test 1 in controllable
+    @test value_tab[1] == 4.0
+    qs, us = simulate(autom, ctrl, 1; stop = q -> q == 9)
+    @test qs == [1, 2, 3, 6, 9]
+    @test us == [RIGHT, RIGHT, DOWN, DOWN]
 end
 
 @testset "optimizer wiring" begin

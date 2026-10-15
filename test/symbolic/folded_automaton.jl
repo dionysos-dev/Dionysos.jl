@@ -147,4 +147,51 @@ end
     @test isempty(sound)     # pessimistic: the unknown move is assumed to lose
 end
 
+@testset "complete_with_sink leaves moves the environment cannot make" begin
+    # Same shape as above, but now the gap at (1, mode 2) is there because the environment is
+    # *forbidden* mode 2 at state 1 -- a constrained switching language, not a dropped behaviour.
+    # Sinking it would charge the adversary a move the plant cannot play, which does not merely add
+    # conservatism: under `∀` a failing successor fails its predecessors too, so one spurious sink
+    # empties everything upstream of it.
+    autom = SY.IndexedAutomatonList(2, 2)
+    SY.add_transition!(autom, 1, 1, 1)
+    SY.add_transition!(autom, 2, 1, 1)
+    SY.add_transition!(autom, 2, 1, 2)
+
+    forbids_mode_2_at_1 = (q, g) -> !(q == 1 && g == 2)
+    completed, sink, ncompleted =
+        SY.complete_with_sink(autom; is_enabled = forbids_mode_2_at_1)
+
+    @test ncompleted == 0
+    @test isempty(SY.post(completed, 1, 2))   # still a non-edge, not a route to the sink
+
+    # And the invariant now keeps state 1, which is correct here: mode 2 is unavailable there, so
+    # every admissible move from state 1 stays in the safe set.
+    safelist = [1, 2]
+    _, kept, _ = OPDS.compute_largest_invariant_set(SY.FoldedAutomaton(completed), safelist)
+    @test 1 in kept
+
+    # The default is unchanged, so every existing caller keeps the pessimistic reading.
+    _, _, n_default = SY.complete_with_sink(autom)
+    @test n_default == 1
+end
+
+@testset "complete_with_sink separates a forbidden move from a real escape" begin
+    # One state carrying both causes at once, which is the case a count alone cannot distinguish.
+    # State 1: mode 1 escapes the modelled region (enabled, no successor) and mode 2 is forbidden.
+    # Only the escape may be sunk.
+    autom = SY.IndexedAutomatonList(2, 2)
+    SY.add_transition!(autom, 2, 2, 1)
+    SY.add_transition!(autom, 2, 2, 2)
+
+    _, _, n_all = SY.complete_with_sink(autom)
+    @test n_all == 2        # blind to the difference: both gaps sunk
+
+    completed, sink, n_lang =
+        SY.complete_with_sink(autom; is_enabled = (q, g) -> !(q == 1 && g == 2))
+    @test n_lang == 1                          # the escape only
+    @test SY.post(completed, 1, 1) == [sink]   # enabled but lost -> sunk, soundness preserved
+    @test isempty(SY.post(completed, 1, 2))    # forbidden -> untouched
+end
+
 end # module TestMain

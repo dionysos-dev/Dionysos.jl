@@ -163,7 +163,8 @@ function build_abstract_problem(
     abstract_system::SY.SymbolicModelList,
     abstract_transition_cost,
 )
-    @warn("The `state_cost` is not yet fully implemented")
+    concrete_problem.state_cost === nothing ||
+        @warn("The `state_cost` is not yet fully implemented")
 
     # `INNER` for the safe set: a cell only partly inside it contains unsafe points, so it
     # cannot be certified safe.

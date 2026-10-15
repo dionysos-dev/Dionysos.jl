@@ -117,9 +117,26 @@ function from_autom_to_bis_value_function(Q::QuotientAutomaton, V::AbstractVecto
     return out
 end
 
+# A degenerate box is a point, and a specification's initial set usually is one. Membership costs a
+# few dot products per polytope where `isdisjoint` on two H-polytopes costs an LP, and this sweep
+# runs over every polytope of the quotient: on a 22 438-polytope quotient the difference was the
+# whole cost of answering a co-safe LTL question.
+function _as_point(X0)
+    X0 isa LazySets.AbstractHyperrectangle || return nothing
+    r = LazySets.radius_hyperrectangle(X0)
+    return all(<=(1e-12), r) ? LazySets.center(X0) : nothing
+end
+
 function get_states_from_set(Q::QuotientAutomaton, X0)
-    X0h = UT._as_hpolytope(X0)
     out = Int[]
+    pt = _as_point(X0)
+    if pt !== nothing
+        for (i, qid) in enumerate(Q.qids)
+            pt ∈ Q.quotient.states[qid].set && push!(out, i)
+        end
+        return out
+    end
+    X0h = UT._as_hpolytope(X0)
     for (i, qid) in enumerate(Q.qids)
         q = Q.quotient.states[qid]
         UT.is_disjoint(q.set, X0h) || push!(out, i)
@@ -160,6 +177,17 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     # much of the slice family the quotient's cells cover and stores `uncovered_fraction` — the
     # atol-erosion caveat every verification result owes; see `covered_fraction`.
     coverage_backend::Any
+    # Which universal question a folded run answers. Ignored under synthesis.
+    #
+    #   :arbitrary — the environment may play any mode at any time and the graph is a proof device.
+    #                A node missing a mode is a behaviour the abstraction dropped, so it is sunk.
+    #   :language  — the graph's language IS the plant's admissible behaviour (a scheduler, an
+    #                interlock, a dwell-time constraint). A node missing a mode is a move the plant
+    #                cannot make, and sinking it would charge the adversary for it.
+    #
+    # No inspection of the graph can tell these apart — the same automaton serves both — so this is
+    # declared, never inferred, and defaults to the sound-but-conservative `:arbitrary`.
+    switching_semantics::Symbol
 
     # outputs / internals
     quotient_automaton::Any
@@ -175,6 +203,10 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     # 1 − covered_fraction of the quotient, measured when `coverage_backend` is set on a folded
     # run; `nothing` when not measured.
     uncovered_fraction::Union{Nothing, Float64}
+    # How many (state, mode) pairs the pessimistic completion sank, so a caller can assert on it
+    # rather than read it out of a log. `0` on a complete graph; a large value on an incomplete one
+    # means most of the answer was decided by the completion and not by the dynamics.
+    num_completions::Int
     success::Bool
     solve_time_sec::T
 
@@ -187,6 +219,7 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
             false,
             1,
             nothing, # coverage_backend
+            :arbitrary, # switching_semantics
             nothing,
             nothing,
             nothing,
@@ -196,6 +229,7 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
             nothing,
             false,
             nothing, # uncovered_fraction
+            0,      # num_completions
             false,
             zero(T),
         )
@@ -239,12 +273,12 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
         modes = modes_of(Q)
         mode_group =
             [findfirst(==(mode_of_input(Q, k)), modes) for k in 1:SY.get_n_input(Q)]
-        completed, _, ncompleted = SY.complete_with_sink(Q; groups = mode_group)
-        if ncompleted > 0 && optimizer.print_level >= 1
-            println(
-                "Pessimistic completion: $ncompleted (state, mode) pairs had no successor " *
-                "and were routed to a losing sink.",
-            )
+        is_enabled = enablement_predicate(Q, modes, optimizer.switching_semantics)
+        completed, _, ncompleted =
+            SY.complete_with_sink(Q; groups = mode_group, is_enabled = is_enabled)
+        optimizer.num_completions = ncompleted
+        if optimizer.print_level >= 1
+            report_completion(Q, modes, optimizer.switching_semantics, ncompleted)
         end
         # The atol-erosion caveat: the cells cover slightly less than the slices they were
         # carved from, and a point the quotient does not cover is a point this universal answer
@@ -285,6 +319,17 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
 
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
+
+    # The certified set is `(cell, node)` pairs and callers union it over nodes (`get_volume` does
+    # inclusion–exclusion). That is exact when a node only records history, as on a De Bruijn graph
+    # where every node admits every future word: a result at one node is then a result about all
+    # words, and merging is free. Once nodes restrict the FUTURE, results at different nodes answer
+    # different questions, and the union silently claims the run may start in whichever node is most
+    # favourable. Reporting is left alone -- choosing the initial node is the user's modelling call,
+    # not something to change underneath existing results -- but it must not pass unannounced.
+    if optimizer.environment_folded && optimizer.print_level >= 1
+        warn_if_nodes_restrict_future(Q)
+    end
 
     optimizer.controllable_set =
         sort(from_autom_to_bis_states(Q, abstract_optimizer.controllable_set))
@@ -339,6 +384,119 @@ the question the caller means instead — is the initial set covered?
 function success(abstract_optimizer, abstract_initial_set)
     controllable = Set(abstract_optimizer.controllable_set)
     return OPDS.covers_initial_set(q -> q in controllable, abstract_initial_set)
+end
+
+# ============================================================
+# Constrained switching languages
+# ============================================================
+
+"""
+Which `(state, mode)` gaps the pessimistic completion is allowed to sink.
+
+Under `:arbitrary` every gap is sunk, which is what the fold has always done. Under `:language` a gap
+is sunk only where the node actually enables the mode, so a mode the language forbids is left alone;
+the graph's own transitions then stand as the complete account of what the environment can do.
+
+A quotient that predates the `enabled` field answers `nothing` and falls back to `:arbitrary`, which
+is the assumption it was built under, so old caches stay sound rather than silently gaining freedom.
+"""
+function enablement_predicate(Q::QuotientAutomaton, modes, semantics::Symbol)
+    semantics in (:arbitrary, :language) || throw(
+        ArgumentError(
+            "switching_semantics must be :arbitrary or :language, got :$semantics.",
+        ),
+    )
+    semantics === :arbitrary && return (q, g) -> true
+    return function (q, g)
+        node = Q.quotient.states[Q.qids[q]].node
+        allowed = modes_enabled_at(Q.quotient, node)
+        allowed === nothing && return true
+        return modes[g] in allowed
+    end
+end
+
+"""
+Say what the completion did, and whether the graph made it necessary.
+
+Silence here is how N10 lost a whole experiment: the run that mattered used `print_level = 0`, so 446
+spurious sinks -- one per cell of the single node whose mode was forbidden -- went unseen, and the
+universal answer they emptied was read as a result about switching languages.
+"""
+function report_completion(Q::QuotientAutomaton, modes, semantics::Symbol, ncompleted::Int)
+    gaps = Dict{Any, Int}()
+    for (i, qid) in enumerate(Q.qids)
+        node = Q.quotient.states[qid].node
+        allowed = modes_enabled_at(Q.quotient, node)
+        allowed === nothing && continue
+        for (g, m) in enumerate(modes)
+            m in allowed && continue
+            group_syms = [k for k in 1:SY.get_n_input(Q) if mode_of_input(Q, k) == m]
+            all(u -> isempty(SY.post(Q, i, u)), group_syms) || continue
+            gaps[node] = get(gaps, node, 0) + 1
+        end
+    end
+    forbidden = sum(values(gaps); init = 0)
+
+    println("Switching semantics: :$semantics")
+    if ncompleted > 0
+        println(
+            "Pessimistic completion: $ncompleted (state, mode) pairs had no successor " *
+            "and were routed to a losing sink.",
+        )
+    end
+    forbidden == 0 && return nothing
+
+    if semantics === :arbitrary
+        println(
+            "  of which $forbidden are modes the graph's language FORBIDS at their node " *
+            "($(join(["$k: $v" for (k, v) in sort(collect(gaps); by = string ∘ first)], ", "))). " *
+            "Under :arbitrary that is correct and deliberate -- the adversary is credited with " *
+            "moves the graph does not model. If the language IS the plant, pass " *
+            "switching_semantics = :language instead, or this run answers a different question.",
+        )
+    else
+        println(
+            "  $forbidden forbidden (state, mode) pairs were left uncompleted, as :language " *
+            "requires; the $ncompleted sinks above are genuine escapes from the covered region.",
+        )
+    end
+    return nothing
+end
+
+"""
+Warn when the certified set spans nodes that do not admit the same futures.
+
+Such a set is not one answer but several, one per node, and unioning them over-claims: a point
+certified only at the most restrictive node is reported as certified outright. The fix is to decide
+which node a run may start in and keep only those states -- see `states_at_nodes`.
+"""
+function warn_if_nodes_restrict_future(Q::QuotientAutomaton)
+    enabled = Q.quotient.enabled
+    isempty(enabled) && return nothing
+    reference = first(values(enabled))
+    all(==(reference), values(enabled)) && return nothing
+    println(
+        "NOTE: the graph's nodes enable different modes " *
+        "($(join(["$k: $(sort(collect(v)))" for (k, v) in sort(collect(enabled); by = string ∘ first)], ", "))), " *
+        "so a node constrains the future, not just the past. The certified set spans all nodes and " *
+        "callers that union it over nodes (`get_volume` does) will over-claim. Keep the states of " *
+        "the node a run actually starts in -- `states_at_nodes(quotient, set, nodes)`.",
+    )
+    return nothing
+end
+
+"""
+    states_at_nodes(quotient, state_ids, nodes) -> Vector{Int}
+
+The subset of `state_ids` lying at one of `nodes`.
+
+Use it to project a certified set onto the node(s) a run may begin in, before taking any volume. On a
+graph whose nodes all enable the same modes this changes nothing worth having; on a language-restricting
+graph it is the difference between an answer and a union of answers to different questions.
+"""
+function states_at_nodes(quotient::PCBisimulationQuotient, state_ids, nodes)
+    wanted = Set(nodes)
+    return [id for id in state_ids if quotient.states[id].node in wanted]
 end
 
 # ============================================================

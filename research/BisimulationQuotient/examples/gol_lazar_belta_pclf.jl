@@ -1,18 +1,15 @@
 # Example 3.1 — the paper's reference run.
 #
 # The system, working set and observation regions are those of Gol, Ding, Lazar & Belta
-# (arXiv:1208.5471, Example 3.1); the certificate is ours. Where
-# `gol_lazar_belta_example.jl` reproduces *their* certificate at |S| = 1 to check that the
-# framework contains theirs, this script runs the full pipeline on the same problem with a
-# two-node path-complete certificate: quotient, co-safe LTL synthesis, controller, closed-loop
-# trajectory and winning-region volume.
+# (arXiv:1208.5471, Example 3.1); the certificate is ours. It runs the full pipeline on their
+# problem with a two-node path-complete certificate: quotient, co-safe LTL synthesis, controller,
+# closed-loop trajectory and winning-region volume.
 #
 # Reference numbers: 10611 quotient states, controllable-set volume 186.72811640312693.
 #
-# The two are not comparable as a cost benchmark. They use different certificates, and a
-# certificate determines its own slice family and terminal set, so their cell counts measure
-# different partitions of different regions — see the note at the head of
-# `gol_lazar_belta_example.jl`.
+# This is not comparable to their published run as a cost benchmark. The certificates differ, and
+# a certificate determines its own slice family and terminal set, so the two cell counts measure
+# different partitions of different regions — see the README's note on cross-certificate counts.
 
 include(joinpath(dirname(@__DIR__), "common.jl"))
 using Spot
@@ -24,9 +21,8 @@ gr()
 # ---------------------------------------------------------
 
 # The system, working set and observation regions are Example 3.1 of Gol, Ding, Lazar & Belta
-# (arXiv:1208.5471). They are defined once in `common.jl` so that this script and
-# `gol_lazar_belta_example.jl`, which compares our certificate against theirs, abstract exactly
-# the same problem — otherwise the two quotients would partition different sets.
+# (arXiv:1208.5471), defined once in `common.jl` so that every script abstracts exactly the same
+# problem — otherwise the quotients would partition different sets.
 
 (; f, problem, X, R1, R2, R3) = gol_lazar_belta_problem()
 
@@ -98,7 +94,7 @@ verification = synthesize_cosafe_ltl(
 # ---------------------------------------------------------
 # The natural |S| = 1 comparison is not a solver-found single-node certificate — a conic
 # single-node one collapses the quotient to almost nothing (see the README) — but the paper's
-# own 4-row certificate, the one `gol_lazar_belta_example.jl` validates against their numbers.
+# own 4-row certificate, which E4 validated against their published numbers.
 
 pclf_common = PCLF.PCLF(
     PCLF.generate_DeBruijn_edges(2, 0),
@@ -171,7 +167,6 @@ end
 
 save_fig(fig, name) = begin
     savefig(fig, joinpath(@__DIR__, name * ".png"))
-    savefig(fig, joinpath(@__DIR__, name * ".pdf"))
     return println("wrote ", name, ".{png,pdf}")
 end
 
