@@ -12,21 +12,34 @@
 # value table onto states alone loses paths whose upstream compatibility needs
 # a locally more expensive input, so the value function here is keyed on pairs
 # and the controller keeps the previous input as memory.
+#
+# Non-deterministic automata are handled by the min-max version (Knuth 1977): a
+# pair's value is its cost plus the worst, over its successors, of the best
+# compatible continuation there.
 # ============================================================
 
-import DataStructures: PriorityQueue, dequeue_pair!
+import DataStructures: BinaryMinHeap
 
 """
     AbstractInputVariation
 
-An input slew-rate constraint, consulted only as `_compatible(constraint, u⁻, u)`.
+A constraint on consecutive inputs, consulted as `_compatible(constraint, q, u⁻, u)`:
+may `u` be played at state `q` right after `u⁻`?
 
-Two forms: [`BoundedInputVariation`](@ref), written by the user over concrete
-inputs and holding a distance *function*, and [`TabulatedInputVariation`](@ref),
-the plain-data form over abstract input symbols that a synthesized controller can
-actually carry through serialization.
+Three forms: [`BoundedInputVariation`](@ref), written by the user over concrete
+inputs and holding a distance *function*; [`TabulatedInputVariation`](@ref), the
+plain-data form over abstract input symbols that a synthesized controller can carry
+through serialization; and [`StateInputVariation`](@ref), whose check also depends
+on the state, e.g. an actuator torque limit.
 """
 abstract type AbstractInputVariation end
+
+# A constraint that ignores the state answers from the inputs alone, and a
+# `nothing` boundary input (no initial or final input prescribed) is unconstrained.
+_compatible(c::AbstractInputVariation, ::Int, u_prev::Int, u::Int) =
+    _compatible(c, u_prev, u)
+_compatible(::AbstractInputVariation, ::Int, ::Nothing, ::Int) = true
+_compatible(::AbstractInputVariation, ::Int, ::Int, ::Nothing) = true
 
 """
     BoundedInputVariation(input_distance, max_variation; target_input = nothing, initial_input = nothing)
@@ -115,6 +128,33 @@ _compatible(constraint::TabulatedInputVariation, u_prev::Int, u::Int) =
 
 _compatible(constraint::TabulatedInputVariation, ::Nothing, u::Int) = true
 
+"""
+    StateInputVariation(compatible; target_input = nothing, initial_input = nothing)
+
+Constraint on consecutive inputs that depends on the state: `compatible(q, u⁻, u)`
+says whether `u` may be played at abstract state `q` right after `u⁻`, all three
+being abstract symbols. It must hold for every concrete state of `q`'s cell; the
+canonical use is an actuator torque limit during the switch from `u⁻` to `u`.
+
+`target_input` and `initial_input` play the same role as in
+[`BoundedInputVariation`](@ref), and are checked through `compatible` at the state
+where the motion ends or starts.
+
+Unlike [`TabulatedInputVariation`](@ref), it holds a function, so a controller
+carrying it cannot be reloaded in a fresh session.
+"""
+struct StateInputVariation{F, TU, IU} <: AbstractInputVariation
+    compatible::F
+    target_input::TU
+    initial_input::IU
+end
+
+StateInputVariation(compatible; target_input = nothing, initial_input = nothing) =
+    StateInputVariation(compatible, target_input, initial_input)
+
+_compatible(c::StateInputVariation, q::Int, u_prev::Int, u::Int) =
+    c.compatible(q, u_prev, u)
+
 # Per-state candidate inputs, cheapest first, flat (CSR): state `q` owns
 # `inputs[offsets[q] : offsets[q+1]-1]`. Internal to this solver -- the
 # controller captures it, so it is also what a saved controller carries.
@@ -139,6 +179,87 @@ function (C::_RankedCandidates)(q::Int)
     return @inbounds view(C.inputs, C.offsets[q]:(C.offsets[q + 1] - 1))
 end
 
+# The symbols leaving (or entering) each state, deduplicated and sorted, flat (CSR):
+# state `k` owns `symbols[offsets[k] : offsets[k+1]-1]`, and `counts` holds how many
+# transitions share each (state, symbol). Grouped by source, an entry is a pair and
+# its count is its number of successors; grouped by target, an entry is an incoming
+# symbol. `keyof` picks the grouping state from a `(target, source, symbol)` triple.
+function _grouped_symbols(autom, nstates::Int, keyof, keep)
+    deg = zeros(Int, nstates)
+    for t in SY.enum_transitions(autom)
+        keep(t) && (deg[keyof(t)] += 1)
+    end
+    offs = Vector{Int}(undef, nstates + 1)
+    acc = 1
+    for k in 1:nstates
+        offs[k] = acc
+        acc += deg[k]
+    end
+    offs[nstates + 1] = acc
+    raw = Vector{Int32}(undef, acc - 1)
+    fill_at = copy(offs)
+    for t in SY.enum_transitions(autom)
+        keep(t) || continue
+        k = keyof(t)
+        raw[fill_at[k]] = t[3]
+        fill_at[k] += 1
+    end
+
+    offsets = Vector{Int}(undef, nstates + 1)
+    symbols = Int32[]
+    counts = Int32[]
+    sizehint!(symbols, length(raw))
+    sizehint!(counts, length(raw))
+    for k in 1:nstates
+        offsets[k] = length(symbols) + 1
+        for s in sort!(view(raw, offs[k]:(offs[k + 1] - 1)))
+            if length(symbols) >= offsets[k] && symbols[end] == s
+                counts[end] += Int32(1)
+            else
+                push!(symbols, s)
+                push!(counts, Int32(1))
+            end
+        end
+    end
+    offsets[nstates + 1] = length(symbols) + 1
+    return offsets, symbols, counts
+end
+
+# Position of symbol `u` in state `k`'s slice, or 0 when `k` has no such entry.
+function _entry(offsets, symbols, k::Int, u::Int)
+    lo, hi = offsets[k], offsets[k + 1] - 1
+    i = searchsortedfirst(view(symbols, lo:hi), u)
+    return i <= hi - lo + 1 && symbols[lo + i - 1] == u ? lo + i - 1 : 0
+end
+
+# Mark `q′` resolved at value `v` for every incoming symbol that `accepts`, then
+# credit the predecessor pairs reaching `q′` with one of those symbols: a pair whose
+# successors are now all resolved is queued, once, at its final worst-case value.
+function _resolve!(heap, s, autom, cost, q′::Int, v::Float64, accepts)
+    empty!(s.newly_list)
+    for e in s.in_offsets[q′]:(s.in_offsets[q′ + 1] - 1)
+        s.resolved[e] && continue
+        u = Int(s.in_inputs[e])
+        accepts(u) || continue
+        s.resolved[e] = true
+        s.newly[u] = true
+        push!(s.newly_list, u)
+    end
+    isempty(s.newly_list) && return
+    for (q, u) in SY.pre(autom, q′)
+        s.newly[u] || continue
+        p = _entry(s.pair_offsets, s.pair_inputs, q, u)
+        p == 0 && continue # a pair from a target or an unsafe state carries no value
+        s.worst[p] = max(s.worst[p], v)
+        s.remaining[p] -= Int32(1)
+        s.remaining[p] == 0 && push!(heap, (cost(q, u) + s.worst[p], p))
+    end
+    for u in s.newly_list
+        s.newly[u] = false
+    end
+    return
+end
+
 """
     compute_bounded_input_variation_controller(
         autom::SY.AbstractAutomatonList,
@@ -149,23 +270,25 @@ end
         cost_function = nothing,
     )
 
-Optimal reach(-avoid) controller under the input slew-rate `constraint`
-(consecutive inputs at most `max_variation` apart in `input_distance`).
+Optimal worst-case reach(-avoid) controller under a constraint on consecutive inputs.
 
-Dijkstra on the pair graph: the value of `(q, u)` is the optimal cost-to-target
-from `q` when playing `u` now, subject to every later consecutive pair — and
-the final input, when `target_input` is set — being compatible. The returned
-controller is *dynamic* — its memory is the previously played input — and at `q`
-with memory `u⁻` it plays the compatible input of least value.
+The search runs on the pairs `(q, u)` of the automaton. The value of a pair is the
+optimal worst-case cost from `q` when playing `u` now: `V(q, u) = cost(q, u) + max
+over successors q′ of W(q′, u)`, where `W(q′, u)` is `0` if `q′` is a target and the
+final input is compatible (`target_input`), `+∞` if it is a target and it is not,
+and otherwise the least `V(q′, u′)` over the `u′` compatible with `u` at `q′`. A run
+never passes through a target: the closed loop stops at the first one it reaches.
+
+For a deterministic automaton this is Dijkstra on the line graph (Caldwell 1961);
+otherwise it is its min-max generalization (Knuth 1977). The returned controller is
+*dynamic*: its memory is the previously played input, and at `q` with memory `u⁻`
+it plays the compatible input of least value.
 
 The controller holds on to `constraint`, so it is serializable exactly when the
-constraint is — pass a [`TabulatedInputVariation`](@ref), not a distance function.
-
-Only **deterministic** automata are supported for now — the exact-lattice
-abstractions this constraint is designed for are deterministic by construction.
+constraint is: pass a [`TabulatedInputVariation`](@ref), not a distance function.
 
 Returns `(controller, controllable_set, uncontrollable_set, value_fun_tab)`
-with `value_fun_tab[q] = min_u value(q, u)` (unconstrained start at `q`).
+with `value_fun_tab[q] = min_u V(q, u)` (unconstrained start at `q`).
 """
 function compute_bounded_input_variation_controller(
     autom::SY.AbstractAutomatonList,
@@ -175,114 +298,111 @@ function compute_bounded_input_variation_controller(
     safe_set = nothing,
     cost_function = nothing,
 )
-    SY.is_deterministic(autom) || error(
-        "compute_bounded_input_variation_controller requires a deterministic automaton; " *
-        "for nondeterministic abstractions the worst-case pair-graph fixed point is not " *
-        "implemented yet.",
-    )
-
     nstates = SY.get_n_state(autom)
     cost = cost_function === nothing ? ((q, u) -> 1.0) : cost_function
     safe_bits = _safe_bits(safe_set, nstates)
+    target_bits = _bitset_from_states(target_set, nstates)
 
-    value = Dict{Tuple{Int, Int}, Float64}()
-    pq = PriorityQueue{Tuple{Int, Int}, Float64}()
-
-    # Boundary condition on the last edge of every path: it must be compatible
-    # with `target_input` (when set) and start from a safe state.
-    for q_target in _safe_targets(target_set, safe_bits)
-        for (q, u) in SY.pre(autom, q_target)
-            safe_bits[q] || continue
-            _compatible(constraint, constraint.target_input, u) || continue
-            c = cost(q, u)
-            if c < get(value, (q, u), Inf)
-                value[(q, u)] = c
-                pq[(q, u)] = c
-            end
-        end
+    # Only pairs from safe, non-target states carry a value: the closed loop stops at
+    # the first target, so a pair leaving one is never played.
+    pair_offsets, pair_inputs, remaining = _grouped_symbols(
+        autom,
+        nstates,
+        t -> t[2],
+        t -> safe_bits[t[2]] && !target_bits[t[2]],
+    )
+    in_offsets, in_inputs, _ = _grouped_symbols(
+        autom,
+        nstates,
+        t -> t[1],
+        t -> safe_bits[t[2]] && !target_bits[t[2]],
+    )
+    npairs = length(pair_inputs)
+    pair_source = Vector{Int32}(undef, npairs)
+    for q in 1:nstates, p in pair_offsets[q]:(pair_offsets[q + 1] - 1)
+        pair_source[p] = q
     end
 
-    target_bits = _bitset_from_states(target_set, nstates)
+    search = (;
+        pair_offsets,
+        pair_inputs,
+        remaining,
+        in_offsets,
+        in_inputs,
+        worst = zeros(npairs),
+        resolved = falses(length(in_inputs)),
+        newly = falses(SY.get_n_input(autom)),
+        newly_list = Int[],
+    )
+    value = fill(Inf, npairs)
+    heap = BinaryMinHeap{Tuple{Float64, Int}}()
+
+    # Last step of every run: entering a safe target with a final input compatible
+    # with `target_input`.
+    for q′ in _safe_targets(target_set, safe_bits)
+        _resolve!(
+            heap,
+            search,
+            autom,
+            cost,
+            q′,
+            0.0,
+            u -> _compatible(constraint, q′, u, constraint.target_input),
+        )
+    end
+
     init_states = collect(initial_set)
     init_bits = _bitset_from_states(init_states, nstates)
     init_covered = falses(nstates)
     num_init_uncovered = count(q -> !target_bits[q], init_states)
 
-    settled = Set{Tuple{Int, Int}}()
-    while !isempty(pq) && num_init_uncovered > 0
-        (pair, v) = dequeue_pair!(pq)
-        pair in settled && continue
-        push!(settled, pair)
-        q′, u′ = pair
+    while !isempty(heap) && num_init_uncovered > 0
+        v, p = pop!(heap)
+        value[p] = v
+        q′ = Int(pair_source[p])
+        u′ = Int(pair_inputs[p])
 
         if init_bits[q′] &&
            !init_covered[q′] &&
-           _compatible(constraint, constraint.initial_input, u′)
+           _compatible(constraint, q′, constraint.initial_input, u′)
             init_covered[q′] = true
             num_init_uncovered -= 1
         end
 
-        # Backward relaxation: play `u` at `q`, land (deterministically) on q′,
-        # then continue with u′ — allowed only when the pair is compatible.
-        for (q, u) in SY.pre(autom, q′)
-            safe_bits[q] || continue
-            target_bits[q] && continue # paths restart at the target boundary
-            _compatible(constraint, u, u′) || continue
-            candidate = cost(q, u) + v
-            if candidate < get(value, (q, u), Inf)
-                value[(q, u)] = candidate
-                pq[(q, u)] = candidate
-            end
-        end
+        # `u′` at `q′` is now settled: every input `u` arriving at `q′` from which the
+        # switch to `u′` is allowed has found its best continuation.
+        _resolve!(heap, search, autom, cost, q′, v, u -> _compatible(constraint, q′, u, u′))
     end
 
-    # Candidate inputs per state, cheapest first — the controller's lookup table,
-    # and the whole size of a saved controller. Stored flat (CSR) rather than as a
-    # `Dict{Int, Vector{Tuple{Int, Float64}}}`: that costs a heap-allocated inner
-    # vector per state plus the dict itself, 743 MB of a 745 MB controller on the
-    # 4-D biped. The cost only orders each list — `select` below discards it — so
-    # it is dropped once the ordering is baked in, halving what remains.
-    counts = zeros(Int32, nstates)
-    for ((q, _), _) in value
-        counts[q] += 1
-    end
-    offsets = Vector{Int32}(undef, nstates + 1)
-    let k = Int32(1)
-        for q in 1:nstates
-            offsets[q] = k
-            k += counts[q]
-        end
-        offsets[nstates + 1] = k
-    end
-    total = Int(offsets[nstates + 1]) - 1
-    cand_inputs = Vector{Int32}(undef, total)
-    cand_values = Vector{Float64}(undef, total)   # temporary: ordering only
-    let fill_at = copy(offsets)
-        for ((q, u), v) in value
-            i = fill_at[q]
-            cand_inputs[i] = u
-            cand_values[i] = v
-            fill_at[q] = i + Int32(1)
-        end
-    end
+    # Candidate inputs per state, cheapest first: the controller's lookup table, and
+    # the whole size of a saved controller. The values only order each list.
+    cand_offsets = Vector{Int32}(undef, nstates + 1)
+    cand_inputs = Int32[]
+    buffer = Int[]
     for q in 1:nstates
-        lo, hi = Int(offsets[q]), Int(offsets[q + 1]) - 1
-        hi > lo || continue
-        perm = sortperm(view(cand_values, lo:hi))
-        cand_inputs[lo:hi] = cand_inputs[lo:hi][perm]
+        cand_offsets[q] = length(cand_inputs) + 1
+        empty!(buffer)
+        for p in pair_offsets[q]:(pair_offsets[q + 1] - 1)
+            isfinite(value[p]) && push!(buffer, p)
+        end
+        sort!(buffer; by = p -> value[p])
+        for p in buffer
+            push!(cand_inputs, pair_inputs[p])
+        end
     end
-    candidates = _RankedCandidates(offsets, cand_inputs)
+    cand_offsets[nstates + 1] = length(cand_inputs) + 1
+    candidates = _RankedCandidates(cand_offsets, cand_inputs)
 
-    # Deterministic selection shared by output and memory update: cheapest
-    # compatible input at `q` given the previously played input (0 = none yet).
+    # Shared by output and memory update: the cheapest input compatible with the
+    # previously played one (0 = none yet, so `initial_input` applies).
     select = function (q::Int, u_prev::Int)
         target_bits[q] && return nothing # reached: the controller is done
         for u32 in candidates(q)
-            u = Int(u32)   # widen here so callers only ever see `Int` symbols
+            u = Int(u32)
             if u_prev == 0
-                _compatible(constraint, constraint.initial_input, u) && return u
+                _compatible(constraint, q, constraint.initial_input, u) && return u
             else
-                _compatible(constraint, u_prev, u) && return u
+                _compatible(constraint, q, u_prev, u) && return u
             end
         end
         return nothing
@@ -297,24 +417,22 @@ function compute_bounded_input_variation_controller(
     )
 
     value_fun_tab = fill(Inf, nstates)
-    for ((q, _), v) in value
-        value_fun_tab[q] = min(value_fun_tab[q], v)
+    for p in 1:npairs
+        q = Int(pair_source[p])
+        value_fun_tab[q] = min(value_fun_tab[q], value[p])
     end
     for q in _safe_targets(target_set, safe_bits)
         value_fun_tab[q] = 0.0
     end
 
-    # A state is controllable when the controller can actually start there:
-    # some finite-value input compatible with `initial_input` (or the state is
-    # already in the target).
+    # A state is controllable when the controller can actually start there: some
+    # finite-value input compatible with `initial_input`, or the state is a target.
     controllable_set = Set{Int}()
     for q in 1:nstates
         if target_bits[q] && safe_bits[q]
             push!(controllable_set, q)
-            # `candidates(q)` is empty for a state with no finite-value input, so
-            # `any` already answers false — no membership test needed.
         elseif any(
-            u -> _compatible(constraint, constraint.initial_input, Int(u)),
+            u -> _compatible(constraint, q, constraint.initial_input, Int(u)),
             candidates(q),
         )
             push!(controllable_set, q)
