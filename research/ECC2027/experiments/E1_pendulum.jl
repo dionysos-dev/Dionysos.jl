@@ -225,17 +225,20 @@ function closed_loop_torque(optimizer; nstep = 400)
 end
 
 """
-    replay(optimizer; nstep = 400) -> (traj, reached)
+    replay(optimizer; constrained, nstep = 400) -> (traj, reached)
 
-Run the controller of a velocity model on the exact step dynamics, `θ ↦ θ + τ u`, and stop on
-entering the target; `reached` is whether the pendulum is in the target when it stops.
+Run the controller of a velocity model on the exact step dynamics, `θ ↦ θ + τ u`; `reached`
+is whether the pendulum is in the target when the run ends. Without a constraint on
+consecutive commands, (S), the run ends on entering the target. With one, (F), the controller
+itself ends the run where the stop command is admissible, and crosses the target otherwise
+(Problem 2 of the paper), so `reached` also requires the last command to allow the stop.
 """
-function replay(optimizer; nstep = 400)
+function replay(optimizer; constrained, nstep = 400)
     ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"))
     step(x, u) = SVector(x[1] + τ * u[1])
     meas(x) = SVector(rem2pi(x[1], RoundNearest))
-    stopping = x -> at_top(x, prob)
+    stopping = constrained ? (x -> false) : (x -> at_top(x, prob))
     traj = DI.System.get_closed_loop_trajectory(
         nothing,
         ctrl,
@@ -245,7 +248,9 @@ function replay(optimizer; nstep = 400)
         stopping,
         f_map_override = step,
     )
-    return traj, at_top(DI.System.states(traj)[end], prob)
+    us = DI.System.inputs(traj)
+    can_stop = !constrained || (!isempty(us) && abs(us[end][1]) <= SLEW + 1e-9)
+    return traj, at_top(DI.System.states(traj)[end], prob) && can_stop
 end
 
 """
@@ -266,7 +271,8 @@ function fewest_steps(optimizer, constraint)
     end
     inputs = collect(SY.enum_inputs(abs_sys))
     targets = Set(prob.target_set)
-    # The closed loop stops at the first target cell, and succeeds if the stop command is allowed.
+    # A run ends at a target cell where the stop command is allowed; a target cell entered too
+    # fast to stop is crossed like any other cell (Problem 2 of the paper).
     arrived((q, v)) = q in targets && κ.compatible[v, κ.target_input]
     frontier = [(SY.get_abstract_state(abs_sys, SVector(THETA_0)), κ.initial_input)]
     seen = Set(frontier)
@@ -274,7 +280,6 @@ function fewest_steps(optimizer, constraint)
         any(arrived, frontier) && return steps
         next = Tuple{Int, Int}[]
         for (q, v) in frontier
-            q in targets && continue
             for u in inputs
                 κ.compatible[v, u] || continue
                 for t in get(succ, (q, u), Int[])
@@ -368,7 +373,8 @@ if results[:T].success
 end
 for name in keys(VARIANTS)
     results[name].success || continue
-    tr, reached = replay(results[name].optimizer)
+    tr, reached =
+        replay(results[name].optimizer; constrained = VARIANTS[name].constraint !== nothing)
     θs = [x[1] for x in DI.System.states(tr)]
     us = [u[1] for u in DI.System.inputs(tr)]
     impulses = us .- vcat(0.0, us[1:(end - 1)])      # α = 1: the impulse is the change of command
