@@ -40,15 +40,17 @@ _compatible(c::AbstractInputVariation, ::Int, u_prev::Int, u::Int) =
     _compatible(c, u_prev, u)
 _compatible(::AbstractInputVariation, ::Int, ::Nothing, ::Int) = true
 _compatible(::AbstractInputVariation, ::Int, ::Int, ::Nothing) = true
+_compatible(::AbstractInputVariation, ::Int, ::Nothing, ::Nothing) = true
 
 """
     BoundedInputVariation(input_distance, max_variation; target_input = nothing, initial_input = nothing)
 
 Input slew-rate constraint for [`compute_bounded_input_variation_controller`](@ref):
 consecutive inputs must satisfy `input_distance(u⁻, u) ≤ max_variation`.
-`target_input` additionally constrains the *last* input before entering the
-target (e.g. the rest input, so velocities ramp down), `initial_input` the
-*first* one; `nothing` leaves them free.
+`target_input` additionally constrains where a run may stop: it ends at a target
+only if `target_input` may follow its last input (e.g. the rest input, so
+velocities ramp down), and otherwise passes through. `initial_input` constrains
+the *first* input; `nothing` leaves them free.
 
 At the discrete level inputs are abstract symbols (`Int`); the
 UniformGridAbstraction front-end accepts the same struct expressed on
@@ -249,7 +251,7 @@ function _resolve!(heap, s, autom, cost, q′::Int, v::Float64, accepts)
     for (q, u) in SY.pre(autom, q′)
         s.newly[u] || continue
         p = _entry(s.pair_offsets, s.pair_inputs, q, u)
-        p == 0 && continue # a pair from a target or an unsafe state carries no value
+        p == 0 && continue # a pair from an unsafe state carries no value
         s.worst[p] = max(s.worst[p], v)
         s.remaining[p] -= Int32(1)
         s.remaining[p] == 0 && push!(heap, (cost(q, u) + s.worst[p], p))
@@ -274,10 +276,10 @@ Optimal worst-case reach(-avoid) controller under a constraint on consecutive in
 
 The search runs on the pairs `(q, u)` of the automaton. The value of a pair is the
 optimal worst-case cost from `q` when playing `u` now: `V(q, u) = cost(q, u) + max
-over successors q′ of W(q′, u)`, where `W(q′, u)` is `0` if `q′` is a target and the
-final input is compatible (`target_input`), `+∞` if it is a target and it is not,
-and otherwise the least `V(q′, u′)` over the `u′` compatible with `u` at `q′`. A run
-never passes through a target: the closed loop stops at the first one it reaches.
+over successors q′ of W(q′, u)`, where `W(q′, u)` is `0` if `q′` is a target at which
+`target_input` may follow `u`, and otherwise the least `V(q′, u′)` over the `u′`
+compatible with `u` at `q′`. A run stops at the first target it reaches with such a
+final input; a target it reaches too fast to stop is crossed like any safe state.
 
 For a deterministic automaton this is Dijkstra on the line graph (Caldwell 1961);
 otherwise it is its min-max generalization (Knuth 1977). The returned controller is
@@ -303,20 +305,20 @@ function compute_bounded_input_variation_controller(
     safe_bits = _safe_bits(safe_set, nstates)
     target_bits = _bitset_from_states(target_set, nstates)
 
-    # Only pairs from safe, non-target states carry a value: the closed loop stops at
-    # the first target, so a pair leaving one is never played.
-    pair_offsets, pair_inputs, remaining = _grouped_symbols(
-        autom,
-        nstates,
-        t -> t[2],
-        t -> safe_bits[t[2]] && !target_bits[t[2]],
-    )
-    in_offsets, in_inputs, _ = _grouped_symbols(
-        autom,
-        nstates,
-        t -> t[1],
-        t -> safe_bits[t[2]] && !target_bits[t[2]],
-    )
+    # A run stops at a safe target only if `target_input` may follow its last input
+    # (`initial_input` before the first step); elsewhere it continues.
+    prev_or_initial(u_prev::Int) = u_prev == 0 ? constraint.initial_input : u_prev
+    stops(q::Int, u_prev::Int) =
+        target_bits[q] &&
+        safe_bits[q] &&
+        _compatible(constraint, q, prev_or_initial(u_prev), constraint.target_input)
+
+    # Pairs from every safe state carry a value, targets included: a run that enters a
+    # target too fast to stop leaves it again.
+    pair_offsets, pair_inputs, remaining =
+        _grouped_symbols(autom, nstates, t -> t[2], t -> safe_bits[t[2]])
+    in_offsets, in_inputs, _ =
+        _grouped_symbols(autom, nstates, t -> t[1], t -> safe_bits[t[2]])
     npairs = length(pair_inputs)
     pair_source = Vector{Int32}(undef, npairs)
     for q in 1:nstates, p in pair_offsets[q]:(pair_offsets[q + 1] - 1)
@@ -338,7 +340,8 @@ function compute_bounded_input_variation_controller(
     heap = BinaryMinHeap{Tuple{Float64, Int}}()
 
     # Last step of every run: entering a safe target with a final input compatible
-    # with `target_input`.
+    # with `target_input`. The other arrivals at a target are resolved later, by the
+    # pairs leaving it.
     for q′ in _safe_targets(target_set, safe_bits)
         _resolve!(
             heap,
@@ -353,8 +356,13 @@ function compute_bounded_input_variation_controller(
 
     init_states = collect(initial_set)
     init_bits = _bitset_from_states(init_states, nstates)
+    # An initial state is covered once a run can start there: it stops at once, or a
+    # settled pair there is compatible with `initial_input`.
     init_covered = falses(nstates)
-    num_init_uncovered = count(q -> !target_bits[q], init_states)
+    for q in init_states
+        stops(q, 0) && (init_covered[q] = true)
+    end
+    num_init_uncovered = count(q -> !init_covered[q], unique(init_states))
 
     while !isempty(heap) && num_init_uncovered > 0
         v, p = pop!(heap)
@@ -396,7 +404,7 @@ function compute_bounded_input_variation_controller(
     # Shared by output and memory update: the cheapest input compatible with the
     # previously played one (0 = none yet, so `initial_input` applies).
     select = function (q::Int, u_prev::Int)
-        target_bits[q] && return nothing # reached: the controller is done
+        stops(q, u_prev) && return nothing # reached: the controller is done
         for u32 in candidates(q)
             u = Int(u32)
             if u_prev == 0
@@ -425,11 +433,11 @@ function compute_bounded_input_variation_controller(
         value_fun_tab[q] = 0.0
     end
 
-    # A state is controllable when the controller can actually start there: some
-    # finite-value input compatible with `initial_input`, or the state is a target.
+    # A state is controllable when a run can start there: it stops at once, or some
+    # finite-value input there is compatible with `initial_input`.
     controllable_set = Set{Int}()
     for q in 1:nstates
-        if target_bits[q] && safe_bits[q]
+        if stops(q, 0)
             push!(controllable_set, q)
         elseif any(
             u -> _compatible(constraint, q, constraint.initial_input, Int(u)),
