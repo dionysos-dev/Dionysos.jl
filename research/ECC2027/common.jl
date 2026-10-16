@@ -6,13 +6,14 @@
 # final run.
 #
 # Switches, read from the environment:
-#   SAMPLES=n   median of n timed rounds (default 3)
-#   FIGURES=0   skip the figures and animations (they cost more than the numbers)
+#   SAMPLES=n         median of n timed rounds (default 3)
+#   FIGURES=0         skip the figures and animations (they cost more than the numbers)
+#   RESULTS_DIR=path  where the results go (default `results/` here; `/results` on CodeOcean)
 
 import Dates
 import InteractiveUtils
 
-const RESULTS = joinpath(@__DIR__, "results")
+const RESULTS = get(ENV, "RESULTS_DIR", joinpath(@__DIR__, "results"))
 mkpath(RESULTS)
 
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "3"))
@@ -114,18 +115,21 @@ end
     write_environment()
 
 Record what produced the results: date, Julia version, Dionysos commit, machine. The paper
-quotes the machine, and a reader of the capsule can check the commit.
+quotes the machine, and a reader of the capsule can check the commit. The commit is read from the
+Dionysos.jl checkout that the environment loads, the enclosing repository or, on CodeOcean, the
+clone made by `environment/postInstall`.
 """
 function write_environment()
+    entry = Base.find_package("Dionysos")
+    repo = entry === nothing ? (@__DIR__) : dirname(dirname(entry))
     commit = try
-        readchomp(`git -C $(@__DIR__) rev-parse HEAD`)
+        readchomp(`git -C $repo rev-parse HEAD`)
     catch
         "unknown (not a git checkout)"
     end
     dirty = try
-        isempty(
-            readchomp(`git -C $(@__DIR__) status --porcelain -- ../../src ../../problems`),
-        ) ? "" : " (with uncommitted changes in src/ or problems/)"
+        isempty(readchomp(`git -C $repo status --porcelain -- src problems`)) ? "" :
+        " (with uncommitted changes in src/ or problems/)"
     catch
         ""
     end
