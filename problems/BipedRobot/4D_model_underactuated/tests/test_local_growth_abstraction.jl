@@ -1,5 +1,5 @@
 # Tests for LocalGrowthAbstraction.jl. Run with an environment that has Dionysos, Symbolics,
-# IntervalArithmetic, MathematicalSystems, LazySets, StaticArrays and MathOptInterface:
+# IntervalArithmetic, MathematicalSystems, LazySets, StaticArrays, JLD2 and MathOptInterface:
 #   julia --project=<env> tests/test_local_growth_abstraction.jl
 using Test
 using Random
@@ -243,6 +243,113 @@ random_point(cell) =
                 t === nothing || @test t in tg
             end
         end
+    end
+
+    @testset "saving and loading the transitions" begin
+        grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
+        igrid = MP.GridFree(SVector(0.0), SVector(2.0))
+        info = (; tstep, h = [0.4, 0.8])
+        file = joinpath(mktempdir(), "abstraction.jld2")
+        pairs_of(opt) = Set(
+            SY.enum_transitions(MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))),
+        )
+
+        computed = build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            abstraction_file = file,
+            abstraction_info = info,
+        )
+        @test isfile(file)                                     # written after the computation
+        calls = lgb.stats.calls[]
+        loaded = build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            abstraction_file = file,
+            abstraction_info = info,
+        )
+        @test lgb.stats.calls[] == calls                       # nothing was computed
+        @test pairs_of(loaded) == pairs_of(computed)
+        @test !isempty(pairs_of(loaded))
+
+        # The loaded abstraction is cached in the optimizer, ready for a control problem.
+        @test MOI.get(loaded, MOI.RawOptimizerAttribute("abstract_system")) !== nothing
+
+        # A file computed for other parameters, or another grid, is refused.
+        @test_throws ErrorException build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            abstraction_file = file,
+            abstraction_info = (; tstep, h = [0.4, 0.4]),
+        )
+        @test_throws ErrorException build_abstraction(
+            lgb;
+            state_grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.3, 0.8)),
+            input_grid = igrid,
+            abstraction_file = file,
+            abstraction_info = info,
+        )
+    end
+
+    @testset "chunks of a Slurm array, merged" begin
+        grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
+        igrid = MP.GridFree(SVector(0.0), SVector(2.0))
+        dir = mktempdir()
+        nchunks = 3
+        transitions(opt) = Set(
+            SY.enum_transitions(MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))),
+        )
+        full = build_abstraction(lgb; state_grid = grid, input_grid = igrid)
+
+        # One run per task of the array: each writes its chunk and caches nothing.
+        for id in 1:nchunks
+            build_abstraction(
+                lgb;
+                state_grid = grid,
+                input_grid = igrid,
+                execution_backend = SY.SlurmArrayBackend(
+                    nchunks,
+                    id,
+                    dir,
+                    :contiguous,
+                    true,
+                ),
+            )
+        end
+        @test length(readdir(dir)) == nchunks
+
+        file = joinpath(dir, "merged.jld2")
+        info = (; tstep)
+        merged = build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            merge_chunks = (; outdir = dir, nchunks),
+            abstraction_file = file,
+            abstraction_info = info,
+        )
+        @test transitions(merged) == transitions(full)
+        @test !isempty(transitions(merged))
+        @test isfile(file)                                     # the merge is saved ...
+        loaded = build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            abstraction_file = file,
+            abstraction_info = info,
+        )
+        @test transitions(loaded) == transitions(full)         # ... and loads like a computation
+
+        # A chunk that is missing, or computed for another number of chunks, is an error.
+        @test_throws ErrorException build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            merge_chunks = (; outdir = dir, nchunks = nchunks + 1),
+        )
     end
 
     @testset "acrobot normal form from Multibody2D" begin

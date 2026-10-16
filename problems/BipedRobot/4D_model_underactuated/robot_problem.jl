@@ -1,40 +1,36 @@
-# Underactuated four-link biped: mechanism, velocity-controlled design models and footstep problem.
+# Underactuated four-link biped: mechanism, normal-form design model and footstep problem.
 #
 # The robot is defined **once**, symbolically, with `Multibody2D` (`symbolic_model`): everything
-# else in this file is derived from that definition (the forward kinematics, the compiled dynamics
-# of the centre-simulation example, the normal-form model of the local-growth-bound example) or is
-# the footstep scenario built on top of it (obstacle carving, target set, grids, plots). It is the
-# same robot as `four_link_biped.urdf`, which `BipedFourLink.jl` simulates with RigidBodyDynamics
-# (checked in `tests/test_biped_four_link.jl`); no RigidBodyDynamics is needed here.
+# else in this file is derived from that definition (the forward kinematics, the normal-form design
+# model) or is the footstep scenario built on top of it (obstacle carving, target set, grids,
+# start state, closed loop, plots). It is the same robot as `four_link_biped.urdf`, which
+# `BipedFourLink.jl` simulates with RigidBodyDynamics (checked in
+# `tests/test_biped_four_link.jl`); no RigidBodyDynamics is needed here.
 #
 # Unlike the fully actuated 4-D model (`../4D_model/robot_problem.jl`, `ẋ = u`), the grounded ankle
 # `q₁` is *not* actuated: only the three motor joints (grounded knee `q₂`, hip `q₃`, swing knee
 # `q₄`) track commanded velocities `u = [v₂, v₃, v₄]`, held constant over a sampling period (the
 # actuated accelerations are zero), and the ankle obeys the first, unactuated Euler–Lagrange row of
 # the multibody model: `q₁` falls like an inverted pendulum, and the controller keeps it in the
-# domain only through the configuration of the motor joints and the Coriolis coupling. The 5-D state
-# has the ankle variable first, so that the carving, the target set and the plots apply to both
-# descriptions of the ankle:
+# domain only through the configuration of the motor joints and the Coriolis coupling. The design
+# model (`reduced_dynamics`) describes the ankle by its generalized momentum `p₁ = ∂L/∂q̇₁`, in the
+# first slot of the 5-D state:
 #
-#     x = [q̇₁, q₁, q₂, q₃, q₄]    (VelocityControlledDynamics, compiled, for centre simulation)
-#     x = [p₁, q₁, q₂, q₃, q₄]    (reduced_dynamics, symbolic, from the normal form, for the local
-#                                  growth bound; p₁ = ∂L/∂q̇₁ is the ankle momentum)
+#     x = [p₁, q₁, q₂, q₃, q₄],     u = [v₂, v₃, v₄]
 #
 # Angle convention: all joint angles, velocities and the ankle coordinate are **positive
 # counter-clockwise** in the `(x, z)` plane (`x` pointing forwards, `z` up), the convention of
 # `Multibody2D.jl`. A positive `q₁` leans the robot backwards, a positive `q₃` swings the swing
 # foot forwards, and the knee bends backwards for a negative `q₄`.
 #
-# The dynamics are nonlinear in the ankle coordinates, so the exact-lattice argument of the fully
-# actuated model holds for the three motor coordinates only: an abstraction built with
-# `CENTER_SIMULATION` is **not** a certified over-approximation here (the local growth bound of
-# `LocalGrowthAbstraction.jl` is). The closed-loop trajectory of the concrete system is what
-# validates a controller.
+# The dynamics are nonlinear in the ankle coordinates, so the abstraction has to be a certified
+# over-approximation: the local growth bound of `LocalGrowthAbstraction.jl` is. The closed-loop
+# trajectory of the concrete system is the end-to-end check of a controller (`closed_loop`).
 module UnderactuatedRobotProblem
 
 using StaticArrays
-using MathematicalSystems
 import LazySets
+import MathOptInterface as MOI
 import Plots
 import Symbolics
 using Symbolics: Num
@@ -46,8 +42,8 @@ const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
 
-# `mass_matrix` is also exported by MathematicalSystems: only what is unambiguous is imported, the
-# rest (`Multibody2D.mass_matrix`, `bias_vector`, `position`) is qualified.
+# Only what is unambiguous is imported (`Multibody2D` exports `position`, `mass_matrix`, … which
+# clash with other packages): the rest is qualified (`Multibody2D.position`, …).
 include(joinpath(@__DIR__, "Multibody2D.jl"))
 using .Multibody2D: MultibodySystem, add_frame!, add_point!, normal_form
 
@@ -225,53 +221,15 @@ swing_foot_deviation_bound(geometry::Geometry, radius::AbstractVector) =
     sum(swing_foot_gradient_bound(geometry) .* abs.(radius))
 
 # ============================================================
-# Velocity-controlled design models
+# The design model, in normal form
 # ============================================================
-
-"""
-    VelocityControlledDynamics(; model = symbolic_model(), values = default_parameters())
-
-Callable `(x, u) -> ẋ` for the velocity-controlled design state
-`x = [q̇₁, q₁, q₂, q₃, q₄]` and commanded motor velocities `u = [v₂, v₃, v₄]`:
-
-    q̈₁ = h₁(q, [q̇₁, u]) / D₁₁(q),   q̇₁ = x₁,   (q̇₂, q̇₃, q̇₄) = u,
-
-with `D` the mass matrix and `h = ∂L/∂q − Ḋ q̇` the bias vector of the symbolic `model`
-(`Multibody2D`), the first row of `D q̈ = h + Bτ` with zero actuated accelerations. `values` are the
-numbers (lengths, masses, gravity).
-
-The symbolic expression of `q̈₁` is built once, with the numbers substituted, and compiled: a call
-allocates nothing and is thread safe, which is what makes an abstraction with millions of RK4
-roll-outs affordable. Use it for centre-simulation abstractions; for the local growth bound, whose
-Jacobian bounds need the symbolic expressions, see [`reduced_dynamics`](@ref).
-"""
-struct VelocityControlledDynamics{F}
-    ankle_acceleration::F
-end
-
-function VelocityControlledDynamics(;
-    model = symbolic_model(),
-    values = default_parameters(),
-)
-    sys = model.sys
-    q̈1 = substitute_parameters(
-        model,
-        Multibody2D.bias_vector(sys)[1] / Multibody2D.mass_matrix(sys)[1, 1],
-        values,
-    )
-    return VelocityControlledDynamics(_compile(q̈1, [sys.qd[1]; sys.q], sys.qd[2:4]))
-end
-
-function (f::VelocityControlledDynamics)(x, u)
-    return SVector(f.ankle_acceleration(x, u), x[1], u[1], u[2], u[3])
-end
 
 """
     reduced_dynamics(model) -> NamedTuple
 
 The 5-dimensional velocity-controlled model extracted from the normal form `x = (q, v_a, p_u)` of
-`model`, with the **ankle momentum first**: the state is `x = (p₁, q₁, q₂, q₃, q₄)` (`p₁ = ∂L/∂q̇₁`,
-the slot of `q̇₁` in [`VelocityControlledDynamics`](@ref)), the input `u = v_a = (q̇₂, q̇₃, q̇₄)` and
+`model`, with the **ankle momentum first**: the state is `x = (p₁, q₁, q₂, q₃, q₄)` (`p₁ = ∂L/∂q̇₁`, the
+momentum of the unactuated ankle), the input `u = v_a = (q̇₂, q̇₃, q̇₄)` and
 
     ẋ = (ṗ₁, q̇₁, v₂, v₃, v₄),     q̇₁ = D₁₁⁻¹ (p₁ - D₁ₐ v_a),     ṗ₁ = ∂L/∂q₁,
 
@@ -306,19 +264,76 @@ _obstacle_list(::Nothing) = LazySets.LazySet[]
 _obstacle_list(obstacle::LazySets.LazySet) = [obstacle]
 _obstacle_list(obstacles::AbstractVector) = obstacles
 
-"""
-    infeasible_cells(X, state_grid, obstacle, geometry)
+"The name under which the ground constraint (swing foot above `z = 0`) appears in a [`Carving`](@ref)."
+const GROUND_NAME = "ground"
 
-The `MP.CellUnion` of the cells of `X` (a 5-D hyperrectangle) to exclude, as in the
-fully actuated model: cells where the swing foot *might* touch the Cartesian
-`obstacle` (sound, `MP.image_blocked_cells`), and cells where the swing foot is
-surely below the ground (tolerant, so the footholds on the ground stay).
+"""
+    Carving
+
+The result of [`infeasible_cells`](@ref): `cells`, the `MP.CellUnion` of the 5-D cells to exclude from
+the state domain, and `causes`, the same cells grouped by the constraint that removed them, as
+`name => positions` pairs (`"ground"` first, then the obstacles by their `obstacle_name`). A cell can
+be removed by several constraints. The positions are those of the 4-D angle cells
+`(q₁, q₂, q₃, q₄)`: the swing foot, hence the carving, does not depend on the ankle coordinate.
+"""
+struct Carving
+    cells::MP.CellUnion
+    causes::Vector{Pair{String, Set{NTuple{4, Int}}}}
+end
+
+"""
+    carved_by(carving, pos) -> Vector{String}
+
+The names of the constraints of `carving` that removed the 5-D cell `pos`.
+"""
+function carved_by(carving::Carving, pos::NTuple{5, Int})
+    return [name for (name, cells) in carving.causes if pos[2:5] in cells]
+end
+
+# The obstacles grouped by name, in order of appearance: `names` is one name for all of them, or
+# one name per obstacle.
+function _obstacle_groups(obstacles, names::AbstractString)
+    return isempty(obstacles) ? Pair{String, typeof(obstacles)}[] :
+           [String(names) => obstacles]
+end
+
+function _obstacle_groups(obstacles, names::AbstractVector)
+    length(names) == length(obstacles) || error(
+        "`obstacle_name` must be one name or one name per obstacle: got " *
+        "$(length(names)) names for $(length(obstacles)) obstacles",
+    )
+    groups = Pair{String, typeof(obstacles)}[]
+    for (obstacle, name) in zip(obstacles, names)
+        k = findfirst(g -> first(g) == name, groups)
+        if k === nothing
+            push!(groups, String(name) => eltype(obstacles)[obstacle])
+        else
+            push!(last(groups[k]), obstacle)
+        end
+    end
+    return groups
+end
+
+"""
+    infeasible_cells(X, state_grid, obstacle, geometry; obstacle_name = "obstacle") -> Carving
+
+The cells of `X` (a 5-D hyperrectangle) to exclude, as in the fully actuated model: cells where the
+swing foot *might* touch the Cartesian `obstacle` (a `LazySet` or a vector of them; sound,
+`MP.image_blocked_cells`), and cells where the swing foot is surely below the ground (tolerant, so
+the footholds on the ground stay). Returns a [`Carving`](@ref): the `cells` to remove (what
+[`system`](@ref) and `UT.set_minus` take), and which constraint removed which, so that
+[`start_state`](@ref) can say what carved the start cell.
+
+The constraints are named: the ground constraint `"ground"` ([`GROUND_NAME`](@ref)), and the
+obstacles by `obstacle_name`, a string for all of them (the default `"obstacle"`) or one string per
+obstacle, e.g. `"lift constraint"` for the obstacle at the origin that forces the swing foot to lift.
 """
 function infeasible_cells(
     X::LazySets.AbstractHyperrectangle,
     state_grid::MP.GridFree,
     obstacle,
-    geometry::Geometry,
+    geometry::Geometry;
+    obstacle_name = "obstacle",
 )
     grad = swing_foot_gradient_bound(geometry)
     dev = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2)
@@ -333,11 +348,12 @@ function infeasible_cells(
     below_ground = MP.cells_where(q_grid, Q) do pos
         return q_foot(MP.get_coord_by_pos(q_grid, pos))[2] < -dev
     end
-    obstacles = _obstacle_list(obstacle)
-    blocked_q =
-        isempty(obstacles) ? Set{NTuple{4, Int}}() :
-        MP.image_blocked_cells(q_foot, grad[IDX_Q], q_grid, Q, obstacles).positions
-    removed_q = union(below_ground.positions, blocked_q)
+    causes = Pair{String, Set{NTuple{4, Int}}}[GROUND_NAME => below_ground.positions]
+    for (name, group) in _obstacle_groups(_obstacle_list(obstacle), obstacle_name)
+        blocked = MP.image_blocked_cells(q_foot, grad[IDX_Q], q_grid, Q, group)
+        push!(causes, name => blocked.positions)
+    end
+    removed_q = reduce(union, last.(causes))
 
     # Lift to 5-D along the ankle axis.
     h = MP.get_h(state_grid)
@@ -354,7 +370,7 @@ function infeasible_cells(
     for pos in removed_q, k in k_lo:k_hi
         push!(removed, (k, pos...))
     end
-    return MP.CellUnion(state_grid, removed)
+    return Carving(MP.CellUnion(state_grid, removed), causes)
 end
 
 # ============================================================
@@ -378,14 +394,21 @@ function _swing_leg_ik(d::SVector{2}, geometry::Geometry)
 end
 
 """
-    target_cells(state_grid, foothold, geometry, X; nsub = 3, velocity = nothing)
+    target_cells(state_grid, foothold, geometry, X; nsub = 3, velocity = nothing, tolerance = 0.0)
 
 5-D grid cells containing a configuration with the grounded foot at the origin
 and the swing foot at the Cartesian point `foothold`. `(q₁, q₂)` are swept over
 their cells (`nsub` samples per axis per cell), `(q₃, q₄)` follow by inverse
-kinematics. The first state coordinate (the ankle velocity `q̇₁`, or the ankle momentum `p₁`)
-is free: every cell of `X` along it is accepted, or, with `velocity = (vlo, vhi)`,
-every cell lying entirely inside that range.
+kinematics. The first state coordinate (the ankle momentum `p₁`) is free: every cell of `X` along it is
+accepted, or, with `velocity = (vlo, vhi)`, every cell lying entirely inside that range.
+
+With `tolerance > 0` the foot only has to land *near* the foothold: within `tolerance` metres of
+it along `x`, and between the foothold height and `tolerance` above it (never below the ground
+level of the foothold), sampled every centimetre (so that the targets of increasing tolerances,
+multiples of 1 cm, are nested). Without a tolerance the target is a thin
+sliver of the angle space: every step the over-approximated ankle spreads over several cells, and a
+controller that is certified against the worst case cannot land inside a sliver (see the experiment
+document).
 """
 function target_cells(
     state_grid::MP.GridFree,
@@ -394,7 +417,9 @@ function target_cells(
     X::LazySets.AbstractHyperrectangle;
     nsub::Int = 3,
     velocity = nothing,
+    tolerance::Real = 0.0,
 )
+    tolerance >= 0 || error("`tolerance` must be non-negative, got $tolerance")
     h = MP.get_h(state_grid)
     lo = SVector{5}(LazySets.low(X))
     hi = SVector{5}(LazySets.high(X))
@@ -416,11 +441,21 @@ function target_cells(
         )
     end
 
+    # Offsets of the foothold, every centimetre up to the tolerance: the foot within `tolerance` metres
+    # along `x`, and from the foothold height up to `tolerance` above it.
+    n = ceil(Int, tolerance / 0.01 - 1e-9)
+    footholds =
+        tolerance == 0 ? [foothold] :
+        [
+            foothold + SVector(dx, dz) for
+            dx in range(-tolerance, tolerance; length = 2n + 1) for
+            dz in range(0, tolerance; length = n + 1)
+        ]
     found = Set{NTuple{5, Int}}()
-    for q1 in range(lo[2], hi[2]; step = h[2] / nsub)
+    for fh in footholds, q1 in range(lo[2], hi[2]; step = h[2] / nsub)
         for q2 in range(lo[3], hi[3]; step = h[3] / nsub)
             hip = cartesian_coordinates(SVector(q1, q2, 0.0, 0.0), geometry)[3]
-            ik = _swing_leg_ik(foothold - hip, geometry)
+            ik = _swing_leg_ik(fh - hip, geometry)
             ik === nothing && continue
             φ3, φ4 = ik
             q3 = φ3 - (q1 + q2)
@@ -463,7 +498,7 @@ end
 `du = dx / tstep` and the sampling time. `tstep · du = dx` keeps the three motor
 coordinates on the lattice (each input moves them by exactly one cell); the ankle
 coordinates follow the nonlinear dynamics and are rounded to the grid. `dq̇1` is the step of the
-first state coordinate: the ankle velocity `q̇₁` or the ankle momentum `p₁`.
+first state coordinate, the ankle momentum `p₁`.
 
 Returns `(; state_grid, input_grid, tstep, u_max, du)` with `u_max = du`.
 """
@@ -479,41 +514,7 @@ end
 # System / problem factories
 # ============================================================
 
-Base.@kwdef struct RobotDomainConfig{X1, X2, U1, U2}
-    x_lb::X1
-    x_ub::X2
-    u_lb::U1
-    u_ub::U2
-end
-
-"""
-    system(; dynamics = VelocityControlledDynamics(), domain, removed_cells = nothing)
-
-Continuous-time velocity-controlled system `ẋ = f(x, u)` with
-`f = dynamics` (a [`VelocityControlledDynamics`](@ref)), state domain the box of `domain` minus the
-`removed_cells` (a precomputed [`infeasible_cells`](@ref)). The abstraction
-discretizes it with its own `time_step` (RK4).
-"""
-function system(;
-    dynamics = VelocityControlledDynamics(),
-    domain::RobotDomainConfig,
-    removed_cells = nothing,
-)
-    X = LazySets.Hyperrectangle(; low = domain.x_lb, high = domain.x_ub)
-    if removed_cells !== nothing && !isempty(removed_cells)
-        X = UT.set_minus(X, removed_cells)
-    end
-    U = LazySets.Hyperrectangle(; low = domain.u_lb, high = domain.u_ub)
-    return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        dynamics,
-        5,
-        3,
-        X,
-        U,
-    )
-end
-
-# The ankle velocity (first state coordinate) range of `velocity`, clipped to the box `X_box`;
+# The range of the first state coordinate (the ankle momentum) of `velocity`, clipped to the box `X_box`;
 # `nothing` means the whole interval of definition.
 function _velocity_range(velocity, X_box, what)
     lo, hi = LazySets.low(X_box)[IDX_ANKLE], LazySets.high(X_box)[IDX_ANKLE]
@@ -528,21 +529,23 @@ end
 
 """
     step_problem(concrete_system, state_grid; q0, foothold, geometry,
-                 initial_velocity = nothing, target_velocity = nothing)
+                 initial_velocity = nothing, target_velocity = nothing, foothold_tolerance = 0.0)
 
 One footstep as a reach specification: from the configuration `q0 = [q₁, q₂, q₃, q₄]`, with
-the ankle velocity (the first state coordinate) anywhere in `initial_velocity`, reach a
-configuration placing the swing foot at `foothold`, with the ankle velocity anywhere in
+the ankle momentum `p₁` (the first state coordinate) anywhere in `initial_velocity`, reach a
+configuration placing the swing foot at `foothold`, with the ankle momentum anywhere in
 `target_velocity`.
 
-Nothing is imposed on the velocity at the start or at the end: the swing foot has no
+Nothing is imposed on the ankle at the start or at the end: the swing foot has no
 reaction force from the ground, so requiring rest is needlessly conservative. Both
 `initial_velocity` and `target_velocity` are `(vlo, vhi)` ranges on the first state
 coordinate and default to `nothing`, the whole interval of definition of the state domain.
+`foothold_tolerance` (metres) lets the foot land near the foothold instead of exactly on it, see
+[`target_cells`](@ref).
 The initial set is the box around the cell of `q0` (snapped to the grid, the box lies
-strictly inside the cell) times the initial velocity range: the controller must work from
-**every** velocity cell the range touches. The target is the set of cells lying entirely
-inside the target velocity range.
+strictly inside the cell) times the initial range: the controller must work from
+**every** cell of the first coordinate the range touches. The target is the set of cells lying
+entirely inside the target range.
 
 Errors if the cell of `q0` is not in the state domain (outside its bounds or carved out): the
 initial set would be empty, which the synthesis can only report as a failure, without saying why.
@@ -555,6 +558,7 @@ function step_problem(
     geometry::Geometry = default_geometry(),
     initial_velocity = nothing,
     target_velocity = nothing,
+    foothold_tolerance::Real = 0.0,
 )
     h = MP.get_h(state_grid)
     X_box = UT._outer_box(concrete_system.X)
@@ -584,6 +588,7 @@ function step_problem(
         geometry,
         X_box;
         velocity = target_velocity === nothing ? nothing : v_target,
+        tolerance = foothold_tolerance,
     )
     return PR.OptimalControlProblem(
         concrete_system,
@@ -593,6 +598,156 @@ function step_problem(
         nothing,
         PR.Infinity(),
     )
+end
+
+# ============================================================
+# Size of the abstraction
+# ============================================================
+
+"CPU time of the local growth bound per `(cell, input)` pair, in seconds (measured on the biped: ≈ 0.2 ms)."
+const CPU_SECONDS_PER_PAIR = 2.0e-4
+
+"Average number of transitions per `(cell, input)` pair of the biped abstraction (measured: ≈ 4)."
+const TRANSITIONS_PER_PAIR = 4
+
+"""
+    abstraction_size(X, state_grid, removed = nothing; ninputs = 27,
+                     threads = Threads.nthreads()) -> NamedTuple
+
+How big the abstraction of the box `X` will be, before computing it: `cells_in_box` is the number of
+cells of `state_grid` lying entirely inside `X` (the cells the abstraction keeps, `MP.INNER`), `cells`
+the number left after removing the carved ones (`removed`: a [`Carving`](@ref) or its `cells`),
+`pairs = cells · ninputs` the number of `(cell, input)` pairs whose image must be computed, and
+`transitions` and `minutes` rough estimates of the number of transitions (`TRANSITIONS_PER_PAIR` per
+pair) and of the wall time on `threads` threads (`CPU_SECONDS_PER_PAIR` per pair).
+
+The cost is linear in `pairs`, and `cells` is the *product* of the cell counts along the five axes:
+widening every bound of the state box by a factor 2.5 multiplies the cells by up to 100.
+"""
+function abstraction_size(
+    X::LazySets.AbstractHyperrectangle,
+    state_grid,
+    removed = nothing;
+    ninputs::Int = 27,
+    threads::Int = Threads.nthreads(),
+)
+    o, h = MP.get_origin(state_grid), MP.get_h(state_grid)
+    lo, hi = LazySets.low(X), LazySets.high(X)
+    # The cells whose box `c ± h/2` lies inside `[lo, hi]`.
+    kmin = ntuple(i -> ceil(Int, (lo[i] - o[i]) / h[i] + 0.5 - 1e-9), 5)
+    kmax = ntuple(i -> floor(Int, (hi[i] - o[i]) / h[i] - 0.5 + 1e-9), 5)
+    cells_in_box = prod(max.(kmax .- kmin .+ 1, 0))
+    cells = cells_in_box
+    if removed !== nothing
+        positions = removed isa Carving ? removed.cells.positions : removed.positions
+        cells -= count(pos -> all(i -> kmin[i] <= pos[i] <= kmax[i], 1:5), positions)
+    end
+    pairs = cells * ninputs
+    return (;
+        cells_in_box,
+        cells,
+        pairs,
+        transitions = TRANSITIONS_PER_PAIR * pairs,
+        minutes = pairs * CPU_SECONDS_PER_PAIR / threads / 60,
+    )
+end
+
+# ============================================================
+# Start state and closed loop
+# ============================================================
+
+"""
+    start_state(state_grid, q0, X; velocity = nothing, removed = nothing,
+                geometry = default_geometry()) -> SVector{5}
+
+Concrete start of a closed-loop run: the configuration `q0 = [q₁, q₂, q₃, q₄]` with the first
+state coordinate (the ankle momentum) in the middle of `velocity` (a `(vlo, vhi)`
+range clipped to the box `X`; by default the whole interval of `X`), snapped to the centre of its
+grid cell so that the run starts where the abstraction does.
+
+With `removed` (the [`Carving`](@ref) of [`infeasible_cells`](@ref), or just its `cells`), it errors,
+before any expensive abstraction, if the start cell was carved out. With a `Carving` the error names
+the constraints that did it (`"ground"`, or the `obstacle_name`) and tells how the swing foot at the
+start violates each, so that the culprit is visible in the output; a finer grid or another `q0` is
+needed.
+"""
+function start_state(
+    state_grid,
+    q0::SVector{4},
+    X::LazySets.AbstractHyperrectangle;
+    velocity = nothing,
+    removed = nothing,
+    geometry::Geometry = default_geometry(),
+)
+    v = _velocity_range(velocity, X, "initial_velocity")
+    x0 = MP.get_coord_by_pos(
+        state_grid,
+        MP.get_pos_by_coord(state_grid, SVector((v[1] + v[2]) / 2, q0...)),
+    )
+    pos = MP.get_pos_by_coord(state_grid, x0)
+    cells = removed isa Carving ? removed.cells : removed
+    if cells !== nothing && pos in cells
+        margin = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2)
+        foot = swing_foot_position(SVector{4}(x0[2:5]), geometry)
+        error(_carved_start_message(removed, pos, foot, margin))
+    end
+    return x0
+end
+
+function _carved_start_message(removed, pos, foot, margin)
+    cm = round(100 * margin; digits = 1)
+    where_ =
+        "the swing foot at the start is at (x, z) = ($(round(foot[1]; digits = 3)), " *
+        "$(round(foot[2]; digits = 3))) m"
+    advice = "choose another q0 or refine the grid (the margin scales with the cell sizes)"
+    removed isa Carving ||
+        return "the start cell is carved out (the swing foot at x0 is within " *
+               "the $cm cm margin of the obstacle or below the ground): " *
+               "refine the grid"
+    reasons = map(carved_by(removed, pos)) do name
+        return name == GROUND_NAME ?
+               "\"$name\" (the swing foot is more than $cm cm below the ground)" :
+               "\"$name\" (the swing foot is within $cm cm of it)"
+    end
+    return "the start cell is carved out by " *
+           join(reasons, " and ") *
+           ": $where_; $advice"
+end
+
+"""
+    closed_loop(optimizer, problem, x0; horizon = 400, ankle_name = "ankle") -> Trajectory
+
+Simulate the concrete (RK4) system from the state `x0` under the controller that `optimizer`
+synthesized for `problem` (the `PR.OptimalControlProblem` of [`step_problem`](@ref)), for at most
+`horizon` steps. The run stops when the target set of `problem` is reached, or when the controller
+has no action at the current state, which happens when the concrete ankle has drifted away from the
+rounded abstract one. It prints the number of steps, whether the target was reached, whether the
+run stopped outside the controller's domain, and the ranges of the ankle angle `q₁` and of the first
+state coordinate (named `ankle_name`, e.g. `"p₁"`) along the run.
+
+This is the end-to-end check of a controller and of the abstraction under it. The returned
+trajectory goes to [`plot_footstep`](@ref).
+"""
+function closed_loop(optimizer, problem, x0; horizon::Int = 400, ankle_name = "ankle")
+    controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
+    reached(x) = x ∈ problem.target_set
+    traj =
+        ST.get_closed_loop_trajectory(system, controller, x0, horizon; stopping = reached)
+    xs = collect(ST.states(traj))
+    println("steps: ", length(xs) - 1, ", reached: ", reached(xs[end]))
+    reached(xs[end]) ||
+        length(xs) > horizon ||
+        println("stopped at x = ", xs[end], ": outside the controller's domain")
+    println(
+        "ankle along the run: q₁ ∈ ",
+        extrema(x[2] for x in xs),
+        ", ",
+        ankle_name,
+        " ∈ ",
+        extrema(x[1] for x in xs),
+    )
+    return traj
 end
 
 # ============================================================
@@ -700,7 +855,7 @@ end
     plot_footstep(traj, state_grid, removed; x_lb, x_ub, tstep, file_prefix,
                   geometry = default_geometry(), obstacle = nothing, foothold = nothing,
                   ankle_label = "ankle", title, xlims = (-0.6, 0.6), ylims = (-0.05, 0.55),
-                  snapshot_every = 5)
+                  snapshot_every = 5, dynamics = nothing, subframes = 1, fps = nothing)
 
 Save the three figures of a closed-loop footstep `traj` (a `Dionysos.System.Trajectory` with
 inputs, in the state `[ankle, q₁, q₂, q₃, q₄]`) and return their paths as
@@ -710,12 +865,19 @@ action at the start: there is nothing to draw):
 * `file_prefix * ".png"`: the robot every `snapshot_every` steps, with the ground, the `obstacle` and
   the `foothold`;
 * `file_prefix * "_ankle.png"`: the ankle angle `q₁` and the ankle coordinate (labelled
-  `ankle_label`, e.g. `"q̇₁ (rad/s)"` or `"p₁ (N m s)"`) against time, `tstep` being the sampling
+  `ankle_label`, e.g. `"p₁ (N m s)"`) against time, `tstep` being the sampling
   period;
 * `file_prefix * ".gif"`: the animated dashboard (`Dionysos.animate_trajectory_dashboard`) with the
   robot, the state panel `(q₃, q₄)` over the box `[x_lb, x_ub]` with the slice of the carved cells
   `removed` ([`infeasible_cells`](@ref)) at the current `(q₁, q₂)` as a grey background, and the
   input panel `(v₃, v₄)`; `title` is its title.
+
+A closed loop has one state per sampling period, which makes a short run (a few steps) a flash. With
+`dynamics`, the continuous dynamics `(x, u) -> ẋ` of the design model (e.g. `lgb.dynamics.f`), and
+`subframes > 1`, each step is re-integrated (RK4, the input held constant) at `subframes` intermediate
+instants for the ankle plot and the animation, which then has `subframes` frames per step. `fps`
+(frames per second of the gif) defaults to the value that makes it last about four seconds, between 5
+and 20.
 """
 function plot_footstep(
     traj,
@@ -733,6 +895,9 @@ function plot_footstep(
     xlims = (-0.6, 0.6),
     ylims = (-0.05, 0.55),
     snapshot_every::Int = 5,
+    dynamics = nothing,
+    subframes::Int = 1,
+    fps = nothing,
 )
     ST.inputs(traj) === nothing && return nothing
     xs = collect(ST.states(traj))
@@ -751,6 +916,22 @@ function plot_footstep(
     end
     Plots.savefig(fig, snapshot)
     println("saved ", snapshot)
+
+    # With the dynamics, the intermediate instants of every step, for a smoother ankle plot and animation.
+    if dynamics !== nothing && subframes > 1
+        frames = typeof(xs[1])[]
+        frame_inputs = eltype(us)[]
+        for k in eachindex(us), j in 0:(subframes - 1)
+            push!(
+                frames,
+                ST.runge_kutta4(dynamics, xs[k], us[k], tstep * j / subframes, max(2, j)),
+            )
+            push!(frame_inputs, us[k])
+        end
+        push!(frames, xs[end])
+        traj = ST.Trajectory(frames; inputs = frame_inputs)
+        xs, us, tstep = frames, frame_inputs, tstep / subframes
+    end
 
     # The unactuated ankle: angle and ankle coordinate against time.
     ts = tstep .* (0:(length(xs) - 1))
@@ -780,6 +961,7 @@ function plot_footstep(
         ylims_state = (x_lb[5], x_ub[5]),
         state_background! = _blocked_slice(state_grid, removed, x_lb, x_ub),
         title,
+        fps = fps === nothing ? clamp(round(Int, length(xs) / 4), 5, 20) : fps,
         filename = animation,
     )
     println("saved ", animation)

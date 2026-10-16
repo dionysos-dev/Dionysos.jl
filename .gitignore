@@ -60,3 +60,8 @@ examples/AdaptiveCruiseControl/*.gif
 
 # Experiment/benchmark output directories, wherever they appear
 outputs/
+
+# Slurm logs and abstraction files of the Slurm-array biped job
+problems/BipedRobot/4D_model_underactuated/slurm_array/logs/*
+!problems/BipedRobot/4D_model_underactuated/slurm_array/logs/.gitkeep
+problems/BipedRobot/4D_model_underactuated/slurm_array/out/

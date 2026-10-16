@@ -193,7 +193,7 @@ friction-cone feasibility tests.
 **Removed** (the design-model dynamics, now in `Multibody2D` / `robot_problem.jl`): `coordinate_mass_matrix`,
 `bias_forces`, `coordinate_inverse_dynamics`, `velocity_controlled_derivative`,
 `velocity_controlled_contact_estimate`. Their replacements: `Multibody2D.mass_matrix`,
-`Multibody2D.bias_vector`, `normal_form`, `RP.VelocityControlledDynamics`.
+`Multibody2D.bias_vector`, `normal_form`, `RP.reduced_dynamics`.
 
 Tests: `julia --project=<env> tests/test_biped_four_link.jl` (53 checks: state round trip for both
 mechanisms, forward kinematics and torque-level agreement with the design model, energy

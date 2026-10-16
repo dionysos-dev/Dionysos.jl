@@ -65,12 +65,14 @@ const AB = OP.Abstraction
 import MathematicalSystems as MS
 import LazySets
 import MathOptInterface as MOI
+import JLD2
 import Symbolics
 import IntervalArithmetic as IA
 using StaticArrays
 
 export SymbolicDynamics, LocalGrowthBound, LocalGrowthBoundStats
 export jacobian_bound, flow_enclosure, build_abstraction, stats, reset_stats!
+export save_abstraction, load_abstraction!, merge_chunks!
 
 # ------------------------------------------------------------------------------------------
 # Symbolic dynamics, compiled for floats and for intervals
@@ -482,7 +484,8 @@ ST.get_over_approximation_map(lgb::LocalGrowthBound) =
 
 """
     build_abstraction(approx::ST.DiscreteTimeSystemOverApproximation; state_grid, input_grid,
-                      print_level = 0, attributes...) -> optimizer
+                      print_level = 0, abstraction_file = nothing, abstraction_info = nothing,
+                      merge_chunks = nothing, attributes...) -> optimizer
 
 Discrete-time transition system (symbolic model) of the system of `approx`, computed by the
 Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode with the reach sets of
@@ -497,12 +500,25 @@ afterwards:
 ```julia
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 ```
+
+With `abstraction_file`, the transitions are **cached on disk**: if the file exists they are
+loaded instead of computed ([`load_abstraction!`](@ref), which checks `abstraction_info`), otherwise
+they are computed and written there ([`save_abstraction`](@ref)). This is how an abstraction computed
+on a server is used on another machine.
+
+With a `SY.SlurmArrayBackend` as `execution_backend`, the call computes **one chunk** of the
+transitions of a Slurm array and writes it to the backend's directory (nothing is cached in the
+optimizer). With `merge_chunks = (; outdir, nchunks)` the transitions are not computed but read from
+those chunks ([`merge_chunks!`](@ref)).
 """
 function build_abstraction(
     approx::ST.DiscreteTimeSystemOverApproximation;
     state_grid,
     input_grid,
     print_level::Int = 0,
+    abstraction_file = nothing,
+    abstraction_info = nothing,
+    merge_chunks = nothing,
     attributes...,
 )
     system = ST.get_system(approx)
@@ -526,8 +542,128 @@ function build_abstraction(
     for (name, value) in attributes
         MOI.set(optimizer, MOI.RawOptimizerAttribute(String(name)), value)
     end
-    MOI.optimize!(optimizer)
+    if abstraction_file !== nothing && isfile(abstraction_file)
+        load_abstraction!(optimizer, abstraction_file; info = abstraction_info)
+    else
+        if merge_chunks === nothing
+            MOI.optimize!(optimizer)
+        else
+            merge_chunks!(
+                optimizer,
+                merge_chunks.outdir;
+                nchunks = merge_chunks.nchunks,
+                print_level = max(print_level, 1),
+            )
+        end
+        abstraction_file === nothing ||
+            save_abstraction(abstraction_file, optimizer; info = abstraction_info)
+    end
     return optimizer
+end
+
+# ------------------------------------------------------------------------------------------
+# Saving and loading the transitions (to compute them on a server)
+# ------------------------------------------------------------------------------------------
+
+# A few concrete states spread over the state ids: if the same ids are not the same cells (another
+# grid or state box), a loaded abstraction would be silently wrong, so these are stored and checked.
+function _id_probe(abstract_system)
+    n = SY.get_n_state(abstract_system)
+    ids = unique([1, (n + 1) ÷ 2, n])
+    return [collect(SY.get_concrete_state(abstract_system, id)) for id in ids]
+end
+
+"""
+    save_abstraction(file, optimizer; info = nothing)
+
+Write the transitions of the abstraction cached in `optimizer` (see [`build_abstraction`](@ref)) to
+`file` (JLD2, three integer vectors `target`, `source`, `symbol`: 12 bytes per transition). The
+compiled symbolic dynamics cannot be saved, so only the transitions are: they are all the control
+synthesis needs. `info` is any plain data that identifies the problem (grids, state box, `tstep`, ...):
+it is stored, and [`load_abstraction!`](@ref) refuses a file whose `info` differs.
+"""
+function save_abstraction(file::AbstractString, optimizer; info = nothing)
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    n_state = SY.get_n_state(abstract_system)
+    n_input = SY.get_n_input(abstract_system)
+    n = SY.get_n_transitions(abstract_system)
+    T = max(n_state, n_input) < typemax(Int32) ? Int32 : Int
+    target, source, symbol = Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n)
+    k = 0
+    for (t, s, u) in SY.enum_transitions(abstract_system)
+        k += 1
+        target[k], source[k], symbol[k] = t, s, u
+    end
+    k == n || error("the abstraction has $k transitions, expected $n")
+    mkpath(dirname(abspath(file)))
+    tmp = file * ".tmp"
+    JLD2.jldsave(
+        tmp;
+        n_state,
+        n_input,
+        info,
+        probe = _id_probe(abstract_system),
+        target,
+        source,
+        symbol,
+    )
+    mv(tmp, file; force = true)   # a job killed while writing leaves no half-written file
+    return file
+end
+
+"""
+    merge_chunks!(optimizer, outdir; nchunks, print_level = 0) -> abstract_system
+
+Fill the abstraction of `optimizer` (built with the same problem, grids and attributes as the
+chunks, but not computed) with the transitions of the `nchunks` files that the jobs of a Slurm array
+wrote in `outdir` (each one computed by [`build_abstraction`](@ref) with
+`execution_backend = SY.SlurmArrayBackend(nchunks, chunk_id, outdir, :contiguous, true)`), and cache
+it in the optimizer. Errors if a chunk is missing or was computed for another number of chunks,
+states or inputs.
+"""
+function merge_chunks!(
+    optimizer,
+    outdir::AbstractString;
+    nchunks::Int,
+    print_level::Int = 0,
+)
+    abstract_system =
+        AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
+    SY.merge_transition_chunks!(abstract_system, outdir; nchunks, print_level)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
+    return abstract_system
+end
+
+"""
+    load_abstraction!(optimizer, file; info = nothing) -> abstract_system
+
+Fill the abstraction of `optimizer` (built with the same problem, grids and attributes as the one that
+was saved, but not computed) with the transitions of `file` written by [`save_abstraction`](@ref),
+and cache it in the optimizer so that a control problem can be set and solved on it. Errors if
+`info`, the number of states and inputs or the cells behind the state ids differ from the saved ones.
+"""
+function load_abstraction!(optimizer, file::AbstractString; info = nothing)
+    data = JLD2.load(file)
+    data["info"] == info || error(
+        "$file was computed for another problem.\nsaved:     $(data["info"])\nrequested: $info",
+    )
+    abstract_system =
+        AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
+    (SY.get_n_state(abstract_system), SY.get_n_input(abstract_system)) ==
+    (data["n_state"], data["n_input"]) || error(
+        "$file has $(data["n_state"]) states and $(data["n_input"]) inputs, the problem has " *
+        "$(SY.get_n_state(abstract_system)) and $(SY.get_n_input(abstract_system))",
+    )
+    _id_probe(abstract_system) == data["probe"] ||
+        error("$file numbers the cells differently: another state grid or state box")
+    target, source, symbol = data["target"], data["source"], data["symbol"]
+    transitions = Vector{SY.TransitionKey}(undef, length(target))
+    for k in eachindex(transitions)
+        transitions[k] = (Int(target[k]), Int(source[k]), Int(symbol[k]))
+    end
+    SY.add_transitions!(abstract_system, transitions)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
+    return abstract_system
 end
 
 end # module

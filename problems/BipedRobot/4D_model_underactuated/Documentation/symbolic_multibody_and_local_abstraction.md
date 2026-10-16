@@ -77,8 +77,8 @@ Packages needed in the active environment: `Dionysos`, `Symbolics`, `IntervalAri
 `MathematicalSystems`, `LazySets`, `StaticArrays`, `MathOptInterface`, and `Plots` for
 `robot_problem.jl`. **RigidBodyDynamics is not needed** by anything except `BipedFourLink.jl`. The
 code was developed and tested with Julia 1.12, Symbolics 7.45 and IntervalArithmetic 1.0. The
-`problems/BipedRobot` project does not yet list Symbolics and IntervalArithmetic: add them there
-before running the experiment.
+`problems/BipedRobot` project lists all of them (with RigidBodyDynamics and MeshCat, needed by
+`BipedFourLink.jl` only).
 
 ### 1.3 Conventions used throughout
 
@@ -536,7 +536,7 @@ stats(lgb)     # (calls = 2523, enclosure_failures = 0, unbounded = 0, improved 
 reset_stats!(lgb)
 ```
 
-#### `build_abstraction(approx; state_grid, input_grid, print_level = 0, attributes...) -> optimizer`
+#### `build_abstraction(approx; state_grid, input_grid, print_level = 0, abstraction_file = nothing, abstraction_info = nothing, attributes...) -> optimizer`
 
 *Description.* Builds the discrete-time transition system (symbolic model) of the system of
 `approx` with the Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode, using the
@@ -544,7 +544,14 @@ reach sets of `approx`. Any `DiscreteTimeSystemOverApproximation` works: a `Loca
 `lgb.global_growth` as the baseline. `state_grid` and `input_grid` are Dionysos grids; every extra
 keyword is forwarded as an optimizer attribute (`execution_backend`, `use_implicit_mapping`,
 `state_input_filter`, …). It returns the optimizer, which **caches the abstraction**: a control
-problem can be set on it afterwards.
+problem can be set on it afterwards. With `abstraction_file`, the transitions are cached on disk: loaded
+if the file exists (`load_abstraction!`, which refuses a file whose `abstraction_info`, number of states
+and inputs, or state numbering differ), otherwise computed and written (`save_abstraction`: JLD2, three
+integer vectors, 12 bytes per transition). This is how an abstraction computed on a server (see
+`slurm_array/README.md`) is used elsewhere; the compiled dynamics are not saved, only the transitions the
+control synthesis needs. With a `SY.SlurmArrayBackend` the call computes one chunk of the transitions
+of a Slurm array, and `merge_chunks = (; outdir, nchunks)` reads the chunks instead of computing
+(`merge_chunks!`).
 
 *Use case.* Build the abstraction, inspect it, then synthesize a controller on the same optimizer:
 
@@ -598,16 +605,15 @@ Use `boundary_tolerance = 0` for the strict closed-cell behaviour.
 
 Module `UnderactuatedRobotProblem` (`RP` below). The biped is defined **once**, symbolically, with
 `Multibody2D`; everything else in the file is derived from that definition (the kinematics, the
-compiled dynamics, the normal-form model) or is the footstep scenario built on top of it (obstacle
-carving, target set, grids, plots). There is no second copy of the mechanism to keep consistent by
-hand. It needs Symbolics, Dionysos, LazySets, MathematicalSystems, StaticArrays and Plots: **no
-RigidBodyDynamics**. `examples/BipedRobot/biped_4d_underactuated.jl` and `biped_4d_normal_form.jl`
-build on it.
+normal-form design model) or is the footstep scenario built on top of it (obstacle carving, target set,
+grids, start state, closed loop, plots). There is no second copy of the mechanism to keep consistent by
+hand. It needs Symbolics, Dionysos, LazySets, MathOptInterface, StaticArrays and Plots: **no
+RigidBodyDynamics**. `examples/BipedRobot/biped_4d_normal_form.jl` builds on it.
 
 ```
- symbolic_model()  ──►  Geometry(model, values)         forward kinematics (compiled)      ──► carving, target set, plots
- (Multibody2D,     ──►  VelocityControlledDynamics       x = (q̇₁, q), q̈₁ = h₁/D₁₁ (compiled) ──► centre-simulation abstraction
-  symbolic          ──►  reduced_dynamics ─► substitute_parameters ─► x = (p₁, q), symbolic f ──► local-growth-bound abstraction
+ symbolic_model()  ──►  Geometry(model, values)    forward kinematics (compiled) ──► carving, target set, plots
+ (Multibody2D,     ──►  reduced_dynamics ─► substitute_parameters ─► x = (p₁, q), symbolic f ──► local-growth-bound abstraction
+  symbolic
   parameters)
 ```
 
@@ -627,9 +633,9 @@ The links are **uniform thin rods** (moment of inertia `m L²/12` about their ce
 at the middle of the link) and the motors are **point masses** with no rotor inertia; the masses sit
 at the joints. `four_link_biped.urdf` describes exactly this robot, so the symbolic design model and
 the RigidBodyDynamics simulation of `BipedFourLink.jl` are the same mechanism, which is checked three
-ways: the `q̈₁` of the velocity-controlled model agrees with RigidBodyDynamics on the URDF to
-**machine precision** (reference values kept in `tests/test_robot_problem.jl`, so the guarantee
-survives the removal of the dependency); the torque-level accelerations `D q̈ = h + Bτ` agree; and the
+ways: the `q̈₁` of the velocity-controlled model (written with the ankle velocity, `q̈₁ = h₁/D₁₁`, in the
+tests) agrees with RigidBodyDynamics on the URDF to **machine precision** (reference values kept in
+`tests/test_robot_problem.jl`, so the guarantee survives the removal of the dependency); the torque-level accelerations `D q̈ = h + Bτ` agree; and the
 forward kinematics of the URDF (joint and foot positions) agree with `Geometry`
 (`tests/test_biped_four_link.jl`).
 
@@ -691,7 +697,7 @@ vals = merge(RP.default_parameters(), (; mM = 0.6, L2 = 0.18))   # a heavier mot
 with the same keys) in a symbolic expression or an array of them. What is left is symbolic in the
 coordinates (and inputs) only. It is the single place where numbers enter the chain: the step
 "build the model symbolically, put the numbers in later" of §2.3, used by `Geometry`,
-`VelocityControlledDynamics` and by the abstraction.
+the kinematics and by the abstraction.
 
 *Use case.*
 
@@ -730,43 +736,21 @@ of the grounded tibia is `q₁`, of the grounded femur `q₁ + q₂`, of the swi
 foot = RP.swing_foot_position(SVector(-0.05, 0.0, -0.2, -0.5), geometry)   # [-0.1485, 0.052]
 ```
 
-### 4.4 The two 5-D design models
+### 4.4 The design model
 
 The robot is velocity-controlled: the three motor joints track commanded velocities
 `u = [v₂, v₃, v₄]`, held constant over each sampling period (their accelerations are zero), and only
-the ankle has non-trivial dynamics. Two descriptions of the ankle are provided, in the **same state
-slot** (the first) so that the carving, the target set and the plots apply to both:
+the ankle has non-trivial dynamics. The design model describes the ankle by its **generalized
+momentum** `p₁ = ∂L/∂q̇₁ = (D(q) q̇)₁`, in the first slot of the 5-D state, so that the carving, the
+target set and the plots are written for `x = [ankle, q₁, q₂, q₃, q₄]`.
 
-| | `VelocityControlledDynamics` | `reduced_dynamics` |
-| :--- | :--- | :--- |
-| state | `x = [q̇₁, q₁, q₂, q₃, q₄]` | `x = [p₁, q₁, q₂, q₃, q₄]`, `p₁ = ∂L/∂q̇₁` |
-| form | compiled callable | symbolic, parameters still free |
-| used for | centre-simulation abstraction (`biped_4d_underactuated.jl`) | local-growth-bound abstraction (`biped_4d_normal_form.jl`), which needs the symbolic Jacobian |
-
-They are the same system in different coordinates (`p₁ = (D(q) q̇)₁`), which `tests/test_robot_problem.jl`
-verifies by integrating the first and differentiating `p₁` along the flow.
-
-#### `VelocityControlledDynamics(; model = symbolic_model(), values = default_parameters())`
-
-*Description.* A callable `(x, u) -> ẋ` for `x = [q̇₁, q₁, q₂, q₃, q₄]`:
-
-```
-q̈₁ = h₁(q, [q̇₁, u]) / D₁₁(q),     q̇₁ = x₁,     (q̇₂, q̇₃, q̇₄) = u ,
-```
-
-with `D` the mass matrix and `h = ∂L/∂q − Ḋ q̇` the bias vector of the symbolic `model`: the first
-row of `D q̈ = h + Bτ`, whose row of `B` is zero, with zero actuated accelerations. The numbers
-`values` are substituted in the symbolic expression, which is compiled once (`cse = true`); a call
-allocates nothing and is thread safe, which is what makes millions of RK4 roll-outs affordable. The
-compiled `q̈₁` alone is the field `ankle_acceleration`.
-
-*Use case.* The dynamics of a simulator or of a centre-simulation abstraction:
-
-```julia
-dynamics = RP.VelocityControlledDynamics(; model)             # the numbers of the URDF
-dynamics([0.5, -0.1, 0.2, -0.5, 0.0], [1.0, -1.0, 1.0])       # [q̈₁, q̇₁, v₂, v₃, v₄] = [2.1128, 0.5, 1.0, -1.0, 1.0]
-system = RP.system(; dynamics, domain, removed_cells)         # see §4.5
-```
+The same system can be written with the ankle *velocity*, `x = [q̇₁, q₁…q₄]`, `ẋ = [q̈₁, q̇₁, v₂, v₃, v₄]`
+with `q̈₁ = h₁/D₁₁` (the first row of `D q̈ = h + Bτ`, whose row of `B` is zero, with zero actuated
+accelerations). That form is not part of the module any more (it served a centre-simulation example
+that was removed); `tests/test_robot_problem.jl` keeps it as an *independent* derivation, from the
+mass matrix and the bias vector alone, to check the normal-form model against: the RigidBodyDynamics
+reference values of the URDF are expressed in it, and the test integrates it and differentiates
+`p₁` along the flow to compare with `ṗ₁` of `reduced_dynamics`.
 
 #### `reduced_dynamics(model) -> NamedTuple`
 
@@ -805,7 +789,7 @@ sym  = MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 The state is `x = [ankle, q₁, q₂, q₃, q₄]`, where `ankle` is `q̇₁` or `p₁`. Constraints and targets
 are Cartesian conditions on the swing foot, pulled back to the grid.
 
-#### `infeasible_cells(X, state_grid, obstacle, geometry) -> CellUnion`
+#### `infeasible_cells(X, state_grid, obstacle, geometry; obstacle_name = "obstacle") -> Carving`
 
 *Description.* The cells of the 5-D box `X` to exclude: cells where the swing foot *might* touch the
 Cartesian `obstacle` (a `LazySet` or a vector of them; sound, by a Lipschitz bound on the swing-foot
@@ -814,18 +798,27 @@ map, see `swing_foot_deviation_bound`) and cells where the swing foot is surely 
 along the ankle axis. Only the cells lying entirely inside `X` (`MP.INNER`, the default of the
 abstraction) are examined.
 
+The constraints are **named**, so that a failure can say which one is responsible: the ground
+constraint is `"ground"` (`RP.GROUND_NAME`), and the obstacles are named by `obstacle_name`, one string
+for all of them (default `"obstacle"`) or one string per obstacle. The result is a `Carving`: its
+field `cells` is the `MP.CellUnion` to remove (what `system` and `UT.set_minus` take), and `causes`
+lists `name => carved 4-D angle cells` for every constraint, `"ground"` first. `carved_by(carving, pos)`
+gives the names of the constraints that removed a given 5-D cell.
+
 *Use case.* The foot-height constraint and the obstacle in the origin that forces the foot to lift:
 
 ```julia
-removed = RP.infeasible_cells(X_box, disc.state_grid, [triangle], geometry)
+carving = RP.infeasible_cells(X_box, disc.state_grid, [triangle], geometry; obstacle_name = "lift constraint")
+removed = carving.cells
 X       = UT.set_minus(X_box, removed)
+first.(carving.causes)                      # ["ground", "lift constraint"]
 ```
 
 `swing_foot_gradient_bound(geometry)` and `swing_foot_deviation_bound(geometry, radius)` are the
 per-coordinate Lipschitz constants of the swing-foot map and the displacement they allow within a
 cell of half-widths `radius`; the latter is the "Lipschitz carving margin" printed by the examples.
 
-#### `target_cells(state_grid, foothold, geometry, X; nsub = 3, velocity = nothing)`, `target_set(…)`
+#### `target_cells(state_grid, foothold, geometry, X; nsub = 3, velocity = nothing, tolerance = 0.0)`, `target_set(…)`
 
 *Description.* The 5-D cells containing a configuration with the grounded foot at the origin and the
 swing foot at `foothold`: `(q₁, q₂)` are swept over their cells (`nsub` samples per axis per cell),
@@ -834,10 +827,22 @@ ankle coordinate is free: every cell of `X` along it, or with `velocity = (vlo, 
 entirely inside that range. `target_set` is the `CellUnion` of these cells (it errors if there are
 none).
 
-*Use case.* A target region for a reach specification, here with a bounded ankle variable:
+With `tolerance > 0` the foot only has to land *near* the foothold: within `tolerance` metres along `x`
+and between the foothold height and `tolerance` above it (never below the ground level of the
+foothold), sampled every centimetre (so that the targets of increasing tolerances, multiples of 1 cm,
+are nested). **This matters for the synthesis.** With `tolerance = 0`
+the target is a thin sliver of the angle space (two constraints, the foot position, on four angles),
+and every step the over-approximated ankle spreads over two or three cells (§3, boundary convention):
+a controller certified against the worst case cannot land inside a sliver, whatever the start. On the
+default grid, 24 combinations of starts, ranges and footholds with `tolerance = 0` all fail, and the
+controllable set from a 20 cm foothold only contains starts with steps of about 6 cm; with 3 cm,
+starts with a 19 cm step are controllable.
+
+*Use case.* A target region for a reach specification, here with a bounded ankle variable and a 3 cm
+tolerance:
 
 ```julia
-T = RP.target_set(disc.state_grid, SVector(0.2, 0.0), geometry, X_box; velocity = (-0.2, 0.2))
+T = RP.target_set(disc.state_grid, SVector(0.2, 0.0), geometry, X_box; velocity = (-0.2, 0.2), tolerance = 0.03)
 ```
 
 #### `default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.1)`
@@ -846,7 +851,7 @@ T = RP.target_set(disc.state_grid, SVector(0.2, 0.0), geometry, X_box; velocity 
 `du = dx / tstep` and the sampling time, as `(; state_grid, input_grid, tstep, u_max, du)` with
 `u_max = du`. `tstep · du = dx` keeps the three motor coordinates on the lattice (each input moves
 them by exactly one cell); the ankle coordinates follow the nonlinear dynamics and are rounded to
-the grid. `dq̇1` is the step of the first coordinate: the ankle velocity `q̇₁` or the momentum `p₁`.
+the grid. `dq̇1` is the step of the first coordinate, the ankle momentum `p₁`.
 
 *Use case.* A finer ankle resolution and a shorter sampling period:
 
@@ -854,43 +859,103 @@ the grid. `dq̇1` is the step of the first coordinate: the ankle velocity `q̇�
 disc = RP.default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.02, tstep = 0.05)
 ```
 
-#### `RobotDomainConfig(; x_lb, x_ub, u_lb, u_ub)` and `system(; dynamics, domain, removed_cells)`
+#### `abstraction_size(X, state_grid, removed = nothing; ninputs = 27, threads = Threads.nthreads())`
 
-*Description.* `system` is the continuous-time velocity-controlled system `ẋ = f(x, u)` (a
-`ConstrainedBlackBoxControlContinuousSystem`) with `f = dynamics` (a `VelocityControlledDynamics`),
-the state domain the box of `domain` minus `removed_cells`, and the input set the box of
-`domain.u_lb/u_ub`. The abstraction discretizes it with its own `time_step` (RK4).
+*Description.* How big the abstraction will be, **before computing it**: `cells_in_box`, the number of
+cells lying entirely inside the box `X` (the cells the abstraction keeps, `MP.INNER`); `cells`, what is
+left after removing the carved ones (`removed`: a `Carving` or its `cells`); `pairs = cells · ninputs`,
+the number of `(cell, input)` pairs whose image must be computed; and rough estimates
+`transitions = RP.TRANSITIONS_PER_PAIR · pairs` (≈ 4 per pair) and `minutes` of wall time on `threads`
+threads (`RP.CPU_SECONDS_PER_PAIR`, ≈ 0.2 ms of CPU per pair). The experiment prints it before building
+the abstraction.
 
-*Use case.* The concrete system of the centre-simulation example:
+The cost is linear in `pairs`, and the number of cells is the **product** of the cell counts along the
+five axes, so a state box that looks only slightly wider can be much bigger. With the grid of the
+experiment (steps `(0.02, 0.05, 0.1, 0.1, 0.1)`): the box `[-0.2, 0.2] × [-0.3, 0.2] × [-0.5, 0.5] ×
+[-0.8, 1.0] × [-1.0, 0.2]` has 19 × 9 × 9 × 17 × 11 = 287 793 cells (7.8 M pairs, 34 M transitions, about
+3 minutes on 10 threads; 176 225 cells, 4.8 M pairs and 19 M transitions with the obstacle); the box
+`[-0.5, 0.5]` on the ankle momentum and on `q₁` and `q₂`, and `[-1, 1]` on `q₃` and `q₄`, has
+49 × 19 × 9 × 19 × 19 = 3 024 819 cells, ten times more (1 961 470 after carving the obstacle): 53 M
+pairs, about 210 M transitions (several gigabytes of memory) and at least 18 minutes of computation,
+much more once memory runs short. From the terminal it looks like the run is stuck after "Number of
+forward images", while the abstraction is being computed: there is no progress output.
+
+*Use case.* Check a box before launching:
 
 ```julia
-domain = RP.RobotDomainConfig(; x_lb, x_ub, u_lb = -fill(disc.u_max, 3), u_ub = fill(disc.u_max, 3))
-concrete_system = RP.system(; dynamics, domain, removed_cells = removed)
+sized = RP.abstraction_size(X_box, disc.state_grid, carving)
+sized.cells, sized.pairs, round(sized.minutes; digits = 1)      # (287793, 7770411, 3.1) on 10 threads
 ```
 
-#### `step_problem(concrete_system, state_grid; q0, foothold, geometry, initial_velocity = nothing, target_velocity = nothing)`
+#### `step_problem(concrete_system, state_grid; q0, foothold, geometry, initial_velocity = nothing, target_velocity = nothing, foothold_tolerance = 0.0)`
 
 *Description.* One footstep as a reach specification: from the **configuration**
-`q0 = [q₁,q₂,q₃,q₄]` with the first state coordinate (the ankle velocity `q̇₁`, or the momentum `p₁`
-of the normal-form model) anywhere in `initial_velocity`, reach a configuration placing the swing
-foot at `foothold`, with the first coordinate anywhere in `target_velocity`. Both ranges are
-`(vlo, vhi)` and default to `nothing`: the whole interval of definition of the state domain. Nothing
-is imposed on the velocity at the start or at the end: the swing foot has no ground reaction force,
-so requiring rest is needlessly conservative. The initial set is a box inside the grid cell of `q0`
-(snapped to the grid) times the initial range: the controller must work from **every velocity cell
-the range touches** (Dionysos lifts the initial set with the `OUTER` mode). The target is the set of
-cells lying **entirely** inside the target range (`INNER` mode). It throws an error if the cell of
+`q0 = [q₁,q₂,q₃,q₄]` with the first state coordinate (the ankle momentum `p₁`) anywhere in
+`initial_velocity`, reach a configuration placing the swing foot at `foothold` (within
+`foothold_tolerance` metres, see `target_cells`), with the first coordinate anywhere in
+`target_velocity`. Both ranges are `(vlo, vhi)` and default to `nothing`: the whole interval of
+definition of the state domain. Nothing is imposed on the ankle at the start or at the end: the swing
+foot has no ground reaction force, so requiring rest is needlessly conservative. The initial set is a
+box inside the grid cell of `q0` (snapped to the grid) times the initial range: the controller must
+work from **every cell of the first coordinate the range touches** (Dionysos lifts the initial set with
+the `OUTER` mode: a range `(-0.011, 0.011)` on cells of width `0.02` touches three cells, and
+`(-0.031, 0.031)` five). The target is the set of cells lying **entirely** inside the target range
+(`INNER` mode). It throws an error if the cell of
 `q0` is outside the domain or carved out by the obstacle/ground margin (the initial set would be
 empty, which the synthesis can only report as a failure without saying why), or if a range is
 reversed, outside the domain, or contains no whole cell.
 
-*Use case.* A footstep from a given posture, starting with a bounded ankle velocity and ending at
-any velocity:
+*Use case.* The footstep that has a controller (no obstacle, see the experiment document): from feet
+together, a 20 cm step landing within 3 cm of the foothold, starting with a bounded ankle momentum
+and ending with any:
 
 ```julia
-pb = RP.step_problem(concrete_system, state_grid; q0 = SVector(-0.05, 0.0, -0.2, -0.5),
+pb = RP.step_problem(concrete_system, state_grid; q0 = SVector(0.0, -0.3, 0.4, -0.5),
                      foothold = SVector(0.2, 0.0), geometry = geometry,
-                     initial_velocity = (-0.05, 0.05))     # target_velocity = nothing: any
+                     initial_velocity = (-0.031, 0.031),   # target_velocity = nothing: any
+                     foothold_tolerance = 0.03)
+```
+
+#### `start_state(state_grid, q0, X; velocity = nothing, removed = nothing, geometry)`
+
+*Description.* The concrete start of a closed-loop run: the configuration `q0` with the first state
+coordinate (the ankle momentum) in the middle of `velocity` (a `(vlo, vhi)` range clipped to
+the box `X`, by default the whole interval of `X`), snapped to the centre of its grid cell so that the
+run starts where the abstraction does. With `removed` (the `Carving` of `infeasible_cells`, or just its
+`cells`) it errors if the start cell was carved out, *before* any expensive abstraction. With a
+`Carving`, the error **names the constraint** that did it and says how the swing foot at the start
+violates it:
+
+```
+the start cell is carved out by "lift constraint" (the swing foot is within 7.5 cm of it): the swing foot
+at the start is at (x, z) = (0.0, 0.0) m; choose another q0 or refine the grid (the margin scales with the
+cell sizes)
+```
+
+For the ground the reason is "the swing foot is more than 7.5 cm below the ground", and a cell removed
+by both constraints names both. (7.5 cm is the Lipschitz carving margin of the grid.) With only the
+cells, the message is the generic one without the names.
+
+*Use case.*
+
+```julia
+x0 = RP.start_state(disc.state_grid, q0, X_box; velocity = (-0.05, 0.05), removed = carving, geometry)
+```
+
+#### `closed_loop(optimizer, problem, x0; horizon = 400, ankle_name = "ankle") -> Trajectory`
+
+*Description.* Simulates the concrete (RK4) system from `x0` under the controller that `optimizer`
+synthesized for `problem` (the problem of `step_problem`), for at most `horizon` steps, stopping when
+the target set is reached or when the controller has no action at the current state (the concrete
+ankle drifted away from the rounded abstract one). It prints the number of steps, whether the target
+was reached, whether the run stopped outside the controller's domain, and the ranges of `q₁` and of the
+first state coordinate along the run (`ankle_name`, e.g. `"p₁"`). It is the end-to-end check of a
+controller and of the abstraction under it. The returned trajectory is what `plot_footstep` draws.
+
+*Use case.* After `MOI.set(optimizer, "concrete_problem", problem)` and `MOI.optimize!(optimizer)`:
+
+```julia
+traj = RP.closed_loop(optimizer, problem, x0; ankle_name = "p₁")
 ```
 
 #### `draw_robot!(fig, x; geometry, alpha)`, `system_plot!(; geometry, obstacle, foothold, xlims, ylims)`
@@ -903,16 +968,16 @@ step.
 *Use case.* `plot_robot = RP.system_plot!(; geometry, obstacle, foothold)`, to draw a state or to
 build your own dashboard.
 
-#### `plot_footstep(traj, state_grid, removed; x_lb, x_ub, tstep, file_prefix, geometry, obstacle, foothold, ankle_label, title, xlims, ylims, snapshot_every = 5)`
+#### `plot_footstep(traj, state_grid, removed; x_lb, x_ub, tstep, file_prefix, geometry, obstacle, foothold, ankle_label, title, xlims, ylims, snapshot_every = 5, dynamics = nothing, subframes = 1, fps = nothing)`
 
-*Description.* The figures of a closed-loop footstep, shared by both examples. From `traj` (a
+*Description.* The figures of a closed-loop footstep. From `traj` (a
 `Dionysos.System.Trajectory` with inputs, in the state `[ankle, q₁, q₂, q₃, q₄]`) it saves three files
 and returns their paths as `(; snapshot, ankle, animation)`:
 
 * `file_prefix * ".png"`: the robot every `snapshot_every` steps, with the ground, the obstacle and
   the foothold;
 * `file_prefix * "_ankle.png"`: the ankle angle `q₁` and the ankle coordinate (named by
-  `ankle_label`: `"q̇₁ (rad/s)"` or `"p₁ (N m s)"`) against time;
+  `ankle_label`, e.g. `"p₁ (N m s)"`) against time;
 * `file_prefix * ".gif"`: the animated dashboard, with the robot, the state panel `(q₃, q₄)` over the
   box `[x_lb, x_ub]` with the slice of the carved cells `removed` at the current `(q₁, q₂)` as a grey
   background (the carving does not depend on the ankle coordinate), and the input panel `(v₃, v₄)`.
@@ -920,12 +985,18 @@ and returns their paths as `(; snapshot, ankle, animation)`:
 It returns `nothing`, drawing nothing, when the trajectory has no input (the controller had no
 action at the start).
 
-*Use case.* After a closed-loop run:
+A closed loop has one state per sampling period, so a run of a few steps is a flash. With `dynamics`
+(the continuous dynamics `(x, u) -> ẋ`, e.g. `lgb.dynamics.f`) and `subframes > 1`, each step is
+re-integrated (RK4, the input held constant) at `subframes` intermediate instants for the ankle plot and
+the animation; `fps` defaults to the value that makes the gif last about four seconds (between 5 and 20).
+
+*Use case.* After a closed-loop run, a smooth animation of a two-step footstep:
 
 ```julia
-traj = ST.get_closed_loop_trajectory(discrete_time_system, controller, x0, 400; stopping = reached)
+traj = RP.closed_loop(optimizer, problem, x0; ankle_name = "p₁")
 RP.plot_footstep(traj, disc.state_grid, removed; x_lb, x_ub, tstep = disc.tstep,
-                 geometry, obstacle, foothold, file_prefix = "my_footstep", ankle_label = "p₁ (N m s)")
+                 geometry, obstacle, foothold, file_prefix = "my_footstep", ankle_label = "p₁ (N m s)",
+                 dynamics = lgb.dynamics.f, subframes = 10)
 ```
 
 ### 4.6 What changed in this folder
@@ -936,25 +1007,31 @@ RP.plot_footstep(traj, disc.state_grid, removed; x_lb, x_ub, tstep = disc.tstep,
   (`BipedFourLink.jl` and the URDF keep the clockwise convention of RigidBodyDynamics; see
   `BipedFourLink.md`.)
 * **No more RigidBodyDynamics.** The file used to load `RigidBodyDynamics` and `BipedFourLink.jl`
-  only to compute the ankle acceleration of the velocity-controlled model. The compiled symbolic
-  expression is also much cheaper than a RigidBodyDynamics evaluation (an abstraction of 34 M
-  cell/input pairs took about 30 s instead of about 200 s). `BipedFourLink.jl` is no longer part of
-  the design chain: it only contains simulation and visualization.
-* **Footstep problem with any velocity.** `balanced_start` (an equilibrium at rest) was removed; the
-  initial and target velocities are free (`step_problem`, above).
+  only to compute the ankle acceleration of the velocity-controlled model. `BipedFourLink.jl` is no
+  longer part of the design chain: it only contains simulation and visualization.
+* **Footstep problem with any ankle momentum.** `balanced_start` (an equilibrium at rest) was removed;
+  the initial and target ranges of the ankle coordinate are free (`step_problem`, above).
 * **Consolidation: nothing is defined twice.** `BipedModel.jl` and `UnderactuatedLocalAbstraction.jl`
-  described the same four-link model and the same two 5-D systems as `robot_problem.jl`, with a second
-  copy of the lengths, of the kinematics and of the discretization. They were merged into it:
+  described the same four-link model and the same 5-D systems as `robot_problem.jl`, with a second
+  copy of the lengths, of the kinematics and of the discretization. They were merged into it.
+* **Only the normal-form experiment is kept.** The centre-simulation example
+  (`biped_4d_underactuated.jl`, the ankle described by its velocity, not a certified abstraction) was
+  removed with what only it used: `VelocityControlledDynamics`, `RobotDomainConfig` and `system`. The
+  velocity form of the dynamics survives in the tests as an independent check (§4.4).
+* **Pre-flight size, explained start errors, foothold tolerance.** `abstraction_size` prints the cost of
+  a box before the abstraction starts; the carving constraints are named (`Carving`) so that the start
+  error says which one removed the start cell; `target_cells` and `step_problem` accept a foothold
+  tolerance, without which no controller is found (§4.5).
 
 | Removed | Where it went |
 | :--- | :--- |
 | `BipedModel.jl`: `symbolic_model`, `default_parameters` | `robot_problem.jl`, unchanged |
-| `BipedModel.ankle_acceleration(; values)` | the field `ankle_acceleration` of `VelocityControlledDynamics` (and the callable itself) |
+| `BipedModel.ankle_acceleration(; values)`, `VelocityControlledDynamics`, `RobotDomainConfig`, `system` | removed with the centre-simulation example; the velocity form of `q̈₁ = h₁/D₁₁` is a helper of `tests/test_robot_problem.jl` |
 | `Geometry(; tibia, femur)`, the closed-form `cartesian_coordinates` and `check_kinematics` (a check of one copy against the other) | `Geometry(model, values)`, **compiled from the symbolic positions**; the hand-derived closed form lives only in the tests, as an independent check |
-| `UnderactuatedLocalAbstraction.numerical_dynamics(model, reduced, values)` | `substitute_parameters(model, expressions, values)`, shared with the kinematics and the compiled dynamics |
+| `UnderactuatedLocalAbstraction.numerical_dynamics(model, reduced, values)` | `substitute_parameters(model, expressions, values)`, shared with the kinematics |
 | `UnderactuatedLocalAbstraction.reduced_dynamics` (state `(q, p₁)`) and the permutation `[5, 1, 2, 3, 4]` in the experiment | `reduced_dynamics`, with `p₁` first |
 | `default_discretization`, `local_growth_bound`, `build_local_abstraction` of `UnderactuatedLocalAbstraction` | `RP.default_discretization` and `LGA.LocalGrowthBound` / `LGA.build_abstraction`, which the experiment calls directly (the snippet of §4.4 is the whole chain) |
-| `check_reduced_dynamics`, `check_abstraction`, `main` of `UnderactuatedLocalAbstraction` | tests (`tests/test_robot_problem.jl`): equivalence of the two 5-D models, soundness by sampling and local ⊆ global on a small grid |
+| `check_reduced_dynamics`, `check_abstraction`, `main` of `UnderactuatedLocalAbstraction` | tests (`tests/test_robot_problem.jl`): equivalence of the velocity and momentum forms, soundness by sampling and local ⊆ global on a small grid |
 
 `BipedFourLink.jl` is **not** merged: it is the only file that needs RigidBodyDynamics and MeshCat
 (heavy dependencies useless for design), it reads the URDF that MeshCat draws, takes motor torques
@@ -973,7 +1050,7 @@ Tests (run from the repository root, with an environment that has the packages o
 ```
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_multibody2d.jl                 # 172 checks
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_local_growth_abstraction.jl    # 5573 checks
-julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_robot_problem.jl               # 158 checks
+julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_robot_problem.jl               # 200 checks
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_biped_four_link.jl             # 53 checks; needs RigidBodyDynamics and MeshCat
 ```
 
@@ -983,14 +1060,24 @@ and cart-pole results and, numerically, against the second-order dynamics `D q̈
 `test_local_growth_abstraction.jl` checks the Jacobian bound against Dionysos'
 `compute_jacobian_bound`, the flow enclosure against simulated tubes, soundness by sampling,
 `local ⊆ global` transitions, the fallback, the boundary tolerance, and a full run on the acrobot
-normal form from `Multibody2D`. `test_robot_problem.jl` checks `robot_problem.jl`: the dynamics
-against reference values computed once with RigidBodyDynamics on the URDF, the kinematics against a
-hand-derived closed form (for other lengths too), a static equilibrium, the equivalence of the
-velocity and momentum models, the local-growth-bound abstraction of the normal-form model on a
-3⁵-cell grid (soundness by sampling), and the scenario (sound carving, inverse kinematics, target
-cells, `step_problem` and its errors, `plot_footstep` on a synthetic trajectory). `test_biped_four_link.jl` checks the simulation (state round
-trips for both mechanisms, energy conservation, compliant contact, reaction force, plots, MeshCat)
-and its agreement with the design model (torque-level accelerations, forward kinematics).
+normal form from `Multibody2D`. `test_robot_problem.jl` checks `robot_problem.jl`:
+
+* the dynamics: the velocity form of `q̈₁` (a helper of the test file) against reference values
+  computed once with RigidBodyDynamics on the URDF, a static equilibrium, and the equivalence of the
+  velocity and momentum models (integrating one and differentiating `p₁` along the flow);
+* the kinematics against a hand-derived closed form (for other lengths too);
+* the local-growth-bound abstraction of the normal-form model on a 3⁵-cell grid (soundness by
+  sampling, local ⊆ global), and on the same abstraction `start_state` and `closed_loop`: a controller
+  is synthesized and the closed loop reaches the target;
+* the scenario: sound carving and its named constraints, the start-state error that names the
+  constraint (obstacle, ground, both), inverse kinematics, target cells and the foothold tolerance,
+  `step_problem` and its errors, the size of the abstraction (`abstraction_size`, against a brute-force
+  count and for the boxes of the experiment), and `plot_footstep` on a synthetic trajectory, with and
+  without re-integration of the steps.
+
+`test_biped_four_link.jl` checks the simulation (state round trips for both mechanisms, energy
+conservation, compliant contact, reaction force, plots, MeshCat) and its agreement with the design model
+(torque-level accelerations, forward kinematics).
 
 Known limitations:
 
