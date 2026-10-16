@@ -181,7 +181,7 @@ record_numbers(numbers)
 
 write_table(
     "table_e2.tex",
-    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "hold"],
+    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "force"],
     [
         [
             "(T)",

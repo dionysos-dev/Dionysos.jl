@@ -196,11 +196,12 @@ end
 end
 
 # ----------------------------------------------------------------------------
-# Regression: a run must not be valued *through* a target. `F` from 1 enters the
-# target 2 too fast to stop (|F − rest| > Δ); continuing to 3 would end slowly, but
-# the closed loop stops at the first target reached, so 1 is not controllable.
+# A target entered too fast to stop is crossed, not a dead end. `F` from 1 enters
+# the target 2 too fast to stop (|F − rest| > Δ), so the run continues with `S` and
+# stops at the target 3, which it enters slowly enough. A fresh start at 2 stops at
+# once.
 # ----------------------------------------------------------------------------
-@testset "no pass-through of the target" begin
+@testset "crossing a target too fast to stop" begin
     R, S, F = 1, 2, 3
     level = Dict(R => 0.0, S => 0.5, F => 1.0)
     autom = SY.IndexedAutomatonList(3, 3)
@@ -212,14 +213,50 @@ end
         0.5;
         target_input = R,
     )
-    _, controllable, _, value_tab = OPDS.compute_bounded_input_variation_controller(
+    ctrl, controllable, _, value_tab = OPDS.compute_bounded_input_variation_controller(
         autom,
         [2, 3],
         constraint;
         initial_set = [1],
     )
-    @test 1 ∉ controllable
-    @test value_tab[1] == Inf
+    @test 1 in controllable
+    @test value_tab[1] == 2.0
+    @test value_tab[2] == 0.0
+
+    # The controller itself decides where to stop: not at 2 after F, but at 3 after S.
+    qs, us = simulate(autom, ctrl, 1)
+    @test qs == [1, 2, 3]
+    @test us == [F, S]
+    @test ST.output_control(ctrl, 0, 2) === nothing
+    @test ST.output_control(ctrl, F, 2) == S
+
+    # Without the intermediate target the value is the same: crossing costs nothing extra.
+    _, controllable3, _, value_tab3 = OPDS.compute_bounded_input_variation_controller(
+        autom,
+        [3],
+        constraint;
+        initial_set = [1],
+    )
+    @test 1 in controllable3
+    @test value_tab3[1] == 2.0
+end
+
+# ----------------------------------------------------------------------------
+# A target that can neither be stopped in nor left is still a dead end: from the
+# corner 9 of the grid, every move entering it is too fast to stop under Δ = 0.9
+# and no move leaves it in the same direction.
+# ----------------------------------------------------------------------------
+@testset "target entered too fast and not left" begin
+    autom = grid_automaton()
+    constraint = OPDS.BoundedInputVariation(input_distance, 0.9; target_input = STAY)
+    _, controllable, _, value_tab = OPDS.compute_bounded_input_variation_controller(
+        autom,
+        [9],
+        constraint;
+        initial_set = [8],
+    )
+    @test 8 ∉ controllable
+    @test value_tab[8] == Inf
 end
 
 # ----------------------------------------------------------------------------
