@@ -207,7 +207,7 @@ dx, dq1, dp, tstep = 0.1, 0.1, 0.06, 0.05                  # a coarser grid
 du = dx / tstep
 DISC = (; state_grid = MP.GridFree(zeros(SVector{5, Float64}), SVector(dp, dq1, dx, dx, dx)),
           input_grid = MP.GridFree(zeros(SVector{3, Float64}), SVector(du, du, du)),
-          tstep, u_max = du, du)
+          tstep, u_max = du, du)                           # u_max = input_steps · du
 INITIAL_VELOCITY = (-0.05, 0.05)                            # start with a small ankle momentum
 RUN_PLOTS = false
 include(joinpath(dirname(dirname(pathof(Dionysos))), "examples", "BipedRobot", "biped_4d_normal_form.jl"))
@@ -220,7 +220,7 @@ The defaults below are those of the file at the time of writing; the file is the
 
 | Variable | Default | Meaning and constraints |
 | :--- | :--- | :--- |
-| **`DISC`** | `RP.default_discretization(; dx = 0.1, dq1 = 0.1, dq̇1 = 0.04, tstep = 1/60)` | Grids and sampling time, a `NamedTuple` with fields `state_grid`, `input_grid`, `tstep`, `u_max` (see §3.2). |
+| **`DISC`** | `RP.default_discretization(; dx = 0.05, dq1 = 0.05, dq̇1 = 0.04, tstep = 1/60, input_steps = 1)` | Grids, sampling time and input range, a `NamedTuple` with fields `state_grid`, `input_grid`, `tstep`, `u_max` (see §3.2); `input_steps = k` gives `2k + 1` speeds per motor (§3.2). |
 | **`X_BOUNDS`** | `(x_lb, x_ub) = (SVector(-0.6, -0.4, -0.6, -0.8, -1.0), SVector(-0.08, 0.2, 0.6, 1.0, 0.2))` | State box `[p₁, q₁, q₂, q₃, q₄]` (§3.3), with `p₁ ≤ -0.08`. **Its size is the cost of the run** (§2.3). |
 | **`Q0`** | `SVector(0.0, 0.5, -0.4, -0.9)` | Initial **configuration** `[q₁, q₂, q₃, q₄]` (snapped to the grid): the swing foot at `(-0.200, 0.028)` m. Must be in the domain and not carved out (§3.4). |
 | **`INITIAL_VELOCITY`** | `(-0.4, -0.4)` | `(vlo, vhi)` range of the first state coordinate `p₁` at the start: a **single value**, one cell of width 0.04. The controller must work from every cell the range touches (`(-0.44, -0.36)` touches three). `nothing` = the whole interval of definition of the box. |
@@ -228,19 +228,19 @@ The defaults below are those of the file at the time of writing; the file is the
 | **`FOOTHOLD_TOLERANCE`** | `0.08` | Metres: the foot may land within this distance of the foothold along `x`, and up to this height above it. **With `0.0` no controller was found, for any start tried** (§5); `0.03` is enough for a 19 cm step from "feet together" (§5), `0.08` for the 40 cm step of the default on its coarse grid (§6). |
 | **`OBSTACLE`** | `nothing` (no obstacle: only the ground constraint) | `:bump` (a triangle of half-width 4 cm and height 3 cm centred at `x = 0`), or a vector of `LazySets` polygons. |
 | **`SCENARIO_NAME`** | `:symmetric_step` | Only used in the names of the output files. |
-| **`ONE_JOINT_PER_STEP`** | `false` | `true` allows at most one moving motor joint per step (7 inputs instead of 27, a much smaller automaton). |
+| **`ONE_JOINT_PER_STEP`** | `false` | `true` allows at most one moving motor joint per step (`1 + 6k` inputs instead of `(2k + 1)³`: 7 instead of 27 for `k = 1`, a much smaller automaton). |
 | **`RUN_PLOTS`** | `true` | `false` skips the figures and the animation. |
 | **`ABSTRACTION_FILE`** | `nothing` | Path of a file that caches the **transitions** of the abstraction: loaded if it exists (no computation), otherwise computed and written. The parameters that define the abstraction (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, the obstacle) are stored in it and checked at loading. Used to compute the abstraction on a server (see [`slurm_array/`](../slurm_array/README.md)). |
 | **`ABSTRACTION_ONLY`** | `false` | `true` stops after the abstraction (and its saving): no start-state synthesis, closed loop or plots. |
 
 ### 3.2 Grid cell sizes, sampling time and input set: `DISC`
 
-`RP.default_discretization(; dx, dq1, dq̇1, tstep)` builds
+`RP.default_discretization(; dx, dq1, dq̇1, tstep, input_steps)` builds
 
 * the **state grid** `GridFree(origin = 0, steps = (dq̇1, dq1, dx, dx, dx))`: steps of
   `(p₁, q₁, q₂, q₃, q₄)`. In this experiment `dq̇1` is the step of the **momentum** `p₁`;
 * the **input grid** `GridFree(origin = 0, steps = (du, du, du))` with `du = dx / tstep`;
-* the sampling time `tstep` and `u_max = du`.
+* the sampling time `tstep` and `u_max = input_steps · du`.
 
 | Parameter | Default | Meaning | Effect and constraints |
 | :--- | :--- | :--- | :--- |
@@ -248,9 +248,10 @@ The defaults below are those of the file at the time of writing; the file is the
 | `dq1` | `0.1` rad | cell size of the ankle angle `q₁` | finer = tighter ankle model, more cells; also sets the carving margin |
 | `dq̇1` | `0.04` N m s | cell size of the ankle momentum `p₁` | finer = better, more cells (`0.04 ≈ 0.3 rad/s`) |
 | `tstep` | `1/60` s | sampling period (input held constant) | must be short enough for the flow enclosure to exist: `tstep · ‖∂f/∂x‖ ≲ 1`, and here `‖∂f/∂x‖ ≈ 9`; `0.1 s` is marginal. **Shorter is better for a long step** (§6); shorter steps also make `du` larger |
-| `du = u_max` | `dx/tstep = 6 rad/s` | commanded joint speed | the input set is `{-du, 0, du}³` (27 combinations); `U = [-u_max, u_max]³`. 6 rad/s is fast: it is what the lattice trick implies for a period of 1/60 s |
+| `du` | `dx/tstep` (`6 rad/s` for `dx = 0.1`) | unit of the commanded joint speed | every command is an integer multiple of `du` (the lattice trick). 6 rad/s is fast: it is what the lattice trick implies for a period of 1/60 s |
+| `input_steps = k` | `1` | number of speeds on each side of zero | each motor takes one of `{-k du, …, -du, 0, du, …, k du}` (`2k + 1` values), the input set is the product of the three (`(2k + 1)³`: 27, 125, 343 for `k = 1, 2, 3`) and `u_max = k du`, `U = [-u_max, u_max]³`. A joint moves by up to `k` cells per step. **The cost is proportional to the number of inputs** (`k = 2` is 4.6 times the cost of `k = 1`); `RP.input_count(disc)` gives it. With an obstacle, jumps of more than one cell per step make the abstraction warn about inter-sample crossings of the carved cells (see the warning of `UniformGridAbstraction`) |
 
-A custom `DISC` needs `state_grid`, `input_grid`, `tstep` and `u_max`. Keep `tstep · du = dx` if you want the exact lattice.
+A custom `DISC` needs `state_grid`, `input_grid`, `tstep` and `u_max` (a multiple of the input step: the number of inputs is derived from it). Keep `tstep · du = dx` if you want the exact lattice.
 
 ### 3.3 State-space boundaries: `X_BOUNDS`
 
@@ -321,8 +322,8 @@ The `LocalGrowthBound` options that matter:
 
 ### 3.6 Cost of a change
 
-* **Number of `(cell, input)` pairs** = (cells after carving) × (number of inputs = 27, or 7 with
-  `ONE_JOINT_PER_STEP`); printed before the abstraction (§2.3).
+* **Number of `(cell, input)` pairs** = (cells after carving) × (number of inputs = `(2k + 1)³`: 27 for
+  `input_steps = 1`, 125 for 2; or `1 + 6k` with `ONE_JOINT_PER_STEP`); printed before the abstraction (§2.3).
 * **Time of the abstraction** ≈ 0.2 ms of CPU per pair, i.e. ≈ 21 µs of wall time per pair on 10
   threads. It is linear in the number of pairs.
 * **Memory** grows with the number of transitions (≈ 3 to 4 per pair; 9.3 M for the default run of §6).
@@ -415,7 +416,7 @@ U_box = LazySets.Hyperrectangle(; low = SVector(-disc.u_max, …), high = SVecto
 removed = carving.cells
 margin = RP.swing_foot_deviation_bound(geometry, MP.get_h(disc.state_grid) ./ 2)
 X = UT.set_minus(X_box, removed)
-size = RP.abstraction_size(X_box, disc.state_grid, carving; ninputs = one_joint_per_step ? 7 : 27)
+size = RP.abstraction_size(X_box, disc.state_grid, carving; ninputs = RP.input_count(disc; one_joint_per_step))
 println("State space: ", size.cells, " cells (", size.cells_in_box, " before carving), ", size.pairs, …)
 ```
 
@@ -476,7 +477,7 @@ with at most one moving joint). `build_abstraction` then runs the Dionysos
 
 1. the **state mapping** is created implicitly (cell ids by linearization of the ambient box, low
    memory) on the domain `X`;
-2. the **input mapping** is the grid `{-du, 0, du}³` (27 inputs);
+2. the **input mapping** is the grid `{-k du, …, k du}³` (`k = input_steps`: 27 inputs for `k = 1`);
 3. for **every `(cell, input)` pair**, in parallel threads, `lgb` simulates the cell centre,
    computes the global image, verifies a flow enclosure, bounds the Jacobian locally and returns the
    box image; the cells that box overlaps become the successors, unless the box leaves the domain

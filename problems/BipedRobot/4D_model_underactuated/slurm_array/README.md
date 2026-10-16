@@ -2,7 +2,7 @@
 
 The abstraction of the normal-form biped experiment
 ([`examples/BipedRobot/biped_4d_normal_form.jl`](../../../../examples/BipedRobot/biped_4d_normal_form.jl))
-is by far its most expensive part: one image to compute per `(cell, input)` pair (27 inputs), and a
+is by far its most expensive part: one image to compute per `(cell, input)` pair (27 inputs by default, `(2k+1)³` with `input_steps = k`), and a
 number of cells that is the product of the cell counts along the five axes. Here it is split over the
 tasks of a **Slurm job array** (`SY.SlurmArrayBackend`), one core each, as in
 `problems/BipedRobot/execution/slurm_array`; the transitions are then merged into one file, and the

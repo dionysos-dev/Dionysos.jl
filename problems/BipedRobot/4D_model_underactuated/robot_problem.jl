@@ -492,22 +492,47 @@ end
 # ============================================================
 
 """
-    default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.1)
+    default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.1, input_steps = 1)
 
 5-D state grid (steps `(dq̇1, dq1, dx, dx, dx)`), 3-D input grid of step
 `du = dx / tstep` and the sampling time. `tstep · du = dx` keeps the three motor
-coordinates on the lattice (each input moves them by exactly one cell); the ankle
+coordinates on the lattice (an input `m · du` moves them by exactly `m` cells); the ankle
 coordinates follow the nonlinear dynamics and are rounded to the grid. `dq̇1` is the step of the
 first state coordinate, the ankle momentum `p₁`.
 
-Returns `(; state_grid, input_grid, tstep, u_max, du)` with `u_max = du`.
+Every motor command is an integer multiple of `du` between `-input_steps · du` and
+`input_steps · du`: `2 · input_steps + 1` values per joint (`input_steps = 1`: `{-du, 0, du}`, the
+default; `2`: `{-2du, -du, 0, du, 2du}`), `(2 · input_steps + 1)³` inputs in all (see
+[`input_count`](@ref)). More values give more freedom to the controller and a proportionally larger
+abstraction.
+
+Returns `(; state_grid, input_grid, tstep, u_max, du, input_steps)` with `u_max = input_steps · du`.
 """
-function default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.1)
+function default_discretization(;
+    dx = 0.1,
+    dq1 = 0.05,
+    dq̇1 = 0.1,
+    tstep = 0.1,
+    input_steps::Integer = 1,
+)
+    input_steps >= 1 || error("`input_steps` must be a positive integer, got $input_steps")
     du = dx / tstep
     state_grid =
         MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0, 0.0), SVector(dq̇1, dq1, dx, dx, dx))
     input_grid = MP.GridFree(SVector(0.0, 0.0, 0.0), SVector(du, du, du))
-    return (; state_grid, input_grid, tstep, u_max = du, du)
+    return (; state_grid, input_grid, tstep, u_max = input_steps * du, du, input_steps)
+end
+
+"""
+    input_count(disc; one_joint_per_step = false) -> Int
+
+Number of inputs of the abstraction for the discretization `disc` (anything with `input_grid` and
+`u_max`, e.g. the result of [`default_discretization`](@ref)): with `k = u_max / du`, every joint takes
+one of `2k + 1` values, hence `(2k + 1)³`, or `1 + 6k` with at most one moving joint per step.
+"""
+function input_count(disc; one_joint_per_step::Bool = false)
+    k = round(Int, disc.u_max / MP.get_h(disc.input_grid)[1])
+    return one_joint_per_step ? 1 + 6k : (2k + 1)^3
 end
 
 # ============================================================

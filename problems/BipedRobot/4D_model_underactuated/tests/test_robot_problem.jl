@@ -176,6 +176,56 @@ end
         end
     end
 
+    @testset "input set: integer multiples of du up to input_steps · du" begin
+        d1 = RP.default_discretization(; dx = 0.1, dq1 = 0.1, dq̇1 = 0.05, tstep = 0.05)
+        @test d1.input_steps == 1 && d1.u_max == d1.du == 2.0
+        @test RP.input_count(d1) == 27 && RP.input_count(d1; one_joint_per_step = true) == 7
+        @test_throws ErrorException RP.default_discretization(; input_steps = 0)
+        for k in (2, 3)
+            dk = RP.default_discretization(;
+                dx = 0.1,
+                dq1 = 0.1,
+                dq̇1 = 0.05,
+                tstep = 0.05,
+                input_steps = k,
+            )
+            @test dk.u_max == k * dk.du && MP.get_h(dk.input_grid) == fill(dk.du, 3)
+            @test RP.input_count(dk) == (2k + 1)^3
+            @test RP.input_count(dk; one_joint_per_step = true) == 1 + 6k
+        end
+        # The abstraction really has these inputs, all multiples of du: 5³ for input_steps = 2.
+        reduced = RP.reduced_dynamics(MODEL)
+        f_nf = RP.substitute_parameters(MODEL, reduced.f, VALUES)
+        disc = RP.default_discretization(;
+            dx = 0.1,
+            dq1 = 0.1,
+            dq̇1 = 0.05,
+            tstep = 0.05,
+            input_steps = 2,
+        )
+        h = MP.get_h(disc.state_grid)
+        X = LazySets.Hyperrectangle(; low = -0.5 .* h, high = 0.5 .* h)   # one cell
+        U = LazySets.Hyperrectangle(;
+            low = fill(-disc.u_max, 3),
+            high = fill(disc.u_max, 3),
+        )
+        lgb = LGA.LocalGrowthBound(f_nf, reduced.x, reduced.u, X, U, disc.tstep)
+        optimizer = LGA.build_abstraction(
+            lgb;
+            state_grid = disc.state_grid,
+            input_grid = disc.input_grid,
+            execution_backend = SY.SequentialBackend(),
+        )
+        sym = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+        @test SY.get_n_input(sym) == RP.input_count(disc) == 125
+        inputs = [SY.get_concrete_input(sym, i) for i in 1:SY.get_n_input(sym)]
+        @test all(
+            u -> all(c -> isapprox(c / disc.du, round(c / disc.du); atol = 1e-9), u),
+            inputs,
+        )
+        @test extrema(maximum(abs, u) for u in inputs) == (0.0, disc.u_max)
+    end
+
     @testset "local growth abstraction of the normal-form model (tiny grid)" begin
         reduced = RP.reduced_dynamics(MODEL)
         f_nf = RP.substitute_parameters(MODEL, reduced.f, VALUES)

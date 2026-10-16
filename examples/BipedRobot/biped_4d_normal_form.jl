@@ -36,7 +36,7 @@
 # disagree. The mechanism is the one of `four_link_biped.urdf` (thin rods `m L² / 12`, point-mass
 # motors).
 #
-# **Cost.** The abstraction has one image to compute per `(cell, input)` pair (27 inputs), and the
+# **Cost.** The abstraction has one image to compute per `(cell, input)` pair (27 inputs by default), and the
 # number of cells is the *product* of the cell counts along the five axes: a state box that looks only
 # slightly wider can have ten times more cells (the size is printed before the abstraction starts).
 #
@@ -124,9 +124,21 @@ foothold_tolerance = @isdefined(FOOTHOLD_TOLERANCE) ? FOOTHOLD_TOLERANCE : 0.08
 # over-approximated ankle spreads over several cells whatever the motion, so the controller needs
 # frequent corrections. Refine the grid (`dq1 = 0.05`, `dq̇1 = 0.02`) once the start is chosen: the
 # cells are 4 times more numerous and the required tolerance smaller.
+#
+# `input_steps = k` is the number of speeds each motor can take on each side: the commands are the integer
+# multiples of `du` in `{-k du, …, -du, 0, du, …, k du}` (`2k + 1` values per joint, `(2k + 1)³` inputs: 27
+# for `k = 1`, 125 for `k = 2`, 343 for `k = 3`), so a joint moves by up to `k` cells per step. The cost of the
+# abstraction is proportional to the number of inputs, and the ankle momentum changes more per step
+# with the larger commands.
 disc =
     @isdefined(DISC) ? DISC :
-    RP.default_discretization(; dx = 0.1, dq1 = 0.1, dq̇1 = 0.04, tstep = 1 / 60)
+    RP.default_discretization(;
+        dx = 0.05,
+        dq1 = 0.05,
+        dq̇1 = 0.04,
+        tstep = 1 / 60,
+        input_steps = 1,
+    )
 
 # State box `[p₁, q₁, q₂, q₃, q₄]`. **Its size is the cost of the run**: the number of cells is the
 # product of the cell counts along the five axes (this box: 123 420 cells, 3.3 M cell/input pairs:
@@ -163,9 +175,9 @@ q0 = @isdefined(Q0) ? Q0 : SVector(0.0, 0.5, -0.4, -0.9)
 initial_velocity = @isdefined(INITIAL_VELOCITY) ? INITIAL_VELOCITY : (-0.4, -0.4)
 target_velocity = @isdefined(TARGET_VELOCITY) ? TARGET_VELOCITY : nothing
 
-# All 3³ = 27 combinations of the three velocity commands by default: keeping the ankle balanced
-# while the swing leg moves needs coordinated joints. Set `ONE_JOINT_PER_STEP = true` before
-# including this file to allow one moving motor joint per step (7 inputs, a smaller automaton).
+# All combinations of the three velocity commands by default (27 for `input_steps = 1`): keeping the ankle
+# balanced while the swing leg moves needs coordinated joints. Set `ONE_JOINT_PER_STEP = true` before
+# including this file to allow one moving motor joint per step (7 inputs for `input_steps = 1`, a smaller automaton).
 one_joint_per_step = @isdefined(ONE_JOINT_PER_STEP) ? ONE_JOINT_PER_STEP : false
 extra_attributes =
     one_joint_per_step ?
@@ -196,7 +208,7 @@ size = RP.abstraction_size(
     X_box,
     disc.state_grid,
     carving;
-    ninputs = one_joint_per_step ? 7 : 27,
+    ninputs = RP.input_count(disc; one_joint_per_step),
 )
 println(
     "State space: ",
@@ -250,6 +262,14 @@ println("swing foot at x0: ", RP.swing_foot_position(SVector{4}(x0[2:5]), geomet
 # `problems/BipedRobot/4D_model_underactuated/slurm_array`.
 abstraction_file = @isdefined(ABSTRACTION_FILE) ? ABSTRACTION_FILE : nothing
 abstraction_only = @isdefined(ABSTRACTION_ONLY) ? ABSTRACTION_ONLY : false
+# An outdated `LocalGrowthAbstraction.jl` would pass `abstraction_file` on as an optimizer attribute that
+# nothing reads, and silently compute the abstraction: refuse it.
+abstraction_file === nothing ||
+    isdefined(LGA, :load_abstraction!) ||
+    error(
+        "$(PROBLEM_DIR)/LocalGrowthAbstraction.jl is too old for ABSTRACTION_FILE (no `load_abstraction!`). " *
+        "Dionysos is loaded from $(pathof(Dionysos)): `PROBLEM_DIR` is relative to it.",
+    )
 execution_backend = @isdefined(EXECUTION_BACKEND) ? EXECUTION_BACKEND : SY.ThreadedBackend()
 merge_chunks = @isdefined(MERGE_CHUNKS) ? MERGE_CHUNKS : nothing
 abstraction_info = (;
@@ -259,7 +279,7 @@ abstraction_info = (;
     tstep = disc.tstep,
     x_lb = collect(x_lb),
     x_ub = collect(x_ub),
-    ninputs = one_joint_per_step ? 7 : 27,
+    ninputs = RP.input_count(disc; one_joint_per_step),
     obstacle = obstacle === nothing ? nothing : length(obstacle),
 )
 @time optimizer = LGA.build_abstraction(

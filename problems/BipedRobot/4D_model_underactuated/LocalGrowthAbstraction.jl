@@ -543,8 +543,12 @@ function build_abstraction(
         MOI.set(optimizer, MOI.RawOptimizerAttribute(String(name)), value)
     end
     if abstraction_file !== nothing && isfile(abstraction_file)
+        print_level >= 1 &&
+            @info "Loading the abstraction from $abstraction_file (not computed)"
         load_abstraction!(optimizer, abstraction_file; info = abstraction_info)
     else
+        abstraction_file === nothing ||
+            @warn "$abstraction_file does not exist (relative paths are relative to $(pwd())): the abstraction is built (computed or merged from chunks), then written there"
         if merge_chunks === nothing
             MOI.optimize!(optimizer)
         else

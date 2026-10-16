@@ -845,18 +845,22 @@ tolerance:
 T = RP.target_set(disc.state_grid, SVector(0.2, 0.0), geometry, X_box; velocity = (-0.2, 0.2), tolerance = 0.03)
 ```
 
-#### `default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.1)`
+#### `default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.1, input_steps = 1)`
 
 *Description.* The 5-D state grid (steps `(dq̇1, dq1, dx, dx, dx)`), the 3-D input grid of step
-`du = dx / tstep` and the sampling time, as `(; state_grid, input_grid, tstep, u_max, du)` with
-`u_max = du`. `tstep · du = dx` keeps the three motor coordinates on the lattice (each input moves
-them by exactly one cell); the ankle coordinates follow the nonlinear dynamics and are rounded to
-the grid. `dq̇1` is the step of the first coordinate, the ankle momentum `p₁`.
+`du = dx / tstep` and the sampling time, as `(; state_grid, input_grid, tstep, u_max, du, input_steps)` with
+`u_max = input_steps · du`. `tstep · du = dx` keeps the three motor coordinates on the lattice (an
+input `m · du` moves them by exactly `m` cells); the ankle coordinates follow the nonlinear dynamics
+and are rounded to the grid. `dq̇1` is the step of the first coordinate, the ankle momentum `p₁`. Every
+motor command is an integer multiple of `du` in `[-input_steps · du, input_steps · du]`:
+`2 · input_steps + 1` values per joint, `(2 · input_steps + 1)³` inputs (27 by default); `RP.input_count(disc;
+one_joint_per_step = false)` returns that number (`1 + 6 · input_steps` with one moving joint per step).
 
 *Use case.* A finer ankle resolution and a shorter sampling period:
 
 ```julia
 disc = RP.default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.02, tstep = 0.05)
+disc2 = RP.default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.02, tstep = 0.05, input_steps = 2)  # 125 inputs
 ```
 
 #### `abstraction_size(X, state_grid, removed = nothing; ninputs = 27, threads = Threads.nthreads())`
