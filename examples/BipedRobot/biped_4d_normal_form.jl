@@ -114,7 +114,7 @@ foothold = SVector(0.2, 0.0)
 # controller certified against the worst case cannot land inside a sliver, whatever the start. A few
 # centimetres of tolerance make the problem solvable: 3 cm for a step of 19 cm, **8 cm** for the 40 cm
 # step of this experiment on this coarse grid (the foot lands anywhere in `x ∈ [0.12, 0.28]`, up to 8 cm above the ground).
-foothold_tolerance = @isdefined(FOOTHOLD_TOLERANCE) ? FOOTHOLD_TOLERANCE : 0.08
+foothold_tolerance = @isdefined(FOOTHOLD_TOLERANCE) ? FOOTHOLD_TOLERANCE : 0.05
 
 # Set `DISC` before including this file to try another resolution. The motor joints move by
 # exactly one cell (`dx`) per step at speed `du = dx / tstep`; `dq̇1` is here the step of the
@@ -137,7 +137,7 @@ disc =
         dq1 = 0.05,
         dq̇1 = 0.04,
         tstep = 1 / 60,
-        input_steps = 1,
+        input_steps = 3,
     )
 
 # State box `[p₁, q₁, q₂, q₃, q₄]`. **Its size is the cost of the run**: the number of cells is the
@@ -156,7 +156,7 @@ disc =
 # change it.
 x_lb, x_ub =
     @isdefined(X_BOUNDS) ? X_BOUNDS :
-    (SVector(-0.6, -0.4, -0.6, -0.8, -1.0), SVector(-0.08, 0.2, 0.6, 1.0, 0.2))
+    (SVector(-0.6, -0.4, -1.0, -1.0, -1.0), SVector(-0.08, 0.2, 0.1, 1.0, 0.1))
 
 # The footstep starts from the configuration `q0 = [q₁, q₂, q₃, q₄]` and ends on the foothold. The
 # controller must work from every cell of the ankle momentum `p₁` that `INITIAL_VELOCITY` touches and
@@ -333,7 +333,10 @@ if !abstraction_only
 
     # Define `RUN_PLOTS = false` before including this file to skip it. `RP.plot_footstep` also draws
     # nothing when the controller has no action at `x0` already (the default outcome of the experiment
-    # without a controller): `traj` has no input then.
+    # without a controller): `traj` has no input then. The figures and the animation go next to this
+    # file, or to the directory `OUTPUT_DIR` if it is defined.
+    output_dir = @isdefined(OUTPUT_DIR) ? OUTPUT_DIR : @__DIR__
+    mkpath(output_dir)
     if @isdefined(RUN_PLOTS) ? RUN_PLOTS : true
         RP.plot_footstep(
             traj,
@@ -345,7 +348,7 @@ if !abstraction_only
             geometry,
             obstacle,
             foothold,
-            file_prefix = joinpath(@__DIR__, "biped_4d_normal_form_$(scenario_name)"),
+            file_prefix = joinpath(output_dir, "biped_4d_normal_form_$(scenario_name)"),
             ankle_label = "p₁ (N m s)",
             dynamics = lgb.dynamics.f,      # re-integrate each step for a smoother animation
             subframes = 10,

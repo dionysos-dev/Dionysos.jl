@@ -660,12 +660,19 @@ function load_abstraction!(optimizer, file::AbstractString; info = nothing)
     )
     _id_probe(abstract_system) == data["probe"] ||
         error("$file numbers the cells differently: another state grid or state box")
+    # In blocks: a single vector of all the `(target, source, symbol)` tuples (24 bytes each, twice
+    # the size of the integer vectors of the file) would be a needless peak for a big abstraction.
     target, source, symbol = data["target"], data["source"], data["symbol"]
-    transitions = Vector{SY.TransitionKey}(undef, length(target))
-    for k in eachindex(transitions)
-        transitions[k] = (Int(target[k]), Int(source[k]), Int(symbol[k]))
+    block = 1 << 22
+    transitions = Vector{SY.TransitionKey}(undef, min(block, length(target)))
+    for first in 1:block:length(target)
+        last = min(first + block - 1, length(target))
+        resize!(transitions, last - first + 1)
+        for k in first:last
+            transitions[k - first + 1] = (Int(target[k]), Int(source[k]), Int(symbol[k]))
+        end
+        SY.add_transitions!(abstract_system, transitions)
     end
-    SY.add_transitions!(abstract_system, transitions)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
     return abstract_system
 end

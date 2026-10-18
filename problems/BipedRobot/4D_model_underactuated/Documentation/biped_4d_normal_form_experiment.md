@@ -230,6 +230,7 @@ The defaults below are those of the file at the time of writing; the file is the
 | **`SCENARIO_NAME`** | `:symmetric_step` | Only used in the names of the output files. |
 | **`ONE_JOINT_PER_STEP`** | `false` | `true` allows at most one moving motor joint per step (`1 + 6k` inputs instead of `(2k + 1)³`: 7 instead of 27 for `k = 1`, a much smaller automaton). |
 | **`RUN_PLOTS`** | `true` | `false` skips the figures and the animation. |
+| **`OUTPUT_DIR`** | the folder of the example | Directory of the figures and the animation (created if needed). The Slurm solve job sets it. |
 | **`ABSTRACTION_FILE`** | `nothing` | Path of a file that caches the **transitions** of the abstraction: loaded if it exists (no computation), otherwise computed and written. The parameters that define the abstraction (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, the obstacle) are stored in it and checked at loading. Used to compute the abstraction on a server (see [`slurm_array/`](../slurm_array/README.md)). |
 | **`ABSTRACTION_ONLY`** | `false` | `true` stops after the abstraction (and its saving): no start-state synthesis, closed loop or plots. |
 
@@ -504,7 +505,7 @@ file (sections 4 and 5, which are cheap) runs where the file is loaded. For a **
 `EXECUTION_BACKEND = SY.SlurmArrayBackend(nchunks, chunk_id, outdir, :contiguous, true)` makes each run
 compute and write one chunk of the transitions, and `MERGE_CHUNKS = (; outdir, nchunks)` makes the final
 run read the chunks instead of computing (`LGA.merge_chunks!`) and write the merged file. The folder
-[`slurm_array/`](../slurm_array/README.md) has the scripts and the Slurm jobs. The target, the start and
+[`slurm_array/`](../slurm_array/README.md) has the scripts and the Slurm jobs, including a last job that runs the synthesis, the closed loop and the animation on the server from the saved file (and can be rerun alone with other starts or tolerances). The target, the start and
 the target velocity can be changed without recomputing the abstraction (they do not enter the file); a
 different grid or state box cannot (the file is then refused).
 
