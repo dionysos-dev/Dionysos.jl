@@ -6,28 +6,32 @@
 # final run.
 #
 # Switches, read from the environment:
-#   SAMPLES=n   median of n timed rounds (default 3)
-#   FIGURES=0   skip the figures and animations (they cost more than the numbers)
+#   SAMPLES=n         median of n timed rounds (default 3)
+#   FIGURES=0         skip the figures and animations (they cost more than the numbers)
+#   RESULTS_DIR=path  where the results go (default `results/` here; `/results` on CodeOcean)
 
 import Dates
 import InteractiveUtils
+import Dionysos
+import MathOptInterface
+import StaticArrays
 
-const RESULTS = joinpath(@__DIR__, "results")
+const RESULTS = get(ENV, "RESULTS_DIR", joinpath(@__DIR__, "results"))
 mkpath(RESULTS)
 
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "3"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
 
 """
-    timed(f) -> (result, seconds)
+    timed(f; samples = SAMPLES) -> (result, seconds)
 
-Run `f()` `SAMPLES` times and return the last result with the median wall time. Garbage is
+Run `f()` `samples` times and return the last result with the median wall time. Garbage is
 collected before each round, so one experiment's allocations do not bill the next.
 """
-function timed(f)
+function timed(f; samples = SAMPLES)
     times = Float64[]
     result = nothing
-    for _ in 1:SAMPLES
+    for _ in 1:samples
         GC.gc()
         t = @elapsed result = f()
         push!(times, t)
@@ -114,18 +118,21 @@ end
     write_environment()
 
 Record what produced the results: date, Julia version, Dionysos commit, machine. The paper
-quotes the machine, and a reader of the capsule can check the commit.
+quotes the machine, and a reader of the capsule can check the commit. The commit is read from the
+Dionysos.jl checkout that the environment loads, the enclosing repository or, on CodeOcean, the
+clone made by `environment/postInstall`.
 """
 function write_environment()
+    entry = Base.find_package("Dionysos")
+    repo = entry === nothing ? (@__DIR__) : dirname(dirname(entry))
     commit = try
-        readchomp(`git -C $(@__DIR__) rev-parse HEAD`)
+        readchomp(`git -C $repo rev-parse HEAD`)
     catch
         "unknown (not a git checkout)"
     end
     dirty = try
-        isempty(
-            readchomp(`git -C $(@__DIR__) status --porcelain -- ../../src ../../problems`),
-        ) ? "" : " (with uncommitted changes in src/ or problems/)"
+        isempty(readchomp(`git -C $repo status --porcelain -- src problems`)) ? "" :
+        " (with uncommitted changes in src/ or problems/)"
     catch
         ""
     end
@@ -142,6 +149,45 @@ function write_environment()
         "env.samples" => SAMPLES,
     ])
     return
+end
+
+"""
+    set_periodic!(optimizer)
+
+Make the first state coordinate, the angle θ, periodic on [−π, π) for a uniform grid abstraction.
+"""
+function set_periodic!(optimizer)
+    for (key, value) in (
+        "use_periodic_mapping" => true,
+        "periodic_dims" => StaticArrays.SVector(1),
+        "periodic_periods" => StaticArrays.SVector(2π),
+        "periodic_start" => StaticArrays.SVector(-π),
+    )
+        MathOptInterface.set(optimizer, MathOptInterface.RawOptimizerAttribute(key), value)
+    end
+    return
+end
+
+"""
+    abstraction_size(optimizer) -> (cells, transitions, successors)
+
+The cells and stored transitions of the abstraction built by `optimizer`, and the mean number of
+successors of an enabled (cell, input) pair.
+"""
+function abstraction_size(optimizer)
+    SY = Dionysos.Symbolic
+    abstract_system = MathOptInterface.get(
+        optimizer,
+        MathOptInterface.RawOptimizerAttribute("abstract_system"),
+    )
+    autom = SY.get_automaton(abstract_system)
+    enabled = falses(SY.get_n_state(autom), SY.get_n_input(autom))
+    ntrans = 0
+    for (_, source, symbol) in SY.enum_transitions(autom)
+        ntrans += 1
+        enabled[source, symbol] = true
+    end
+    return SY.get_n_state(autom), ntrans, ntrans / max(count(enabled), 1)
 end
 
 # Angles made continuous across the ±π wrap, for plotting.

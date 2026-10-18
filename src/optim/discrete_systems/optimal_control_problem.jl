@@ -234,7 +234,7 @@ function compute_optimal_controller(
                 total_cost = effective_cost_function(source, symbol) + cost_to_target
                 if total_cost < value_fun_tab[source]
                     value_fun_tab[source] = total_cost
-                    add_control!(contr_tab, source, symbol)
+                    set_control!(contr_tab, source, symbol)
                     pq[source] = total_cost
                 end
             else
@@ -242,17 +242,14 @@ function compute_optimal_controller(
                     continue
                 end
                 if decrease_counter!(counter, source, symbol) == 0
-                    if uniform_cost
-                        worst = value_fun_tab[target]
-                        push!(optimal_controllable_set, source)
-                    else
-                        successors = SY.post(autom, source, symbol)
-                        worst = maximum(value_fun_tab[q′] for q′ in successors)
-                    end
+                    # States are popped in nondecreasing order of value, so the successor that
+                    # completes the pair is its worst: no need to read the pair's successors back.
+                    worst = cost_to_target
+                    uniform_cost && push!(optimal_controllable_set, source)
                     total_cost = effective_cost_function(source, symbol) + worst
                     if total_cost < value_fun_tab[source]
                         value_fun_tab[source] = total_cost
-                        add_control!(contr_tab, source, symbol)
+                        set_control!(contr_tab, source, symbol)
                         pq[source] = total_cost
                     end
                 end

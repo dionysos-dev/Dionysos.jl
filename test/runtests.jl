@@ -34,6 +34,7 @@ const TEST_FILES = [
     ("./system/approximation.jl",),
     # The three precision levels of the derived Jacobian bound (needs Symbolics).
     ("./system/jacobian_bound_precision.jl",),
+    ("./system/cellwise_growth_bound.jl",),
     ("./system/controllers.jl",),
     ("./system/pid_controller.jl",),
     ("./system/controller_serialization.jl",),
@@ -85,6 +86,7 @@ const TEST_FILES = [
     ("./optim/discrete_systems/reachability.jl",),
     ("./optim/discrete_systems/cosafe_accepting.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
+    ("./optim/discrete_systems/worst_case_cost.jl",),
     ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
     # Input slew-rate constrained synthesis (pair-keyed Dijkstra).

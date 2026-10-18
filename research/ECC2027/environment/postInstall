@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# CodeOcean build step, run once as root with internet access; its result is cached. It installs
+# Julia, Dionysos.jl at the commit of the paper's results, and this capsule's packages at the
+# versions of its manifest, precompiled, so that a Reproducible Run needs no network.
+set -euo pipefail
+
+JULIA_VERSION=1.12.5
+DIONYSOS_COMMIT=b664d9e3caeb9485137f7f4be924ecb5c017c784
+export JULIA_DEPOT_PATH=/opt/julia_depot
+
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl git
+
+curl -fsSL "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" |
+    tar -xz -C /opt
+ln -sf "/opt/julia-${JULIA_VERSION}/bin/julia" /usr/local/bin/julia
+
+# The capsule's manifest finds Dionysos two folders up, which in this clone is the clone itself.
+git clone https://github.com/dionysos-dev/Dionysos.jl /opt/Dionysos.jl
+git -C /opt/Dionysos.jl checkout --detach "$DIONYSOS_COMMIT"
+julia --project=/opt/Dionysos.jl/research/ECC2027 -e 'import Pkg; Pkg.instantiate(); Pkg.precompile()'
