@@ -86,6 +86,7 @@ const TEST_FILES = [
     ("./optim/discrete_systems/reachability.jl",),
     ("./optim/discrete_systems/cosafe_accepting.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
+    ("./optim/discrete_systems/worst_case_cost.jl",),
     ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
     # Input slew-rate constrained synthesis (pair-keyed Dijkstra).
