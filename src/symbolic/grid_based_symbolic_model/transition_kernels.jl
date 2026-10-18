@@ -42,6 +42,8 @@ function collect_abstract_transitions!(
         concrete_elem = concrete_elems[abstract_state]
         reachable_set =
             ST.reach_set(concrete_system_approx, concrete_elem, concrete_input, cache)
+        # No over-approximation (e.g. no enclosure of the step): the input is not admissible here.
+        reachable_set === nothing && return nothing
 
         start_len = length(transbuf)
 

@@ -34,6 +34,7 @@ const TEST_FILES = [
     ("./system/approximation.jl",),
     # The three precision levels of the derived Jacobian bound (needs Symbolics).
     ("./system/jacobian_bound_precision.jl",),
+    ("./system/cellwise_growth_bound.jl",),
     ("./system/controllers.jl",),
     ("./system/pid_controller.jl",),
     ("./system/controller_serialization.jl",),

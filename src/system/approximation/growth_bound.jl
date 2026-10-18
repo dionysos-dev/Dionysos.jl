@@ -49,6 +49,51 @@ struct RegionwiseGrowth{F, R}
 end
 
 """
+    CellwiseBound(enclosure, bound)
+
+A Jacobian bound that depends on the **cell**, through an a-priori enclosure of the step from it.
+
+- `enclosure(cell, u, tstep)` returns an enclosure of every trajectory from the box `cell` under
+  the constant input `u` over `[0, tstep]`, in any form `bound` understands (typically a box), or
+  `nothing` if none was found. The input is then not admissible at that cell: the cell gets no
+  transition under it, as when its image leaves the domain.
+- `bound(E, u)` returns a Metzler matrix (signed upper bounds on the diagonal, absolute values off
+  it) bounding the Jacobian of the dynamics over the enclosure `E`.
+
+A bound over the whole state space, or over a fixed region (see [`RegionwiseBound`](@ref)), must
+be as large as the worst point of that set. The enclosure of one step from one cell is far
+smaller, so the growth bound is tighter, at the price of one enclosure and one radius integration
+per (cell, input) instead of one per input. Both functions are supplied by the caller, and the
+soundness of the abstraction rests on them.
+"""
+struct CellwiseBound{E, B}
+    enclosure::E
+    bound::B
+end
+
+"""
+    CellwiseGrowth(bound, nsubsteps, tstep)
+
+The growth-bound map produced by a [`CellwiseBound`](@ref): the radius of the image of a cell is
+the RK4 solution (`nsubsteps` substeps) of `ṙ = bound(enclosure(cell, u, tstep), u) r` from the
+cell's radius. `tstep` is `nothing` until the map is discretized.
+"""
+struct CellwiseGrowth{B <: CellwiseBound, T}
+    bound::B
+    nsubsteps::Int
+    tstep::T
+end
+
+# The radius of the image of `cell` under `u` over `tstep`, or `nothing` without an enclosure.
+function cellwise_radius(g::CellwiseGrowth, cell, u, tstep)
+    E = g.bound.enclosure(cell, u, tstep)
+    E === nothing && return nothing
+    J = g.bound.bound(E, u)
+    r = LazySets.radius_hyperrectangle(cell)
+    return runge_kutta4((rr, _) -> J * rr, r, u, tstep, g.nsubsteps)
+end
+
+"""
     DiscreteTimeGrowthBound <: DiscreteTimeSystemOverApproximation
 
 A discrete-time overapproximation based on **growth bounds**.
@@ -82,6 +127,8 @@ input_cache(approx::DiscreteTimeGrowthBound, r, u) =
 
 _input_cache(g, r, u) = g(r, u)
 _input_cache(g::RegionwiseGrowth, r, u) = [g.radius(i, r, u) for i in 1:(g.nregions)]
+# A cellwise radius depends on the cell itself: nothing can be hoisted out of the cell loop.
+_input_cache(::CellwiseGrowth, _, _) = nothing
 
 # For a plain map the cache *is* the radius; for a regionwise one it is the table to index.
 _radius_from_cache(g, cache, x) = cache
@@ -91,6 +138,19 @@ function reach_set(approx::DiscreteTimeGrowthBound, elem, u, Fr)
     x = LazySets.center(elem)
     Fx = get_system_map(approx)(x, u)
     return LazySets.Hyperrectangle(Fx, _radius_from_cache(approx.growthbound_map, Fr, x))
+end
+
+# `nothing` when the enclosure of the step fails: the input is then not admissible at `elem`.
+function reach_set(
+    approx::DiscreteTimeGrowthBound{S, <:CellwiseGrowth},
+    elem,
+    u,
+    _,
+) where {S <: MS.ConstrainedBlackBoxControlDiscreteSystem}
+    g = approx.growthbound_map
+    Fr = cellwise_radius(g, elem, u, g.tstep)
+    Fr === nothing && return nothing
+    return LazySets.Hyperrectangle(get_system_map(approx)(LazySets.center(elem), u), Fr)
 end
 
 function get_over_approximation_map(approx::DiscreteTimeGrowthBound)
@@ -131,8 +191,14 @@ function get_over_approximation_map(approx::ContinuousTimeGrowthBound)
         r = LazySets.radius_hyperrectangle(rect)
         Fx = get_system_map(approx)(x, u, tstep)
         g = approx.growthbound_map
-        Fr =
-            g isa RegionwiseGrowth ? g.radius(g.region_of(x), r, u, tstep) : g(r, u, tstep)
+        Fr = if g isa RegionwiseGrowth
+            g.radius(g.region_of(x), r, u, tstep)
+        elseif g isa CellwiseGrowth
+            cellwise_radius(g, rect, u, tstep)
+        else
+            g(r, u, tstep)
+        end
+        Fr === nothing && return nothing
         return LazySets.Hyperrectangle(Fx, Fr)
     end
 end
@@ -146,6 +212,8 @@ function discretize(
     g = approx.growthbound_map
     discretized_growthbound_map = if g isa RegionwiseGrowth
         RegionwiseGrowth((i, r, u) -> g.radius(i, r, u, tstep), g.region_of, g.nregions)
+    elseif g isa CellwiseGrowth
+        CellwiseGrowth(g.bound, g.nsubsteps, tstep)
     else
         (r, u) -> g(r, u, tstep)
     end
@@ -183,6 +251,13 @@ function ContinuousTimeGrowthBound(
             jacobian_bound.nregions,
         )
         return ContinuousTimeGrowthBound(system, growthbound_map)
+    end
+    if jacobian_bound isa CellwiseBound
+        # `L` differs from cell to cell: the radius ODE is integrated per (cell, input).
+        return ContinuousTimeGrowthBound(
+            system,
+            CellwiseGrowth(jacobian_bound, ngrowthbound, nothing),
+        )
     end
     modified_jacobian_bound = (r, u) -> jacobian_bound(u) * r
     growthbound_map =
@@ -230,6 +305,9 @@ it when a bound taken over the whole state space is too conservative for synthes
 on a pendulum it cut spurious transitions by 5–10% at `nsplit ≥ 8`.
 
 Note `nsplit^n` grows with the state dimension `n`, so lower `nsplit` above 2–3 states.
+
+Tighter still is a bound per cell, over an enclosure of the step from that cell. It is not derived
+here: supply a [`CellwiseBound`](@ref) as the `jacobian_bound`.
 """
 function compute_jacobian_bound(system; kwargs...)
     return error(
@@ -315,9 +393,9 @@ function ContinuousTimeGrowthBound(
         # would under-approximate it.
         jacobian_bound = compute_jacobian_bound(system)
     end
-    jacobian_bound isa RegionwiseBound && error(
-        "A regionwise Jacobian bound with a disturbance is not implemented; use an input-only " *
-        "bound, or fold the disturbance into a hand-written growthbound_map.",
+    (jacobian_bound isa RegionwiseBound || jacobian_bound isa CellwiseBound) && error(
+        "A regionwise or cellwise Jacobian bound with a disturbance is not implemented; use " *
+        "an input-only bound, or fold the disturbance into a hand-written growthbound_map.",
     )
 
     disturbed_radius_dynamics = (r, u) -> jacobian_bound(u) * r .+ z
