@@ -20,15 +20,15 @@ const SAMPLES = parse(Int, get(ENV, "SAMPLES", "3"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
 
 """
-    timed(f) -> (result, seconds)
+    timed(f; samples = SAMPLES) -> (result, seconds)
 
-Run `f()` `SAMPLES` times and return the last result with the median wall time. Garbage is
+Run `f()` `samples` times and return the last result with the median wall time. Garbage is
 collected before each round, so one experiment's allocations do not bill the next.
 """
-function timed(f)
+function timed(f; samples = SAMPLES)
     times = Float64[]
     result = nothing
-    for _ in 1:SAMPLES
+    for _ in 1:samples
         GC.gc()
         t = @elapsed result = f()
         push!(times, t)

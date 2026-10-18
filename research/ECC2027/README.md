@@ -24,7 +24,7 @@ Switches, read from the environment:
 
 | Variable | Default | Effect |
 |---|---|---|
-| `SAMPLES=n` | 3 | report the median wall time of `n` timed rounds in E1; E2 times one run |
+| `SAMPLES=n` | 3 | report the median wall time of `n` timed rounds, except for the force model (T) of E2, timed once |
 | `FIGURES=0` | on | skip the plots and animations |
 | `RESULTS_DIR=path` | `results/` | where the results go (`/results` on CodeOcean) |
 
@@ -37,8 +37,11 @@ machine with fewer cores the run takes longer.
 
 | Paper | Script | Outputs in `results/` |
 |---|---|---|
-| Section VI-A, pendulum swing-up; Table I, Fig. 4 | `experiments/E1_pendulum.jl` | `params_e1.md`, `table_e1.tex`, `fig_e1.pdf`, `e1_{T,F}.gif`, numbers `e1.*` |
-| Section VI-B, cart-pole swing-up; Table II, Fig. 5 | `experiments/E2_cartpole.jl`, using `experiments/cartpole_abstraction.jl` | `params_e2.md`, `table_e2.tex`, `fig_e2.pdf`, `e2_F.gif` (no animation for (T), which fails), numbers `e2.*` |
+| Section VI-A, pendulum swing-up; Table I, Fig. 4 | `experiments/E1_pendulum.jl`, models in Dionysos's `problems/Pendulum/` | `params_e1.md`, `table_e1.tex`, `fig_e1.pdf`, `e1_{T,F}.gif`, numbers `e1.*` |
+| Section VI-B, cart-pole swing-up; Table II, Fig. 5 | `experiments/E2_cartpole.jl`, models in Dionysos's `problems/CartPendulum/point_mass_cart_pendulum.jl` | `params_e2.md`, `table_e2.tex`, `fig_e2.pdf`, `e2_F.gif` (no animation for (T), which fails), numbers `e2.*` |
+
+Every abstraction and controller is computed by Dionysos's uniform grid abstraction solver;
+the scripts set the problem, run the solver, and replay its controllers.
 
 The numbers, the two tables and the two plots of the paper are copies of `results/numbers.tex`,
 `table_e1.tex`, `table_e2.tex`, `fig_e1.pdf` and `fig_e2.pdf` from the final run. A new run
