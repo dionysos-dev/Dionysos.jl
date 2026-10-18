@@ -12,6 +12,9 @@
 
 import Dates
 import InteractiveUtils
+import Dionysos
+import MathOptInterface
+import StaticArrays
 
 const RESULTS = get(ENV, "RESULTS_DIR", joinpath(@__DIR__, "results"))
 mkpath(RESULTS)
@@ -146,6 +149,45 @@ function write_environment()
         "env.samples" => SAMPLES,
     ])
     return
+end
+
+"""
+    set_periodic!(optimizer)
+
+Make the first state coordinate, the angle θ, periodic on [−π, π) for a uniform grid abstraction.
+"""
+function set_periodic!(optimizer)
+    for (key, value) in (
+        "use_periodic_mapping" => true,
+        "periodic_dims" => StaticArrays.SVector(1),
+        "periodic_periods" => StaticArrays.SVector(2π),
+        "periodic_start" => StaticArrays.SVector(-π),
+    )
+        MathOptInterface.set(optimizer, MathOptInterface.RawOptimizerAttribute(key), value)
+    end
+    return
+end
+
+"""
+    abstraction_size(optimizer) -> (cells, transitions, successors)
+
+The cells and stored transitions of the abstraction built by `optimizer`, and the mean number of
+successors of an enabled (cell, input) pair.
+"""
+function abstraction_size(optimizer)
+    SY = Dionysos.Symbolic
+    abstract_system = MathOptInterface.get(
+        optimizer,
+        MathOptInterface.RawOptimizerAttribute("abstract_system"),
+    )
+    autom = SY.get_automaton(abstract_system)
+    enabled = falses(SY.get_n_state(autom), SY.get_n_input(autom))
+    ntrans = 0
+    for (_, source, symbol) in SY.enum_transitions(autom)
+        ntrans += 1
+        enabled[source, symbol] = true
+    end
+    return SY.get_n_state(autom), ntrans, ntrans / max(count(enabled), 1)
 end
 
 # Angles made continuous across the ±π wrap, for plotting.

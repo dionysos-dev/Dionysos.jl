@@ -95,14 +95,6 @@ function write_parameters()
     return
 end
 
-function set_periodic!(optimizer)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), SVector(1))
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), SVector(2π))
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), SVector(-π))
-    return
-end
-
 # ---------------------------------------------------------------------------- (T) torque model
 function solve_torque()
     _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -U_BAR), high = SVector(π, U_BAR))
@@ -185,15 +177,6 @@ function solve_velocity(constraint)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
     MOI.optimize!(optimizer)
     return optimizer
-end
-
-# States, transitions, and the mean number of successors of an enabled (state, input) pair.
-function abstraction_size(optimizer)
-    autom =
-        SY.get_automaton(MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system")))
-    trans = SY.enum_transitions(autom)
-    pairs = length(Set((source, symbol) for (_, source, symbol) in trans))
-    return SY.get_n_state(autom), length(trans), length(trans) / pairs
 end
 
 # Number of cells from which the controller can start at rest.
