@@ -1,27 +1,11 @@
-# E2, cart-pole swing-up: the classical force model (T) against the velocity model (F).
+# E2: cart-pole swing-up, force model (T) against velocity model (F).
 #
-# A frictionless cart-pole (point mass at the tip, θ from the upright) starts at rest, hanging
-# down, and must reach a neighborhood of the upright, |θ| ≤ 0.2 rad and |p_θ| ≤ 0.2. The cart
-# force of (T) is limited to F_MAX; the cart velocity of (F) is commanded on a grid, in steps,
-# under the impulse budget |α(θ)(u − v)| ≤ I_MAX = F_MAX τ, the impulse a force-limited actuator
-# delivers over one step. The cart position enters neither the dynamics of the pole nor the task,
-# so both models leave it out.
+# (T): state (θ, ẋ, θ̇), cart force |F| ≤ F_MAX held over each step.
+# (F): state (θ, p_θ), cart velocity commanded in steps under the impulse budget
+#      |α(θ)(u − v)| ≤ I_MAX = F_MAX τ.
+# The cart position is left out: neither the pole nor the task depends on it.
 #
-#   (T)  force model, state (θ, ẋ, θ̇), the force held over each step.
-#   (F)  velocity model, state (θ, p_θ); the impulse budget decides which command may follow
-#        which, in Algorithm 1.
-#
-# Both abstractions are Dionysos's uniform grid abstraction, one successor set per (cell, input)
-# from a growth bound (Definition "Abstraction" of the paper). The Jacobian bound of (T) is computed
-# cell by cell, over an enclosure of the step from the cell, which is tighter than a global one.
-#
-# Every controller is replayed on the exact dynamics; (F) reports the impulse of each step and
-# the hold force between samples, which the budget does not bound. (F) is also replayed without
-# its ideal servo, the cart driven by a force-limited PI velocity loop on the force model, from
-# its start and from every cell from which it starts at rest.
-#
-# Writes results/params_e2.md, results/table_e2.tex, results/fig_e2.{pdf,png},
-# results/e2_{T,F}.gif, and the numbers e2.*.
+# Writes params_e2.md, table_e2.tex, fig_e2.{pdf,png}, e2_F.gif and the numbers e2.*.
 
 module E2CartPole
 
@@ -49,7 +33,7 @@ include(
 )
 import .PointMassCartPendulum as PM
 
-# =============================================================================== parameters
+# Parameters
 const PARAMS = PM.Params()          # M = 1 kg cart, m = 0.2 kg at l = 1 m, g = 9.81
 const F_MAX = 20.0                  # force limit of (T) (N)
 const V_MAX = 2.0                   # cart speed limit (m/s)
@@ -70,16 +54,16 @@ const H_ω = 0.2
 const ω_MAX = 10.0
 const DF = 2.0
 
-# The grids of the runs, and coarse ones that compile the code before the timed runs.
+# Coarse grids, run once to compile before timing.
 const GRIDS = (F = (nθ = N_θ, hp = H_P), T = (nθ = N_θ, hv = H_V, hω = H_ω))
 const COARSE = (F = (nθ = 31, hp = 0.2), T = (nθ = 31, hv = 0.4, hω = 1.0))
 
-# Command notches that the impulse budget allows per step, at the inertia α.
+# Command steps δu allowed per period at inertia α.
 notches(α) = floor(Int, (I_MAX + 1e-9) / (α * δu))
 
 function write_parameters()
     nΣ = 2 * round(Int, V_MAX / δu) + 1
-    # (F) bounds α over each cell, which the exact budget does not.
+    # α is bounded over each cell.
     hθ = 2π / N_θ
     lo, hi = extrema(
         notches(PM.inertia_bound(PARAMS, (θ - hθ / 2, θ + hθ / 2))) for
@@ -110,11 +94,10 @@ function write_parameters()
     return
 end
 
-# =================================================================================== models
-# θ is periodic, with cell edges at ±π; each grid has its origin at its first cell center.
+# Models. θ is periodic with cell edges at ±π; each grid starts at its first cell center.
 
-# (F). The target is the cells inside |θ| ≤ θ_TARGET, |p_θ| ≤ P_TARGET. The Jacobian bound holds
-# for |p_θ| ≤ P_MAX + 0.5: in one step p_θ moves by less than 0.4 (|ṗ_θ| < 7.8).
+# The Jacobian bound must hold over a whole step: p_θ moves by less than 0.4 per step
+# (|ṗ_θ| < 7.8), hence P_MAX + 0.5.
 function model_F(; nθ, hp)
     hθ = 2π / nθ
     grid = MP.GridFree(SVector(-π + hθ / 2, -P_MAX + hp / 2), SVector(hθ, hp))
@@ -133,7 +116,7 @@ function model_F(; nθ, hp)
     )
 end
 
-# (T). The target is the same physical set, p_θ = m l² θ̇ + m l cos θ ẋ, over whole cells.
+# Same target as (F), with p_θ = m l² θ̇ + m l cos θ ẋ bounded over each cell.
 function model_T(; nθ, hv, hω)
     hθ = 2π / nθ
     grid = MP.GridFree(
@@ -166,8 +149,7 @@ function model_T(; nθ, hv, hω)
     )
 end
 
-# Both abstractions integrate the center and the growth bound by RK4 in 20 substeps. The target
-# cells get no transitions: a run ends there.
+# RK4 with 20 substeps for the centers and the growth bound. Target cells get no transitions.
 function solve(model)
     init = LazySets.Hyperrectangle(; low = model.start .- 1e-3, high = model.start .+ 1e-3)
     problem = PR.OptimalControlProblem(
@@ -197,7 +179,7 @@ function solve(model)
     return optimizer
 end
 
-# =================================================================================== replays
+# Replays
 wrap(z) = Base.setindex(z, rem2pi(z[1], RoundNearest), 1)
 
 samples() = (
@@ -219,14 +201,8 @@ function record!(out, t, θ, θdot, x, v, F)
     return
 end
 
-"""
-    replay_F(ctrl, target, z0; nmax = 2000, K = 20, record = true)
-
-Run the controller `ctrl` of (F) on the exact step dynamics from `z0` at rest, sampling each step
-`K` times: the times, angle, angular velocity, cart position and velocity, the hold force
-`m sin θ (g cos θ − l θ̇²)` between samples, the impulse `α(θ)(u − v)` of each step, and whether
-the target was reached. With `record = false`, only the last.
-"""
+# (F) on the exact step dynamics from z0 at rest, K samples per step. Records the hold force
+# between samples and the impulse of each step; with record = false, only whether it reached.
 function replay_F(ctrl, target, z0; nmax = 2000, K = 20, record = true)
     f = PM.velocity_dynamics(PARAMS)
     out, impulses = samples(), Float64[]
@@ -258,12 +234,7 @@ function replay_F(ctrl, target, z0; nmax = 2000, K = 20, record = true)
     return (; out..., impulses, reached)
 end
 
-"""
-    replay_T(ctrl, target, y0; nmax = 2000, K = 20)
-
-Run the controller `ctrl` of (T) on the force dynamics from `y0`, the force held over each step,
-with the same samples as `replay_F`.
-"""
+# (T) on the force dynamics, the force held over each step.
 function replay_T(ctrl, target, y0; nmax = 2000, K = 20)
     f = PM.force_dynamics(PARAMS)
     out = samples()
@@ -290,23 +261,11 @@ function replay_T(ctrl, target, y0; nmax = 2000, K = 20)
     return (; out..., impulses = Float64[], reached)
 end
 
-# ============================================================================== servo replay
-# Assumption "Velocity servos" idealizes the servo of (F): the cart velocity jumps to each
-# command. The servo replay drops it: the cart is driven by a PI loop on its velocity, at 1 kHz,
-# under the force limit of (T), on the force model. Nothing certifies this closed loop; the replay
-# measures how far the idealization is from a force-limited servo.
+# (F) with a PI loop on the cart velocity instead of the ideal servo, on the force model: the
+# controller sets the setpoint every τ, the loop sets the force every SERVO.dt, |F| ≤ F_MAX.
+# Also returns the setpoints and the largest velocity lag |u − ẋ| at a sampling instant.
 const SERVO = (Kp = 100.0, Ki = 500.0, dt = 1e-3)
 
-"""
-    replay_servo(ctrl, target, z0; nmax = 2000, record = true)
-
-Run the controller `ctrl` of (F) on the force model from `z0` at rest, the cart driven by the PI
-velocity loop `SERVO` under the force limit `F_MAX`: every τ the controller reads `(θ, p_θ)` and
-sets the velocity setpoint, every `SERVO.dt` the loop sets the force. Returns the samples of
-`replay_F` (the force applied), the setpoints, the number of commands, the largest velocity lag
-`|u − ẋ|` left at a sampling instant, and whether the target was reached. With
-`record = false`, no samples or setpoints.
-"""
 function replay_servo(ctrl, target, z0; nmax = 2000, record = true)
     f = PM.force_dynamics(PARAMS)
     loop = PM.velocity_loop(; SERVO.Kp, SERVO.Ki, F_max = F_MAX, SERVO.dt)
@@ -342,12 +301,8 @@ function replay_servo(ctrl, target, z0; nmax = 2000, record = true)
     return (; out..., setpoints, steps, lag, reached)
 end
 
-"""
-    servo_sweep(optimizer, ctrl, target)
-
-Replay (F) from the center of every cell from which its controller starts at rest, with the ideal
-servo and with the PI loop: the number of starts, and of runs that reach the target with each.
-"""
+# From every cell center where the controller of (F) starts at rest: how many runs reach the
+# target with the ideal servo and with the PI loop.
 function servo_sweep(optimizer, ctrl, target)
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     starts =
@@ -367,10 +322,10 @@ function servo_sweep(optimizer, ctrl, target)
     return (; starts = length(starts), ideal = count(ideal), servo = count(servo))
 end
 
-# ==================================================================================== runs
+# Runs
 write_parameters()
 
-# (T) takes minutes, so it is timed once.
+# (T) takes minutes: timed once.
 const RUNS = (
     T = (; model = model_T, replay = replay_T, samples = 1),
     F = (; model = model_F, replay = replay_F, samples = SAMPLES),
@@ -423,8 +378,8 @@ for (name, r) in results
         numbers["e2.F.maximpulse"] = fmt(peak)
         numbers["e2.F.maxhold"] = fmt(maximum(abs, rp.F))
         sv, sweep = r.servo.replay, r.servo.sweep
-        # Soundness: with the ideal servo, every start of the controller reaches the target. The
-        # paper also states it with the PI loop (Section VI-B, Two time levels).
+        # Every start must reach the target with the ideal servo (soundness), and, as the paper
+        # states, with the PI loop.
         sweep.ideal == sweep.starts ||
             @warn "(F) misses the target from $(sweep.starts - sweep.ideal) of $(sweep.starts) starts with the ideal servo"
         sweep.servo == sweep.starts ||
@@ -475,8 +430,8 @@ write_table(
     align = "lrrrrrrr",
 )
 
-# =================================================================================== figures
-# The cart and the pole, θ from the upright.
+# Figures
+# Cart and pole, θ from the upright.
 function cart_plot!(; l = PARAMS.l, w = 0.4, h = 0.2)
     return function (fig, s, _)
         x, θ = s[1], s[2]
@@ -505,9 +460,7 @@ function cart_plot!(; l = PARAMS.l, w = 0.4, h = 0.2)
 end
 
 if FIGURES
-    # Printed at about 0.7 of this size: fonts chosen to print at 6-7 pt. No legend: the caption
-    # tells the curves apart.
-    # The panels share the time axis, labeled on the bottom one only.
+    # Printed at about 0.7 scale (6-7 pt fonts); no legend, the caption explains the curves.
     style = (; guidefontsize = 9, tickfontsize = 8, grid = false, legend = false)
     no_time = (; xformatter = _ -> "")
     p_θ = Plots.plot(; ylabel = "θ (deg)", yticks = 0:180:360, no_time..., style...)
@@ -519,8 +472,7 @@ if FIGURES
         style...,
     )
     Plots.hline!(p_F, [-F_MAX, F_MAX]; color = :gray, ls = :dash, label = "")
-    # The force of the PI servo first, light, under the curves of the ideal servo: its bursts
-    # deliver the impulses that the ideal servo applies at once.
+    # PI force drawn first, light, under the ideal-servo curves.
     servo = results[:F].solved ? results[:F].servo.replay : nothing
     servo === nothing ||
         Plots.plot!(p_F, servo.t, servo.F; color = 3, lw = 0.5, alpha = 0.4)
@@ -553,8 +505,7 @@ if FIGURES
             label = "",
         )
     end
-    # The two time levels of the PI run: its setpoints, every τ, which the ideal servo would
-    # follow at once, and the cart velocity that the loop makes follow them, every millisecond.
+    # PI run: setpoints (every τ) and cart velocity.
     p_v = Plots.plot(;
         ylabel = "ẋ (m/s)",
         yticks = (-V_MAX):V_MAX:V_MAX,

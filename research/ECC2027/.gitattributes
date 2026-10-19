@@ -1,4 +1,3 @@
-# The CodeOcean scripts run under bash, which fails on CRLF line endings: keep them LF on every
-# checkout, Windows included.
+# bash fails on CRLF line endings
 run text eol=lf
 environment/postInstall text eol=lf

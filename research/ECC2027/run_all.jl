@@ -1,12 +1,8 @@
-# Regenerate every number, table and figure of the paper.
-#
-#     julia --project=. --threads=auto run_all.jl
-#
-# Results go to `results/`; the paper quotes copies of them.
-# Switches: SAMPLES=n for the median of n timed rounds (default 3), FIGURES=0 to skip the plots.
+# Runs all the experiments:  julia --project=. --threads=auto run_all.jl
+# Environment variables: see common.jl.
 
 include(joinpath(@__DIR__, "common.jl"))
-# A full run regenerates every number, so none survives from an earlier run.
+# Start from an empty numbers.tex.
 rm(joinpath(RESULTS, "numbers.tex"); force = true)
 write_environment()
 
