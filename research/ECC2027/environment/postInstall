@@ -5,7 +5,7 @@
 set -euo pipefail
 
 JULIA_VERSION=1.12.5
-DIONYSOS_COMMIT=b664d9e3caeb9485137f7f4be924ecb5c017c784
+DIONYSOS_COMMIT=ebcd72a46d5f83164a991dbf33fe51e3e27bd590
 export JULIA_DEPOT_PATH=/opt/julia_depot
 
 apt-get update
