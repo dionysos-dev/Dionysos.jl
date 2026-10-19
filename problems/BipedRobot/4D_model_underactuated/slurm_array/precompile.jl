@@ -21,21 +21,11 @@ using Dates
 
 stamp(msg) = @info "[precompile $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))] $msg"
 
-# What the experiment loads (examples/BipedRobot/biped_4d_normal_form.jl and the files it includes).
-const PACKAGES = [
-    "StaticArrays",
-    "MathematicalSystems",
-    "LazySets",
-    "MathOptInterface",
-    "Dionysos",
-    "Symbolics",
-    "IntervalArithmetic",
-    "JLD2",
-    "Plots",
-]
+include(joinpath(@__DIR__, "cache_check.jl"))   # CACHE_PACKAGES, CACHE_EXTENSIONS, stale_packages()
+const PACKAGES = CACHE_PACKAGES
 
 stamp(
-    "start: host $(gethostname()), CPU $(Sys.CPU_NAME) ($(Sys.CPU_THREADS) threads), " *
+    "start: host $(gethostname()), CPU $(Sys.CPU_NAME), cache key $(get(ENV, "DIONYSOS_CACHE_KEY", "-")) ($(Sys.CPU_THREADS) threads), " *
     "Julia $(VERSION), JULIA_CPU_TARGET=$(get(ENV, "JULIA_CPU_TARGET", "(default)")), " *
     "depot $(first(DEPOT_PATH)), precompile tasks $(get(ENV, "JULIA_NUM_PRECOMPILE_TASKS", "(default)"))",
 )
@@ -63,4 +53,12 @@ if t2 > limit
     )
     exit(1)
 end
-stamp("PRECOMPILE OK: loading takes $(round(t2; digits = 1)) s")
+stale = stale_packages()
+if !isempty(stale)
+    stamp(
+        "PRECOMPILE FAILED: after precompiling, the cache of $(join(stale, ", ")) is still not valid on " *
+        "this node (CPU $(Sys.CPU_NAME)): see README §6.",
+    )
+    exit(1)
+end
+stamp("PRECOMPILE OK: loading takes $(round(t2; digits = 1)) s; the cache is valid for CPU $(Sys.CPU_NAME)")

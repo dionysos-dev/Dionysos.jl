@@ -19,6 +19,19 @@ ENV["JULIA_PKG_PRECOMPILE_AUTO"] = "0"
 import Pkg
 Pkg.instantiate()
 
+# A task does not build the precompilation cache: with 300 tasks at once it would take all of them an hour,
+# waiting for each other's lock files. If the cache is not valid on this node (another kind of CPU than the one
+# `precompile.jl` ran on, or it did not run), stop at once, and say so. DIONYSOS_REQUIRE_CACHE=0 disables it.
+include(joinpath(@__DIR__, "cache_check.jl"))
+if get(ENV, "DIONYSOS_REQUIRE_CACHE", "1") != "0"
+    stale = stale_packages()
+    if !isempty(stale)
+        @error "The precompilation cache is not valid on this node: this task stops instead of compiling" host =
+            gethostname() cpu = Sys.CPU_NAME cache_key = get(ENV, "DIONYSOS_CACHE_KEY", "-") stale hint = "run submit_precompile.sbatch on this kind of node, or keep the jobs on one node type (DIONYSOS_SBATCH_ARGS of submit_all.sh): README §6"
+        exit(3)
+    end
+end
+
 # The packages of the experiment are loaded (and timed) here, with `import` so that no name is brought into
 # `Main`: with a valid precompilation cache this takes seconds. If it takes minutes, the cache is not valid
 # on this node (see precompile.jl and README §6).

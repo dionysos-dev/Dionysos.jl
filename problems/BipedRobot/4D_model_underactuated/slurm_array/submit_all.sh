@@ -19,6 +19,14 @@ THROTTLE="${2:+%$2}"
 DIR=problems/BipedRobot/4D_model_underactuated/slurm_array
 [ -d "$DIR" ] || { echo "run this from the root of the repository" >&2; exit 1; }
 
+# Extra arguments for every sbatch call, e.g. to keep the whole pipeline on one kind of node (the Julia
+# precompilation cache is per CPU type, README §6):
+#   DIONYSOS_SBATCH_ARGS="--partition=cp3 --constraint=Skylake" submit_all.sh 300
+# (the features of the nodes: sinfo -p <partition> -o "%20N %f"; or --exclude=<nodes>, --nodelist=<nodes>).
+read -r -a EXTRA <<< "${DIONYSOS_SBATCH_ARGS:-}"
+SBATCH=(sbatch --parsable ${EXTRA[@]+"${EXTRA[@]}"})
+[ -n "${DIONYSOS_SBATCH_ARGS:-}" ] && echo "sbatch arguments for every job: $DIONYSOS_SBATCH_ARGS"
+
 export DIONYSOS_NCHUNKS="$NCHUNKS"
 export DIONYSOS_TRANSITION_OUTDIR="${DIONYSOS_TRANSITION_OUTDIR:-$PWD/$DIR/out/transitions}"
 mkdir -p "$DIR/logs" "$DIONYSOS_TRANSITION_OUTDIR"
@@ -35,21 +43,21 @@ fi
 PRE_JOB=none
 PRE_DEP=()
 if [ "${DIONYSOS_SKIP_PRECOMPILE:-0}" != "1" ]; then
-    PRE_JOB=$(sbatch --parsable "$DIR/submit_precompile.sbatch")
+    PRE_JOB=$("${SBATCH[@]}" "$DIR/submit_precompile.sbatch")
     echo "precompile: job $PRE_JOB"
     PRE_DEP=(--dependency="afterok:${PRE_JOB}" --kill-on-invalid-dep=yes)
 fi
-CHUNKS_JOB=$(sbatch --parsable ${PRE_DEP[@]+"${PRE_DEP[@]}"} --array="1-${NCHUNKS}${THROTTLE}" "$DIR/submit_compute_chunks.sbatch")
+CHUNKS_JOB=$("${SBATCH[@]}" ${PRE_DEP[@]+"${PRE_DEP[@]}"} --array="1-${NCHUNKS}${THROTTLE}" "$DIR/submit_compute_chunks.sbatch")
 echo "chunks: job $CHUNKS_JOB (array 1-${NCHUNKS}${THROTTLE})"
 # kill-on-invalid-dep: if a job fails, the ones that wait for it are cancelled instead of staying pending.
-MERGE_JOB=$(sbatch --parsable --dependency="afterok:${CHUNKS_JOB}" --kill-on-invalid-dep=yes \
+MERGE_JOB=$("${SBATCH[@]}" --dependency="afterok:${CHUNKS_JOB}" --kill-on-invalid-dep=yes \
     "$DIR/submit_merge_chunks.sbatch")
 echo "merge:  job $MERGE_JOB (after $CHUNKS_JOB)"
 SOLVE_JOB=none
 if [ "${DIONYSOS_SKIP_SOLVE:-0}" = "1" ]; then
     echo "solve:  skipped (DIONYSOS_SKIP_SOLVE=1)"
 else
-    SOLVE_JOB=$(sbatch --parsable --dependency="afterok:${MERGE_JOB}" --kill-on-invalid-dep=yes \
+    SOLVE_JOB=$("${SBATCH[@]}" --dependency="afterok:${MERGE_JOB}" --kill-on-invalid-dep=yes \
         "$DIR/submit_solve.sbatch")
     echo "solve:  job $SOLVE_JOB (after $MERGE_JOB)"
 fi

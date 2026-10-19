@@ -18,7 +18,8 @@ submit_all.sh N ──► precompile.jl ──► array 1…N : compute_chunk.jl
 | file | role |
 | :--- | :--- |
 | [`submit_all.sh`](submit_all.sh) | submits the precompile job, the array of `N` chunks, the merge and the solve job, each after the previous one has succeeded (`N` is chosen here only) |
-| [`submit_precompile.sbatch`](submit_precompile.sbatch) / [`precompile.jl`](precompile.jl) | builds the Julia precompilation cache on a compute node, once, and checks that loading the packages is fast there |
+| [`submit_precompile.sbatch`](submit_precompile.sbatch) / [`precompile.jl`](precompile.jl) | builds the Julia precompilation cache on a compute node, once, and checks that it is valid there |
+| [`env.sh`](env.sh), [`cache_check.jl`](cache_check.jl) | where the cache lives (one directory per CPU type) and the check that the tasks make before starting |
 | [`status.sh`](status.sh) | what happened to the jobs of the last `submit_all.sh`: state, exit code, peak memory, end of the logs (§6) |
 | [`submit_compute_chunks.sbatch`](submit_compute_chunks.sbatch) / [`compute_chunk.jl`](compute_chunk.jl) | one task of the array: computes its share of the source cells and writes `transitions_part_<id>_of_<N>.bin` |
 | [`submit_merge_chunks.sbatch`](submit_merge_chunks.sbatch) / [`merge_chunks.jl`](merge_chunks.jl) | copies the `N` chunks, one after the other, into the abstraction file `DIONYSOS_ABSTRACTION_FILE` (a few GB of memory whatever the size) |
@@ -52,10 +53,32 @@ if the second load is slow, which means the cache is rejected on that node. With
 project: `Pkg.instantiate()` is called with `JULIA_PKG_PRECOMPILE_AUTO=0`. `DIONYSOS_SKIP_PRECOMPILE=1`
 skips the job (when the cache is known to be valid).
 
-The precompile job and the array must run on the same kind of node: if your cluster has several
-partitions or CPU types, give both the same `#SBATCH --partition=…` / `--constraint=…` lines. If the nodes of
-the partition are not all alike, export one CPU target for the whole pipeline, which makes the cache
-valid on all of them (the same variable, in the environment of `submit_all.sh`; sbatch passes it on):
+**Heterogeneous clusters.** A cache file has the same name whatever the CPU that built it. On a cluster
+whose nodes are not all alike (check: `sinfo -p <partition> -o "%20N %f"`, or the node names in `squeue`) and
+that shares the home directory, jobs on different CPU types overwrite each other's cache: each finds the
+cache of the other invalid and recompiles, and they all wait for each other's lock files (`Being precompiled
+by another machine`). That is what makes tasks hang for an hour (§6). The pipeline protects itself:
+
+* the jobs use a depot of their own for the cache, **one directory per CPU type** (`env.sh`, in
+  `~/.julia_biped_cache/<cpu>/`, in front of `~/.julia` where the sources of the packages stay): jobs on the
+  same type share it, those on other types have theirs, nothing is overwritten;
+* every task of the array **checks the cache before doing anything** and, if it is not valid on its node,
+  stops at once with exit code 3 and says so, instead of compiling for an hour (`DIONYSOS_REQUIRE_CACHE=0`
+  disables it);
+* the precompile job builds the cache for the CPU type of the node it runs on, so **it and the array must be
+  on the same type**: keep the whole pipeline on one, with the extra `sbatch` arguments of `submit_all.sh`
+  (applied to every job):
+
+```
+DIONYSOS_SBATCH_ARGS="--partition=cp3 --constraint=Skylake" \
+    problems/BipedRobot/4D_model_underactuated/slurm_array/submit_all.sh 300
+```
+
+  (`--constraint` takes a feature of `sinfo -o "%N %f"`; without features use `--exclude=<nodes>` or
+  `--nodelist=<nodes>`);
+* or, to use all the node types, export one portable CPU target before `submit_all.sh` (sbatch passes it
+  on); the cache is then one for all the types (directory `portable`), and the tasks that find it invalid on
+  their node stop at once as above. I have not tested this target on your hardware:
 
 ```
 export JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)"   # the target of the official Julia builds
@@ -254,15 +277,24 @@ differs), and a merged file that already exists (it is loaded, not merged: a war
 computed for (the message prints both), no controller from the start state (exit code 2: raise the
 tolerance, change the start), or `OUT_OF_MEMORY` while loading.
 
-### The tasks take much longer than their share of the work
+### The tasks take much longer than their share of the work, or hang
 
-Read the first lines of a chunk log (`logs/chunk_<jobid>_<task>.err`/`.out`):
-`Start-up of the chunk task … cpu = … packages_loaded_in_s = …` is the time to load the packages. With a
-valid cache it is seconds to a minute; minutes means the task compiled them, and the precompile job did not
-protect it. Then: `status.sh` and the log of the precompile job (`logs/precompile_<jobid>.out`) say on what
-CPU it ran (`CPU …`) and whether it ended with `PRECOMPILE OK`; compare with the `cpu =` of the chunk logs.
-A different CPU means the nodes are not alike: put both jobs on the same partition/constraint, or export
-`JULIA_CPU_TARGET` as in §1. The other cause of a slow start-up is the model itself, compiled in every task
-(the `@time` lines of the log: a few tens of seconds locally, more on a slower node): that one is not
-cached, it is the price of each task.
+Look at a chunk log (`logs/chunk_<jobid>_<task>.err`/`.out`) and at `squeue` (which nodes?):
 
+* `Precompiling packages…`, `Being precompiled by another process / machine` for packages of the
+  experiment (even JuMP, Polyhedra, …) and nothing else for tens of minutes: the tasks are compiling the
+  packages themselves, all at once, waiting for each other's lock files. If the tasks run on **several node
+  families** (`mb-sky…`, `mb-cas…`, `mb-rom…`) the cache is being rebuilt back and forth by each CPU type:
+  cancel the jobs (`scancel <array job> <merge job> <solve job>`: they would only reach the time limit) and
+  keep the pipeline on one node type or use a portable target (§1). The current scripts do not do this any
+  more: the cache is per CPU type, and a task without a valid cache stops (exit 3, `The precompilation cache
+  is not valid on this node`).
+* `The precompilation cache is not valid on this node`: the precompile job ran on another CPU type (compare
+  `CPU …` in `logs/precompile_<jobid>.out` with `cpu =` in the chunk log), or it did not run or fail
+  (`PRECOMPILE OK` or `PRECOMPILE FAILED` at the end of its log). Re-run the failed tasks after building the
+  cache for their type: `sbatch --constraint=<that type> …/submit_precompile.sbatch`, then
+  `DIONYSOS_NCHUNKS=N sbatch --array=<failed tasks> …/submit_compute_chunks.sbatch`.
+* `Start-up of the chunk task … packages_loaded_in_s = …` is the time to load the packages: seconds to a
+  minute with a valid cache. The other part of the start-up is the model, compiled in every task (the `@time`
+  lines of the log: a few tens of seconds locally, more on a slower node): that one is not cached, it is the
+  price of each task.

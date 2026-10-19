@@ -19,6 +19,7 @@ set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-.}"
 DIR=problems/BipedRobot/4D_model_underactuated/slurm_array
 mkdir -p "$DIR/logs"
+source "$DIR/env.sh"     # the precompilation cache of this CPU type
 
 export JULIA_NUM_THREADS=1
 export JULIA_NUM_PRECOMPILE_TASKS="${SLURM_CPUS_PER_TASK:-1}"   # the cores of the job, not those of the node
