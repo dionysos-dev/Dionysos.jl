@@ -32,7 +32,7 @@ which is built in parallel. The timings in the paper come from a 14-thread lapto
 | Paper | Script | Outputs in `results/` |
 |---|---|---|
 | Section VI-A, pendulum; Table I, Fig. 4 | `experiments/E1_pendulum.jl`, models in Dionysos's `problems/Pendulum/` | `params_e1.md`, `table_e1.tex`, `fig_e1.pdf`, `e1_{T,F}.gif`, numbers `e1.*` |
-| Section VI-B, cart-pole; Table II, Fig. 5 | `experiments/E2_cartpole.jl`, models in Dionysos's `problems/CartPendulum/point_mass_cart_pendulum.jl` | `params_e2.md`, `table_e2.tex`, `fig_e2.pdf`, `e2_F.gif` ((T) is unsolved), numbers `e2.*` |
+| Section VI-B, cart-pole; Table II, Fig. 5 | `experiments/E2_cartpole.jl`, models in Dionysos's `problems/CartPendulum/point_mass_cart_pendulum.jl` | `params_e2.md`, `table_e2.tex`, `fig_e2.pdf`, `e2_F.gif` (ideal servo; (T) is unsolved), `e2_F_PI.gif` (PI servo), numbers `e2.*` |
 
 The abstractions and controllers are computed by Dionysos's uniform grid abstraction solver. The
 tables and plots of the paper are copies of `table_e*.tex` and `fig_e*.pdf`, and its numbers come

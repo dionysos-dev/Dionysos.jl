@@ -5,7 +5,7 @@
 #      |α(θ)(u − v)| ≤ I_MAX = F_MAX τ.
 # The cart position is left out: neither the pole nor the task depends on it.
 #
-# Writes params_e2.md, table_e2.tex, fig_e2.{pdf,png}, e2_F.gif and the numbers e2.*.
+# Writes params_e2.md, table_e2.tex, fig_e2.{pdf,png}, e2_F.gif, e2_F_PI.gif and the numbers e2.*.
 
 module E2CartPole
 
@@ -454,9 +454,33 @@ function cart_plot!(; l = PARAMS.l, w = 0.4, h = 0.2)
             label = "",
         )
         Plots.scatter!(fig, [tip[1]], [tip[2]]; ms = 6, color = :red, label = "")
-        Plots.plot!(fig, [-1.0, 3.0], [0, 0]; color = :black, label = "")
+        Plots.plot!(fig, [-50.0, 50.0], [0, 0]; color = :black, label = "")
         return fig
     end
+end
+
+# Animation of a replay (cart, phase plot, force), one frame every `every` samples.
+function animate(rp, every, title, file)
+    frames = 1:every:length(rp.t)
+    traj = ST.Trajectory(
+        [SVector(rp.x[k], rp.θ[k], rp.θdot[k]) for k in frames];
+        inputs = [SVector(rp.F[k]) for k in frames[1:(end - 1)]],
+    )
+    lo, hi = extrema(rp.x)
+    return DI.animate_trajectory_dashboard(
+        cart_plot!(),
+        traj;
+        xdims = (2, 3),
+        udims = (1,),
+        Δt = every * (rp.t[2] - rp.t[1]),
+        xlabel_state = "θ (rad)",
+        ylabel_state = "dθ/dt (rad/s)",
+        ylabel_input = "force (N)",
+        xlims_system = (min(-1.0, lo - 1.2), max(3.0, hi + 1.2)),
+        ylims_system = (-1.2, 1.4),
+        title,
+        filename = joinpath(RESULTS, file),
+    )
 end
 
 if FIGURES
@@ -529,30 +553,11 @@ if FIGURES
     Plots.savefig(fig, joinpath(RESULTS, "fig_e2.pdf"))
     Plots.savefig(fig, joinpath(RESULTS, "fig_e2.png"))
 
+    # Same frame rate for all: the ideal replays sample a step 20 times, the PI replay 50 times.
     for (name, title) in ((:T, "Force model (T)"), (:F, "Velocity model (F)"))
-        r = results[name]
-        r.solved || continue
-        rp = r.replay
-        frames = 1:5:length(rp.t)
-        traj = ST.Trajectory(
-            [SVector(rp.x[k], rp.θ[k], rp.θdot[k]) for k in frames];
-            inputs = [SVector(rp.F[k]) for k in frames[1:(end - 1)]],
-        )
-        DI.animate_trajectory_dashboard(
-            cart_plot!(),
-            traj;
-            xdims = (2, 3),
-            udims = (1,),
-            Δt = 5 * (rp.t[2] - rp.t[1]),
-            xlabel_state = "θ (rad)",
-            ylabel_state = "dθ/dt (rad/s)",
-            ylabel_input = "force (N)",
-            xlims_system = (-1.0, 3.0),
-            ylims_system = (-1.2, 1.4),
-            title,
-            filename = joinpath(RESULTS, "e2_$name.gif"),
-        )
+        results[name].solved && animate(results[name].replay, 5, title, "e2_$name.gif")
     end
+    servo === nothing || animate(servo, 12, "Velocity model (F), PI servo", "e2_F_PI.gif")
     println("figures written to ", RESULTS)
 end
 
