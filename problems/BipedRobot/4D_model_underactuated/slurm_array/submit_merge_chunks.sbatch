@@ -2,8 +2,8 @@
 #SBATCH --job-name=biped4d_merge
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=16G
-#SBATCH --time=01:00:00
+#SBATCH --mem=250G
+#SBATCH --time=02:00:00
 #SBATCH --output=problems/BipedRobot/4D_model_underactuated/slurm_array/logs/merge_%j.out
 #SBATCH --error=problems/BipedRobot/4D_model_underactuated/slurm_array/logs/merge_%j.err
 
