@@ -10,6 +10,7 @@ import Dionysos
 import LazySets
 import MathematicalSystems as MS
 import MathOptInterface as MOI
+import JLD2
 
 const ST = Dionysos.System
 const SY = Dionysos.Symbolic
@@ -294,6 +295,34 @@ random_point(cell) =
         )
     end
 
+    @testset "files of the first format (single arrays) still load" begin
+        grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
+        igrid = MP.GridFree(SVector(0.0), SVector(2.0))
+        full = build_abstraction(lgb; state_grid = grid, input_grid = igrid)
+        sym = MOI.get(full, MOI.RawOptimizerAttribute("abstract_system"))
+        tr = collect(SY.enum_transitions(sym))
+        file = joinpath(mktempdir(), "legacy.jld2")
+        JLD2.jldsave(
+            file;
+            n_state = SY.get_n_state(sym),
+            n_input = SY.get_n_input(sym),
+            info = (; tstep),
+            probe = LGA._id_probe(sym),
+            target = Int32[t[1] for t in tr],
+            source = Int32[t[2] for t in tr],
+            symbol = Int32[t[3] for t in tr],
+        )
+        loaded = build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            abstraction_file = file,
+            abstraction_info = (; tstep),
+        )
+        sym2 = MOI.get(loaded, MOI.RawOptimizerAttribute("abstract_system"))
+        @test Set(SY.enum_transitions(sym2)) == Set(tr)
+    end
+
     @testset "chunks of a Slurm array, merged" begin
         grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
         igrid = MP.GridFree(SVector(0.0), SVector(2.0))
@@ -321,9 +350,20 @@ random_point(cell) =
         end
         @test length(readdir(dir)) == nchunks
 
+        # Without a file, the chunks are merged into the optimizer.
+        in_memory = build_abstraction(
+            lgb;
+            state_grid = grid,
+            input_grid = igrid,
+            merge_chunks = (; outdir = dir, nchunks),
+        )
+        @test transitions(in_memory) == transitions(full)
+        @test !isempty(transitions(in_memory))
+
+        # With a file, they go straight to it, without building the abstraction in memory.
         file = joinpath(dir, "merged.jld2")
         info = (; tstep)
-        merged = build_abstraction(
+        streamed = build_abstraction(
             lgb;
             state_grid = grid,
             input_grid = igrid,
@@ -331,17 +371,20 @@ random_point(cell) =
             abstraction_file = file,
             abstraction_info = info,
         )
-        @test transitions(merged) == transitions(full)
-        @test !isempty(transitions(merged))
-        @test isfile(file)                                     # the merge is saved ...
-        loaded = build_abstraction(
+        @test isfile(file) && !isfile(file * ".tmp")
+        @test MOI.get(streamed, MOI.RawOptimizerAttribute("abstract_system")) === nothing
+        JLD2.jldopen(file, "r") do f
+            @test f["nparts"] == nchunks
+            @test f["n_transitions"] == length(transitions(full))
+        end
+        loaded = build_abstraction(                            # ... which loads like a computation
             lgb;
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = file,
             abstraction_info = info,
         )
-        @test transitions(loaded) == transitions(full)         # ... and loads like a computation
+        @test transitions(loaded) == transitions(full)
 
         # A chunk that is missing, or computed for another number of chunks, is an error.
         @test_throws ErrorException build_abstraction(

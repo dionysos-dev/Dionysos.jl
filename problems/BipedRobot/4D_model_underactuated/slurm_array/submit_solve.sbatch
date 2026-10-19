@@ -42,6 +42,14 @@ echo "DIONYSOS_OUTPUT_DIR=$DIONYSOS_OUTPUT_DIR"
 echo "DIONYSOS_SCENARIO=$DIONYSOS_SCENARIO"
 echo "DIONYSOS_SOLVE_PARAMS=${DIONYSOS_SOLVE_PARAMS:-}"
 
+set +e
 srun --export=ALL julia --project=problems/BipedRobot \
     --heap-size-hint="$(( ${SLURM_MEM_PER_NODE:-65536} * 9 / 10 ))M" \
     "$DIR/solve.jl"
+STATUS=$?
+set -e
+echo "[solve] julia exited with status $STATUS at $(date '+%Y-%m-%d %H:%M:%S')"
+if [ "$STATUS" -ne 0 ]; then
+    echo "[solve] FAILED (status $STATUS): see the .out and .err logs; 'sacct -j $SLURM_JOB_ID --format=JobID,State,ExitCode,MaxRSS,Elapsed,ReqMem' says OUT_OF_MEMORY or TIMEOUT if the job was killed" >&2
+fi
+exit $STATUS

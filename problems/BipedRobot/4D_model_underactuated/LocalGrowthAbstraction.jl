@@ -72,7 +72,7 @@ using StaticArrays
 
 export SymbolicDynamics, LocalGrowthBound, LocalGrowthBoundStats
 export jacobian_bound, flow_enclosure, build_abstraction, stats, reset_stats!
-export save_abstraction, load_abstraction!, merge_chunks!
+export save_abstraction, load_abstraction!, merge_chunks!, merge_chunks_to_file
 
 # ------------------------------------------------------------------------------------------
 # Symbolic dynamics, compiled for floats and for intervals
@@ -509,7 +509,9 @@ on a server is used on another machine.
 With a `SY.SlurmArrayBackend` as `execution_backend`, the call computes **one chunk** of the
 transitions of a Slurm array and writes it to the backend's directory (nothing is cached in the
 optimizer). With `merge_chunks = (; outdir, nchunks)` the transitions are not computed but read from
-those chunks ([`merge_chunks!`](@ref)).
+those chunks: into the optimizer ([`merge_chunks!`](@ref)), or, if there is an `abstraction_file`,
+straight into that file ([`merge_chunks_to_file`](@ref)), which needs far less memory and leaves the
+optimizer **without** an abstraction (run again with the file to load it).
 """
 function build_abstraction(
     approx::ST.DiscreteTimeSystemOverApproximation;
@@ -545,22 +547,32 @@ function build_abstraction(
     if abstraction_file !== nothing && isfile(abstraction_file)
         print_level >= 1 &&
             @info "Loading the abstraction from $abstraction_file (not computed)"
-        load_abstraction!(optimizer, abstraction_file; info = abstraction_info)
+        load_abstraction!(optimizer, abstraction_file; info = abstraction_info, print_level)
     else
         abstraction_file === nothing ||
             @warn "$abstraction_file does not exist (relative paths are relative to $(pwd())): the abstraction is built (computed or merged from chunks), then written there"
         if merge_chunks === nothing
             MOI.optimize!(optimizer)
-        else
+            abstraction_file === nothing ||
+                save_abstraction(abstraction_file, optimizer; info = abstraction_info)
+        elseif abstraction_file === nothing
             merge_chunks!(
                 optimizer,
                 merge_chunks.outdir;
                 nchunks = merge_chunks.nchunks,
                 print_level = max(print_level, 1),
             )
+        else
+            # Straight from the chunks to the file: no automaton, hence a small fraction of the memory.
+            merge_chunks_to_file(
+                optimizer,
+                merge_chunks.outdir,
+                abstraction_file;
+                nchunks = merge_chunks.nchunks,
+                info = abstraction_info,
+                print_level = max(print_level, 1),
+            )
         end
-        abstraction_file === nothing ||
-            save_abstraction(abstraction_file, optimizer; info = abstraction_info)
     end
     return optimizer
 end
@@ -577,11 +589,41 @@ function _id_probe(abstract_system)
     return [collect(SY.get_concrete_state(abstract_system, id)) for id in ids]
 end
 
+_peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
+
+# File format: `n_state`, `n_input`, `info`, `probe`, then the transitions in `nparts` parts (one per
+# chunk of a Slurm array, one in all for `save_abstraction`) as the integer vectors `target_k`,
+# `source_k`, `symbol_k`, and `n_transitions`. The files of the first version (one part, keys `target`,
+# `source`, `symbol`, no `nparts`) are still read. `parts` is an iterator, so that the parts of a big
+# abstraction are never all in memory.
+function _write_abstraction(file, abstract_system, info, parts)
+    mkpath(dirname(abspath(file)))
+    tmp = file * ".tmp"
+    nparts, n = 0, 0
+    JLD2.jldopen(tmp, "w") do f
+        f["n_state"] = SY.get_n_state(abstract_system)
+        f["n_input"] = SY.get_n_input(abstract_system)
+        f["info"] = info
+        f["probe"] = _id_probe(abstract_system)
+        for (target, source, symbol) in parts
+            nparts += 1
+            f["target_$nparts"], f["source_$nparts"], f["symbol_$nparts"] =
+                target, source, symbol
+            n += length(target)
+        end
+        f["nparts"] = nparts
+        f["n_transitions"] = n
+        return
+    end
+    mv(tmp, file; force = true)   # a job killed while writing leaves no half-written file
+    return n
+end
+
 """
     save_abstraction(file, optimizer; info = nothing)
 
 Write the transitions of the abstraction cached in `optimizer` (see [`build_abstraction`](@ref)) to
-`file` (JLD2, three integer vectors `target`, `source`, `symbol`: 12 bytes per transition). The
+`file` (JLD2, three integer vectors `target`, `source`, `symbol` per part: 12 bytes per transition). The
 compiled symbolic dynamics cannot be saved, so only the transitions are: they are all the control
 synthesis needs. `info` is any plain data that identifies the problem (grids, state box, `tstep`, ...):
 it is stored, and [`load_abstraction!`](@ref) refuses a file whose `info` differs.
@@ -599,19 +641,7 @@ function save_abstraction(file::AbstractString, optimizer; info = nothing)
         target[k], source[k], symbol[k] = t, s, u
     end
     k == n || error("the abstraction has $k transitions, expected $n")
-    mkpath(dirname(abspath(file)))
-    tmp = file * ".tmp"
-    JLD2.jldsave(
-        tmp;
-        n_state,
-        n_input,
-        info,
-        probe = _id_probe(abstract_system),
-        target,
-        source,
-        symbol,
-    )
-    mv(tmp, file; force = true)   # a job killed while writing leaves no half-written file
+    _write_abstraction(file, abstract_system, info, ((target, source, symbol),))
     return file
 end
 
@@ -623,7 +653,8 @@ chunks, but not computed) with the transitions of the `nchunks` files that the j
 wrote in `outdir` (each one computed by [`build_abstraction`](@ref) with
 `execution_backend = SY.SlurmArrayBackend(nchunks, chunk_id, outdir, :contiguous, true)`), and cache
 it in the optimizer. Errors if a chunk is missing or was computed for another number of chunks,
-states or inputs.
+states or inputs. All the transitions end up in an automaton: for a big abstraction use
+[`merge_chunks_to_file`](@ref) instead.
 """
 function merge_chunks!(
     optimizer,
@@ -639,42 +670,132 @@ function merge_chunks!(
 end
 
 """
-    load_abstraction!(optimizer, file; info = nothing) -> abstract_system
+    merge_chunks_to_file(optimizer, outdir, file; nchunks, info = nothing, print_level = 0) -> n
 
-Fill the abstraction of `optimizer` (built with the same problem, grids and attributes as the one that
-was saved, but not computed) with the transitions of `file` written by [`save_abstraction`](@ref),
-and cache it in the optimizer so that a control problem can be set and solved on it. Errors if
-`info`, the number of states and inputs or the cells behind the state ids differ from the saved ones.
+Write the transitions of the `nchunks` chunks in `outdir` (see [`merge_chunks!`](@ref)) to `file`
+([`save_abstraction`](@ref) format) **without building the abstraction in memory**: the chunks are read
+and written one after the other, so the memory is that of one chunk (about 24 bytes per transition of
+it), instead of the hundreds of bytes per transition of the automaton. Returns the number of
+transitions. Errors if a chunk is missing or was computed for another number of chunks, states or
+inputs. The optimizer is left without an abstraction: [`load_abstraction!`](@ref) fills it from `file`.
+With `print_level ≥ 1` every chunk is logged with the peak memory of the process so far.
 """
-function load_abstraction!(optimizer, file::AbstractString; info = nothing)
-    data = JLD2.load(file)
-    data["info"] == info || error(
-        "$file was computed for another problem.\nsaved:     $(data["info"])\nrequested: $info",
-    )
+function merge_chunks_to_file(
+    optimizer,
+    outdir::AbstractString,
+    file::AbstractString;
+    nchunks::Int,
+    info = nothing,
+    print_level::Int = 0,
+)
     abstract_system =
         AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
-    (SY.get_n_state(abstract_system), SY.get_n_input(abstract_system)) ==
-    (data["n_state"], data["n_input"]) || error(
-        "$file has $(data["n_state"]) states and $(data["n_input"]) inputs, the problem has " *
-        "$(SY.get_n_state(abstract_system)) and $(SY.get_n_input(abstract_system))",
-    )
-    _id_probe(abstract_system) == data["probe"] ||
-        error("$file numbers the cells differently: another state grid or state box")
-    # In blocks: a single vector of all the `(target, source, symbol)` tuples (24 bytes each, twice
-    # the size of the integer vectors of the file) would be a needless peak for a big abstraction.
-    target, source, symbol = data["target"], data["source"], data["symbol"]
-    block = 1 << 22
-    transitions = Vector{SY.TransitionKey}(undef, min(block, length(target)))
-    for first in 1:block:length(target)
-        last = min(first + block - 1, length(target))
-        resize!(transitions, last - first + 1)
-        for k in first:last
-            transitions[k - first + 1] = (Int(target[k]), Int(source[k]), Int(symbol[k]))
+    n_state, n_input = SY.get_n_state(abstract_system), SY.get_n_input(abstract_system)
+    T = max(n_state, n_input) < typemax(Int32) ? Int32 : Int
+    seen = Ref(0)
+    function part(id)
+        data = try
+            SY.read_transition_chunk(outdir, id, nchunks)
+        catch e
+            error(
+                "chunk $id of $nchunks cannot be read ($(SY.slurm_chunk_file(outdir, id, nchunks))): " *
+                "missing, or its task was killed while writing it: " * sprint(showerror, e),
+            )
         end
-        SY.add_transitions!(abstract_system, transitions)
+        data.chunk_id == id || error("chunk $id: its file says it is chunk $(data.chunk_id)")
+        data.nchunks == nchunks ||
+            error("chunk $id was computed for $(data.nchunks) chunks, not $nchunks")
+        (data.nstates, data.ninputs) == (n_state, n_input) || error(
+            "chunk $id has $(data.nstates) states and $(data.ninputs) inputs, the problem has " *
+            "$n_state and $n_input: it was computed for another grid or state box",
+        )
+        n = length(data.transitions)
+        target, source, symbol = Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n)
+        for (k, (t, s, u)) in enumerate(data.transitions)
+            target[k], source[k], symbol[k] = t, s, u
+        end
+        seen[] += n
+        print_level >= 1 && @info(
+            "Merging chunk $id / $nchunks",
+            transitions = n,
+            total = seen[],
+            peak_memory_GB = _peak_gb(),
+        )
+        return (target, source, symbol)
     end
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
-    return abstract_system
+    # The optimizer must not keep the empty abstraction: it would look computed.
+    optimizer.abstraction_solver.abstract_system = nothing
+    n = _write_abstraction(file, abstract_system, info, (part(id) for id in 1:nchunks))
+    print_level >= 1 && @info(
+        "Merged $nchunks chunks to $file",
+        transitions = n,
+        size_GB = round(filesize(file) / 2^30; digits = 2),
+        peak_memory_GB = _peak_gb(),
+    )
+    return n
+end
+
+"""
+    load_abstraction!(optimizer, file; info = nothing, print_level = 0) -> abstract_system
+
+Fill the abstraction of `optimizer` (built with the same problem, grids and attributes as the one that
+was saved, but not computed) with the transitions of `file` written by [`save_abstraction`](@ref) or
+[`merge_chunks_to_file`](@ref), and cache it in the optimizer so that a control problem can be set
+and solved on it. Errors if `info`, the number of states and inputs or the cells behind the state ids
+differ from the saved ones. With `print_level ≥ 1` the loading is logged part by part, with the peak
+memory of the process.
+"""
+function load_abstraction!(
+    optimizer,
+    file::AbstractString;
+    info = nothing,
+    print_level::Int = 0,
+)
+    return JLD2.jldopen(file, "r") do f
+        f["info"] == info || error(
+            "$file was computed for another problem.\nsaved:     $(f["info"])\nrequested: $info",
+        )
+        abstract_system =
+            AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
+        (SY.get_n_state(abstract_system), SY.get_n_input(abstract_system)) ==
+        (f["n_state"], f["n_input"]) || error(
+            "$file has $(f["n_state"]) states and $(f["n_input"]) inputs, the problem has " *
+            "$(SY.get_n_state(abstract_system)) and $(SY.get_n_input(abstract_system))",
+        )
+        _id_probe(abstract_system) == f["probe"] ||
+            error("$file numbers the cells differently: another state grid or state box")
+        nparts = haskey(f, "nparts") ? f["nparts"] : 0       # 0: the first version of the format
+        total = haskey(f, "n_transitions") ? f["n_transitions"] : nothing
+        print_level >= 1 && @info("Loading $file", parts = max(nparts, 1), transitions = total)
+        loaded = 0
+        # In blocks: a single vector of all the `(target, source, symbol)` tuples (24 bytes each) would
+        # be a needless peak for a big abstraction.
+        block = 1 << 22
+        transitions = SY.TransitionKey[]
+        for k in 1:max(nparts, 1)
+            suffix = nparts == 0 ? "" : "_$k"
+            target, source, symbol =
+                f["target" * suffix], f["source" * suffix], f["symbol" * suffix]
+            for first in 1:block:length(target)
+                last = min(first + block - 1, length(target))
+                resize!(transitions, last - first + 1)
+                for j in first:last
+                    transitions[j - first + 1] =
+                        (Int(target[j]), Int(source[j]), Int(symbol[j]))
+                end
+                SY.add_transitions!(abstract_system, transitions)
+            end
+            loaded += length(target)
+            print_level >= 1 && @info(
+                "Loaded part $k / $(max(nparts, 1))",
+                transitions = loaded,
+                of = total,
+                peak_memory_GB = _peak_gb(),
+            )
+        end
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
+        return abstract_system
+    end
 end
 
 end # module

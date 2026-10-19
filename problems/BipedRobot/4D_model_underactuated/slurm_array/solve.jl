@@ -29,6 +29,11 @@ import Pkg
 Pkg.instantiate()
 
 using StaticArrays   # for the params file
+using Dates
+import JLD2
+
+stamp(msg) = @info "[solve $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))] $msg"
+peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
 
 const EXAMPLE = abspath(
     joinpath(
@@ -43,43 +48,59 @@ const EXAMPLE = abspath(
     ),
 )
 
-abstraction_path = abspath(
-    get(
-        ENV,
-        "DIONYSOS_ABSTRACTION_FILE",
-        joinpath(@__DIR__, "out", "normal_form_abstraction.jld2"),
-    ),
-)
-isfile(abstraction_path) || error(
-    "$abstraction_path does not exist: run the chunks and the merge first (submit_all.sh), " *
-    "or set DIONYSOS_ABSTRACTION_FILE",
-)
+try
+    stamp("start: job $(get(ENV, "SLURM_JOB_ID", "-")), memory requested " *
+          "$(get(ENV, "SLURM_MEM_PER_NODE", "?")) MB, Julia $(VERSION), $(gethostname())")
+    abstraction_path = abspath(
+        get(
+            ENV,
+            "DIONYSOS_ABSTRACTION_FILE",
+            joinpath(@__DIR__, "out", "normal_form_abstraction.jld2"),
+        ),
+    )
+    isfile(abstraction_path) || error(
+        "$abstraction_path does not exist: run the chunks and the merge first (submit_all.sh), " *
+        "or set DIONYSOS_ABSTRACTION_FILE",
+    )
+    n = JLD2.jldopen(f -> haskey(f, "n_transitions") ? f["n_transitions"] : nothing, abstraction_path, "r")
+    stamp("abstraction $abstraction_path: $(round(filesize(abstraction_path) / 2^30; digits = 1)) GB, " *
+          "$(n === nothing ? "?" : n) transitions (in memory, an automaton takes of the order of " *
+          "$(n === nothing ? "?" : round(Int, 200 * n / 2^30)) GB for them)")
 
-# Read by the example before it defaults them.
-ABSTRACTION_FILE = abstraction_path
-SCENARIO_NAME =
-    Symbol(get(ENV, "DIONYSOS_SCENARIO", "job" * get(ENV, "SLURM_JOB_ID", "local")))
-OUTPUT_DIR = abspath(get(ENV, "DIONYSOS_OUTPUT_DIR", joinpath(@__DIR__, "out", "results")))
-RUN_PLOTS = true
+    # Read by the example before it defaults them.
+    global ABSTRACTION_FILE = abstraction_path
+    global SCENARIO_NAME =
+        Symbol(get(ENV, "DIONYSOS_SCENARIO", "job" * get(ENV, "SLURM_JOB_ID", "local")))
+    global OUTPUT_DIR =
+        abspath(get(ENV, "DIONYSOS_OUTPUT_DIR", joinpath(@__DIR__, "out", "results")))
+    global RUN_PLOTS = true
 
-params = get(ENV, "DIONYSOS_SOLVE_PARAMS", "")
-if !isempty(params)
-    isfile(params) || error("DIONYSOS_SOLVE_PARAMS = $params does not exist")
-    include(abspath(params))      # may override the variables above too (e.g. SCENARIO_NAME)
-end
+    params = get(ENV, "DIONYSOS_SOLVE_PARAMS", "")
+    if !isempty(params)
+        isfile(params) || error("DIONYSOS_SOLVE_PARAMS = $params does not exist")
+        include(abspath(params))      # may override the variables above too (e.g. SCENARIO_NAME)
+    end
 
-mkpath(OUTPUT_DIR)
-prefix = joinpath(OUTPUT_DIR, "biped_4d_normal_form_$(SCENARIO_NAME)")
-isempty(params) || cp(params, prefix * "_params.jl"; force = true)   # a record of what produced it
+    mkpath(OUTPUT_DIR)
+    prefix = joinpath(OUTPUT_DIR, "biped_4d_normal_form_$(SCENARIO_NAME)")
+    isempty(params) || cp(params, prefix * "_params.jl"; force = true)   # a record of what produced it
 
-@info "Control synthesis" abstraction_path SCENARIO_NAME OUTPUT_DIR params
-t = @elapsed include(EXAMPLE)
+    stamp("setting up the model, then loading the abstraction; scenario $SCENARIO_NAME, " *
+          "outputs $prefix*, params '$params'")
+    t = @elapsed include(EXAMPLE)
+    stamp("synthesis and closed loop done in $(round(t; digits = 1)) s (peak memory $(peak_gb()) GB)")
 
-if isfile(prefix * ".gif")
-    @info "Done" seconds = round(t; digits = 1) gif = prefix * ".gif"
-else
-    @error "No animation was written: the controller has no action at the start state, or the " *
-           "closed loop did not run (see the lines above). Try a larger FOOTHOLD_TOLERANCE or " *
-           "another start." prefix
-    exit(2)
+    if isfile(prefix * ".gif")
+        stamp("SOLVE OK: $(prefix * ".gif")")
+    else
+        stamp("SOLVE FAILED: no animation was written: the controller has no action at the start " *
+              "state, or the closed loop did not run (see the lines above). Try a larger " *
+              "FOOTHOLD_TOLERANCE or another start.")
+        exit(2)
+    end
+catch e
+    stamp("SOLVE FAILED after peak memory $(peak_gb()) GB: " * (e isa OutOfMemoryError ?
+        "OutOfMemoryError: raise --mem of submit_solve.sbatch" : sprint(showerror, e)))
+    @error "SOLVE FAILED" exception = (e, catch_backtrace())
+    exit(1)
 end

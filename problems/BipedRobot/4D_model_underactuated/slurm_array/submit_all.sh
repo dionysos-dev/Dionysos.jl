@@ -31,13 +31,19 @@ fi
 
 CHUNKS_JOB=$(sbatch --parsable --array="1-${NCHUNKS}${THROTTLE}" "$DIR/submit_compute_chunks.sbatch")
 echo "chunks: job $CHUNKS_JOB (array 1-${NCHUNKS}${THROTTLE})"
-MERGE_JOB=$(sbatch --parsable --dependency="afterok:${CHUNKS_JOB}" \
+# kill-on-invalid-dep: if a job fails, the ones that wait for it are cancelled instead of staying pending.
+MERGE_JOB=$(sbatch --parsable --dependency="afterok:${CHUNKS_JOB}" --kill-on-invalid-dep=yes \
     "$DIR/submit_merge_chunks.sbatch")
 echo "merge:  job $MERGE_JOB (after $CHUNKS_JOB)"
+SOLVE_JOB=none
 if [ "${DIONYSOS_SKIP_SOLVE:-0}" = "1" ]; then
     echo "solve:  skipped (DIONYSOS_SKIP_SOLVE=1)"
-    exit 0
+else
+    SOLVE_JOB=$(sbatch --parsable --dependency="afterok:${MERGE_JOB}" --kill-on-invalid-dep=yes \
+        "$DIR/submit_solve.sbatch")
+    echo "solve:  job $SOLVE_JOB (after $MERGE_JOB)"
 fi
-SOLVE_JOB=$(sbatch --parsable --dependency="afterok:${MERGE_JOB}" "$DIR/submit_solve.sbatch")
-echo "solve:  job $SOLVE_JOB (after $MERGE_JOB)"
+echo "chunks=$CHUNKS_JOB merge=$MERGE_JOB solve=$SOLVE_JOB nchunks=$NCHUNKS" > "$DIR/logs/last_submission.txt"
+echo "check what happened with: $DIR/status.sh"
+[ "$SOLVE_JOB" = none ] && exit 0
 echo "results: ${DIONYSOS_OUTPUT_DIR:-$PWD/$DIR/out/results}/biped_4d_normal_form_job${SOLVE_JOB}.gif"
