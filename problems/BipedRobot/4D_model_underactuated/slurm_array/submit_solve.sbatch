@@ -2,7 +2,7 @@
 #SBATCH --job-name=biped4d_solve
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=250G
+#SBATCH --mem=400G
 #SBATCH --time=02:30:00
 #SBATCH --output=problems/BipedRobot/4D_model_underactuated/slurm_array/logs/solve_%j.out
 #SBATCH --error=problems/BipedRobot/4D_model_underactuated/slurm_array/logs/solve_%j.err

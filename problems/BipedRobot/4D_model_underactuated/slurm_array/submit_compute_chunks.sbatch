@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --output=problems/BipedRobot/4D_model_underactuated/slurm_array/logs/chunk_%A_%a.out
 #SBATCH --error=problems/BipedRobot/4D_model_underactuated/slurm_array/logs/chunk_%A_%a.err
 
