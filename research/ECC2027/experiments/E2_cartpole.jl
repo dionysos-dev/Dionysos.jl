@@ -518,14 +518,14 @@ if FIGURES
     if results[:F].solved
         rp = results[:F].replay
         ts = τ .* (0:(length(rp.impulses) - 1))
-        Plots.scatter!(
+        # Impulse of each step over τ, as a stem from 0.
+        Plots.plot!(
             p_F,
             ts,
             rp.impulses ./ τ;
+            seriestype = :sticks,
             color = :navy,
-            markershape = :vline,
-            markersize = 5,
-            markerstrokewidth = 1.5,
+            lw = 1.2,
             label = "",
         )
     end

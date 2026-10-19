@@ -407,14 +407,14 @@ if FIGURES
         Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(F)")
         Plots.plot!(p_τ, ts, torque; color = 1, lw = 1.5)
         ts = τ .* (0:(length(traj[:F].impulses) - 1))
-        Plots.scatter!(
+        # Impulse of each step over τ, as a stem from 0.
+        Plots.plot!(
             p_τ,
             ts,
             traj[:F].impulses ./ τ;
+            seriestype = :sticks,
             color = :navy,
-            markershape = :vline,
-            markersize = 6,
-            markerstrokewidth = 1.5,
+            lw = 1.2,
             label = "",
         )
     end
