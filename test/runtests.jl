@@ -43,6 +43,8 @@ const TEST_FILES = [
     ("./problem/problems.jl",),
     # Every hand-written growth bound in `problems/`, checked against its own dynamics.
     ("./problems/growth_bounds.jl",),
+    # The point-mass cart-pole: the states of its two models, and its velocity servo.
+    ("./problems/point_mass_cart_pendulum.jl",),
     # Car following: the model against the closed form its invariant set can be checked with.
     ("./problems/adaptive_cruise_control.jl",),
     # 4-D velocity-controlled biped: kinematics, sound carving, exact lattice.
