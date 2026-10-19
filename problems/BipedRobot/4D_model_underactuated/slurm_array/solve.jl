@@ -25,6 +25,9 @@
 #   DIONYSOS_SCENARIO           name of the outputs (default: job<SLURM_JOB_ID>)
 #   DIONYSOS_OUTPUT_DIR         directory of the outputs (default: slurm_array/out/results)
 
+# `instantiate` must not precompile the whole project (MeshCat, RigidBodyDynamics, ... that the experiment
+# never loads): the precompilation is the job of `precompile.jl`, once, before the array.
+ENV["JULIA_PKG_PRECOMPILE_AUTO"] = "0"
 import Pkg
 Pkg.instantiate()
 

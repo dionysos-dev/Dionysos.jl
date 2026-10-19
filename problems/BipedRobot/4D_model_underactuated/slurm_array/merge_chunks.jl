@@ -19,6 +19,9 @@
 #   DIONYSOS_NCHUNKS             number of chunks (default: read from the names of the chunk files)
 #   DIONYSOS_ABSTRACTION_FILE    output file (default: slurm_array/out/normal_form_abstraction.jld2)
 
+# `instantiate` must not precompile the whole project (MeshCat, RigidBodyDynamics, ... that the experiment
+# never loads): the precompilation is the job of `precompile.jl`, once, before the array.
+ENV["JULIA_PKG_PRECOMPILE_AUTO"] = "0"
 import Pkg
 Pkg.instantiate()
 

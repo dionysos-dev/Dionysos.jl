@@ -13,11 +13,22 @@
 #   DIONYSOS_NCHUNKS             number of chunks (default: SLURM_ARRAY_TASK_COUNT, the size of the array)
 #   SLURM_ARRAY_TASK_ID          chunk, from 1 to the number of chunks (outside Slurm: DIONYSOS_CHUNK_ID)
 
+# `instantiate` must not precompile the whole project (MeshCat, RigidBodyDynamics, ... that the experiment
+# never loads): the precompilation is the job of `precompile.jl`, once, before the array.
+ENV["JULIA_PKG_PRECOMPILE_AUTO"] = "0"
 import Pkg
 Pkg.instantiate()
 
+# The packages of the experiment are loaded (and timed) here, with `import` so that no name is brought into
+# `Main`: with a valid precompilation cache this takes seconds. If it takes minutes, the cache is not valid
+# on this node (see precompile.jl and README §6).
+t_load = time()
 import Dionysos
+import StaticArrays, MathematicalSystems, LazySets, MathOptInterface, Symbolics
+import IntervalArithmetic, JLD2, Plots
 const SY = Dionysos.Symbolic
+@info "Start-up of the chunk task" host = gethostname() cpu = Sys.CPU_NAME julia = VERSION packages_loaded_in_s =
+    round(time() - t_load; digits = 1)
 
 const EXAMPLE = abspath(
     joinpath(

@@ -10,13 +10,15 @@ control synthesis and the animation then run on the server too (so that only the
 downloaded), from the saved file, which can be reused to rerun the synthesis with other starts or tolerances.
 
 ```
-submit_all.sh N ──► array 1…N : compute_chunk.jl ──► N chunk files ──► merge_chunks.jl ──► abstraction .jld2 ──► solve.jl ──► .gif
-                    (1 core each)                     (outdir)          (afterok)           (saved, reusable)    (afterok)
+submit_all.sh N ──► precompile.jl ──► array 1…N : compute_chunk.jl ──► N chunk files ──► merge_chunks.jl ──► .jld2 ──► solve.jl ──► .gif
+                    (compute node,    (1 core each)                     (outdir)          (saved, reusable)
+                     once)             each step runs only if the previous one succeeded
 ```
 
 | file | role |
 | :--- | :--- |
-| [`submit_all.sh`](submit_all.sh) | submits the array of `N` chunks, then the merge, then the solve job, each after the previous one has succeeded (`N` is chosen here only) |
+| [`submit_all.sh`](submit_all.sh) | submits the precompile job, the array of `N` chunks, the merge and the solve job, each after the previous one has succeeded (`N` is chosen here only) |
+| [`submit_precompile.sbatch`](submit_precompile.sbatch) / [`precompile.jl`](precompile.jl) | builds the Julia precompilation cache on a compute node, once, and checks that loading the packages is fast there |
 | [`status.sh`](status.sh) | what happened to the jobs of the last `submit_all.sh`: state, exit code, peak memory, end of the logs (§6) |
 | [`submit_compute_chunks.sbatch`](submit_compute_chunks.sbatch) / [`compute_chunk.jl`](compute_chunk.jl) | one task of the array: computes its share of the source cells and writes `transitions_part_<id>_of_<N>.bin` |
 | [`submit_merge_chunks.sbatch`](submit_merge_chunks.sbatch) / [`merge_chunks.jl`](merge_chunks.jl) | copies the `N` chunks, one after the other, into the abstraction file `DIONYSOS_ABSTRACTION_FILE` (a few GB of memory whatever the size) |
@@ -36,9 +38,28 @@ tasks of the array): the chunks only record the number of states and of inputs.
 julia --project=problems/BipedRobot -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 ```
 
-The tasks run `Pkg.instantiate()` as well, but compute nodes often have no internet access, and 100
-tasks precompiling at once on a shared depot would be a mess. This also downloads what the animation
-needs (Plots, the GIF encoder): the solve job writes it headless (`GKSwstype=100`).
+This installs the packages (compute nodes often have no internet access) and downloads what the
+animation needs (Plots, the GIF encoder): the solve job writes it headless (`GKSwstype=100`).
+
+**The precompilation cache is not portable between machines**: it holds machine code and is rejected
+on another CPU model (or Julia, or `JULIA_CPU_TARGET`), then rebuilt. Precompiling on the login node
+therefore says nothing about the compute nodes. `submit_all.sh` submits `submit_precompile.sbatch` first
+and the array waits for it: it builds the cache on a compute node, for the packages of the experiment
+only (not the whole project), then loads them in a fresh process, twice, and fails (`PRECOMPILE FAILED`)
+if the second load is slow, which means the cache is rejected on that node. Without it, each of the
+`N` tasks would compile for itself, minutes of its budget, all of them fighting for the same lock files (the
+`attempting to remove probably stale pidfile` warnings). The tasks themselves never precompile the whole
+project: `Pkg.instantiate()` is called with `JULIA_PKG_PRECOMPILE_AUTO=0`. `DIONYSOS_SKIP_PRECOMPILE=1`
+skips the job (when the cache is known to be valid).
+
+The precompile job and the array must run on the same kind of node: if your cluster has several
+partitions or CPU types, give both the same `#SBATCH --partition=…` / `--constraint=…` lines. If the nodes of
+the partition are not all alike, export one CPU target for the whole pipeline, which makes the cache
+valid on all of them (the same variable, in the environment of `submit_all.sh`; sbatch passes it on):
+
+```
+export JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)"   # the target of the official Julia builds
+```
 
 ## 2. Choose the parameters and the number of chunks
 
@@ -59,8 +80,9 @@ State space: 123420 cells (...), 3332340 (cell, input) pairs: about 13.3 M trans
 
 Run with one thread (`-t 1`), the estimate is the total core time: 11.1 min for the default box, and the
 three chunks of a local test took 3 min each (the estimate is rough, and was optimistic by 1.5× on 10
-threads). A task needs, besides its share of the work, a fixed **start-up** (loading Julia and Symbolics,
-building the model and the local growth bound, carving the state box: of the order of a minute), so the
+threads). A task needs, besides its share of the work, a fixed **start-up** (loading Julia and the packages, building
+the model and the local growth bound, carving the state box: of the order of a minute with a valid
+precompilation cache, §1; the chunk log says `packages_loaded_in_s`), so the
 chunks must be long enough for it not to dominate: aim for 10–30 minutes per task, i.e.
 `N ≈ total core time / 20 min`. Set `--time` of `submit_compute_chunks.sbatch` (default 1 h, 4 GB) with a
 margin of 2×; the chunks have the same number of source cells, but the work per cell varies a little.
@@ -91,11 +113,11 @@ problems/BipedRobot/4D_model_underactuated/slurm_array/submit_all.sh 200        
 problems/BipedRobot/4D_model_underactuated/slurm_array/submit_all.sh 200 50     # at most 50 tasks at once
 ```
 
-This submits three jobs, each one running only if the previous one has succeeded (`--dependency=afterok`):
-the array `1-200`, the merge (`DIONYSOS_NCHUNKS=200`) and the **solve** job (control synthesis, closed
+This submits four jobs, each one running only if the previous one has succeeded (`--dependency=afterok`):
+the precompilation (§1), the array `1-200`, the merge (`DIONYSOS_NCHUNKS=200`) and the **solve** job (control synthesis, closed
 loop, figures and animation, see §4), and prints the name of the animation it will write
 (`slurm_array/out/results/biped_4d_normal_form_job<solve jobid>.gif`: that is the file to download).
-`DIONYSOS_SKIP_SOLVE=1` submits the chunks and the merge only. If a job fails, the ones after it are
+`DIONYSOS_SKIP_SOLVE=1` submits up to the merge only. If a job fails, the ones after it are
 cancelled (`--kill-on-invalid-dep`): `status.sh` (§6) tells which one failed and why.
 
 **Only the merge** (the chunks are all there): yes, `sbatch` it, **from the root of the repository** (the log
@@ -231,4 +253,16 @@ differs), and a merged file that already exists (it is loaded, not merged: a war
 **solve** job: the abstraction file refused because the example's parameters are not the ones it was
 computed for (the message prints both), no controller from the start state (exit code 2: raise the
 tolerance, change the start), or `OUT_OF_MEMORY` while loading.
+
+### The tasks take much longer than their share of the work
+
+Read the first lines of a chunk log (`logs/chunk_<jobid>_<task>.err`/`.out`):
+`Start-up of the chunk task … cpu = … packages_loaded_in_s = …` is the time to load the packages. With a
+valid cache it is seconds to a minute; minutes means the task compiled them, and the precompile job did not
+protect it. Then: `status.sh` and the log of the precompile job (`logs/precompile_<jobid>.out`) say on what
+CPU it ran (`CPU …`) and whether it ended with `PRECOMPILE OK`; compare with the `cpu =` of the chunk logs.
+A different CPU means the nodes are not alike: put both jobs on the same partition/constraint, or export
+`JULIA_CPU_TARGET` as in §1. The other cause of a slow start-up is the model itself, compiled in every task
+(the `@time` lines of the log: a few tens of seconds locally, more on a slower node): that one is not
+cached, it is the price of each task.
 

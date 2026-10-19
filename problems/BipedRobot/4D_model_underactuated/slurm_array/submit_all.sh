@@ -1,6 +1,7 @@
 #!/bin/bash
-# Submits the whole pipeline: the array of chunks, then (each after the previous one has succeeded) the
-# merge into one abstraction file, and the control synthesis, closed loop and animation:
+# Submits the whole pipeline: the precompilation of the packages on a compute node, then (each after the
+# previous one has succeeded) the array of chunks, the merge into one abstraction file, and the control
+# synthesis, closed loop and animation:
 #
 #   problems/BipedRobot/4D_model_underactuated/slurm_array/submit_all.sh NCHUNKS [MAX_PARALLEL]
 #
@@ -29,7 +30,16 @@ if compgen -G "$DIONYSOS_TRANSITION_OUTDIR/transitions_part_*" > /dev/null; then
     exit 1
 fi
 
-CHUNKS_JOB=$(sbatch --parsable --array="1-${NCHUNKS}${THROTTLE}" "$DIR/submit_compute_chunks.sbatch")
+# The precompilation cache is built once, on a compute node, before the array: otherwise every task
+# compiles the packages itself (DIONYSOS_SKIP_PRECOMPILE=1 to skip it, e.g. if it is known to be valid).
+PRE_JOB=none
+PRE_DEP=()
+if [ "${DIONYSOS_SKIP_PRECOMPILE:-0}" != "1" ]; then
+    PRE_JOB=$(sbatch --parsable "$DIR/submit_precompile.sbatch")
+    echo "precompile: job $PRE_JOB"
+    PRE_DEP=(--dependency="afterok:${PRE_JOB}" --kill-on-invalid-dep=yes)
+fi
+CHUNKS_JOB=$(sbatch --parsable ${PRE_DEP[@]+"${PRE_DEP[@]}"} --array="1-${NCHUNKS}${THROTTLE}" "$DIR/submit_compute_chunks.sbatch")
 echo "chunks: job $CHUNKS_JOB (array 1-${NCHUNKS}${THROTTLE})"
 # kill-on-invalid-dep: if a job fails, the ones that wait for it are cancelled instead of staying pending.
 MERGE_JOB=$(sbatch --parsable --dependency="afterok:${CHUNKS_JOB}" --kill-on-invalid-dep=yes \
@@ -43,7 +53,7 @@ else
         "$DIR/submit_solve.sbatch")
     echo "solve:  job $SOLVE_JOB (after $MERGE_JOB)"
 fi
-echo "chunks=$CHUNKS_JOB merge=$MERGE_JOB solve=$SOLVE_JOB nchunks=$NCHUNKS" > "$DIR/logs/last_submission.txt"
+echo "precompile=$PRE_JOB chunks=$CHUNKS_JOB merge=$MERGE_JOB solve=$SOLVE_JOB nchunks=$NCHUNKS" > "$DIR/logs/last_submission.txt"
 echo "check what happened with: $DIR/status.sh"
 [ "$SOLVE_JOB" = none ] && exit 0
 echo "results: ${DIONYSOS_OUTPUT_DIR:-$PWD/$DIR/out/results}/biped_4d_normal_form_job${SOLVE_JOB}.gif"
