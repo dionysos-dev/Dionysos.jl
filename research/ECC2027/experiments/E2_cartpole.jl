@@ -1,11 +1,11 @@
 # E2, cart-pole swing-up: the classical force model (T) against the velocity model (F).
 #
 # A frictionless cart-pole (point mass at the tip, θ from the upright) starts at rest, hanging
-# down, and must reach a neighborhood of the upright, |θ| ≤ 0.2 rad and |p_θ| ≤ 0.2, where a
-# local stabilizer takes over. The cart force of (T) is limited to F_MAX; the cart velocity of (F)
-# is commanded on a grid, in steps, under the impulse budget |α(θ)(u − v)| ≤ I_MAX = F_MAX τ, the
-# impulse a force-limited actuator delivers over one step. The cart position enters neither the
-# dynamics of the pole nor the task, so both models leave it out.
+# down, and must reach a neighborhood of the upright, |θ| ≤ 0.2 rad and |p_θ| ≤ 0.2. The cart
+# force of (T) is limited to F_MAX; the cart velocity of (F) is commanded on a grid, in steps,
+# under the impulse budget |α(θ)(u − v)| ≤ I_MAX = F_MAX τ, the impulse a force-limited actuator
+# delivers over one step. The cart position enters neither the dynamics of the pole nor the task,
+# so both models leave it out.
 #
 #   (T)  force model, state (θ, ẋ, θ̇), the force held over each step.
 #   (F)  velocity model, state (θ, p_θ); the impulse budget decides which command may follow
@@ -16,7 +16,9 @@
 # cell by cell, over an enclosure of the step from the cell, which is tighter than a global one.
 #
 # Every controller is replayed on the exact dynamics; (F) reports the impulse of each step and
-# the hold force between samples, which the budget does not bound.
+# the hold force between samples, which the budget does not bound. (F) is also replayed without
+# its ideal servo, the cart driven by a force-limited PI velocity loop on the force model, from
+# its start and from every cell from which it starts at rest.
 #
 # Writes results/params_e2.md, results/table_e2.tex, results/fig_e2.{pdf,png},
 # results/e2_{T,F}.gif, and the numbers e2.*.
@@ -100,6 +102,7 @@ function write_parameters()
             "(F) notches per step" => "$per_cell, with α bounded over the cell (the exact budget allows $(notches(PARAMS.M)) at θ = 0)",
             "(T) grid" => "$N_θ × $(round(Int, 2V_MAX / H_V)) × $(round(Int, 2ω_MAX / H_ω)) cells in (θ, ẋ, θ̇)",
             "(T) forces" => "$(2 * round(Int, F_MAX / DF) + 1) levels, step $DF N",
+            "(F) servo replay" => "PI on the cart velocity, Kp = $(SERVO.Kp) N s/m, Ki = $(SERVO.Ki) N/m, every $(SERVO.dt) s, \\|F\\| ≤ $F_MAX N, anti-windup",
         )
             println(io, "| ", k, " | ", v, " |")
         end
@@ -197,39 +200,55 @@ end
 # =================================================================================== replays
 wrap(z) = Base.setindex(z, rem2pi(z[1], RoundNearest), 1)
 
-"""
-    replay_F(optimizer, model; nmax = 2000, K = 20)
+samples() = (
+    t = Float64[],
+    θ = Float64[],
+    θdot = Float64[],
+    x = Float64[],
+    v = Float64[],
+    F = Float64[],
+)
 
-Run the controller of (F) on the exact step dynamics from the start at rest, sampling each step
-`K` times: the times, angle, angular velocity, cart position, the hold force
-`m sin θ (g cos θ − l θ̇²)` between samples, the impulse `α(θ)(u − v)` of each step, and whether
-the target was reached.
+function record!(out, t, θ, θdot, x, v, F)
+    push!(out.t, t)
+    push!(out.θ, θ)
+    push!(out.θdot, θdot)
+    push!(out.x, x)
+    push!(out.v, v)
+    push!(out.F, F)
+    return
+end
+
 """
-function replay_F(optimizer, model; nmax = 2000, K = 20)
-    ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    replay_F(ctrl, target, z0; nmax = 2000, K = 20, record = true)
+
+Run the controller `ctrl` of (F) on the exact step dynamics from `z0` at rest, sampling each step
+`K` times: the times, angle, angular velocity, cart position and velocity, the hold force
+`m sin θ (g cos θ − l θ̇²)` between samples, the impulse `α(θ)(u − v)` of each step, and whether
+the target was reached. With `record = false`, only the last.
+"""
+function replay_F(ctrl, target, z0; nmax = 2000, K = 20, record = true)
     f = PM.velocity_dynamics(PARAMS)
-    out = (t = Float64[], θ = Float64[], θdot = Float64[], x = Float64[], F = Float64[])
-    impulses = Float64[]
-    z, mem, v, x, t = model.start, ST.initial_state(ctrl), 0.0, 0.0, 0.0
+    out, impulses = samples(), Float64[]
+    z, mem, v, x, t = z0, ST.initial_state(ctrl), 0.0, 0.0, 0.0
     reached = false
     h = τ / K
     for _ in 1:nmax
-        if wrap(z) in model.target
+        if wrap(z) in target
             reached = true
             break
         end
         command = ST.output_control(ctrl, mem, wrap(z))
         command === nothing && break
         u = command[1]
-        push!(impulses, (PARAMS.M + PARAMS.m * sin(z[1])^2) * (u - v))
+        record && push!(impulses, (PARAMS.M + PARAMS.m * sin(z[1])^2) * (u - v))
         mem = ST.update_state(ctrl, mem, wrap(z))
         for j in 0:(K - 1)
-            θdot = PM.angular_velocity(PARAMS, z[1], z[2], u)
-            push!(out.t, t + j * h)
-            push!(out.θ, z[1])
-            push!(out.θdot, θdot)
-            push!(out.x, x + u * j * h)
-            push!(out.F, PM.cart_force(PARAMS, z[1], θdot, 0.0))
+            if record
+                θdot = PM.angular_velocity(PARAMS, z[1], z[2], u)
+                F = PM.cart_force(PARAMS, z[1], θdot, 0.0)
+                record!(out, t + j * h, z[1], θdot, x + u * j * h, u, F)
+            end
             z = ST.runge_kutta4(f, z, u, h, 1)
         end
         x += u * τ
@@ -240,20 +259,19 @@ function replay_F(optimizer, model; nmax = 2000, K = 20)
 end
 
 """
-    replay_T(optimizer, model; nmax = 2000, K = 20)
+    replay_T(ctrl, target, y0; nmax = 2000, K = 20)
 
-Run the controller of (T) on the force dynamics from the start at rest, the force held over each
-step, with the same samples as `replay_F`.
+Run the controller `ctrl` of (T) on the force dynamics from `y0`, the force held over each step,
+with the same samples as `replay_F`.
 """
-function replay_T(optimizer, model; nmax = 2000, K = 20)
-    ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+function replay_T(ctrl, target, y0; nmax = 2000, K = 20)
     f = PM.force_dynamics(PARAMS)
-    out = (t = Float64[], θ = Float64[], θdot = Float64[], x = Float64[], F = Float64[])
-    y, mem, x, t = model.start, ST.initial_state(ctrl), 0.0, 0.0
+    out = samples()
+    y, mem, x, t = y0, ST.initial_state(ctrl), 0.0, 0.0
     reached = false
     h = τ / K
     for _ in 1:nmax
-        if wrap(y) in model.target
+        if wrap(y) in target
             reached = true
             break
         end
@@ -262,11 +280,7 @@ function replay_T(optimizer, model; nmax = 2000, K = 20)
         F = command[1]
         mem = ST.update_state(ctrl, mem, wrap(y))
         for j in 0:(K - 1)
-            push!(out.t, t + j * h)
-            push!(out.θ, y[1])
-            push!(out.θdot, y[3])
-            push!(out.x, x)
-            push!(out.F, F)
+            record!(out, t + j * h, y[1], y[3], x, y[2], F)
             ynext = ST.runge_kutta4(f, y, F, h, 1)
             x += (y[2] + ynext[2]) * h / 2
             y = ynext
@@ -274,6 +288,83 @@ function replay_T(optimizer, model; nmax = 2000, K = 20)
         t += τ
     end
     return (; out..., impulses = Float64[], reached)
+end
+
+# ============================================================================== servo replay
+# Assumption "Velocity servos" idealizes the servo of (F): the cart velocity jumps to each
+# command. The servo replay drops it: the cart is driven by a PI loop on its velocity, at 1 kHz,
+# under the force limit of (T), on the force model. Nothing certifies this closed loop; the replay
+# measures how far the idealization is from a force-limited servo.
+const SERVO = (Kp = 100.0, Ki = 500.0, dt = 1e-3)
+
+"""
+    replay_servo(ctrl, target, z0; nmax = 2000, record = true)
+
+Run the controller `ctrl` of (F) on the force model from `z0` at rest, the cart driven by the PI
+velocity loop `SERVO` under the force limit `F_MAX`: every τ the controller reads `(θ, p_θ)` and
+sets the velocity setpoint, every `SERVO.dt` the loop sets the force. Returns the samples of
+`replay_F` (the force applied), the setpoints, the number of commands, the largest velocity lag
+`|u − ẋ|` left at a sampling instant, and whether the target was reached. With
+`record = false`, no samples or setpoints.
+"""
+function replay_servo(ctrl, target, z0; nmax = 2000, record = true)
+    f = PM.force_dynamics(PARAMS)
+    loop = PM.velocity_loop(; SERVO.Kp, SERVO.Ki, F_max = F_MAX, SERVO.dt)
+    nsub = round(Int, τ / SERVO.dt)
+    out, setpoints = samples(), Float64[]
+    y = PM.force_state(PARAMS, z0, 0.0)
+    mem, loop_mem = ST.initial_state(ctrl), ST.initial_state(loop)
+    x, t, steps, lag, reached = 0.0, 0.0, 0, 0.0, false
+    for _ in 1:nmax
+        z = wrap(PM.velocity_state(PARAMS, y))
+        if z in target
+            reached = true
+            break
+        end
+        command = ST.output_control(ctrl, mem, z)
+        command === nothing && break
+        u = command[1]
+        mem = ST.update_state(ctrl, mem, z)
+        steps += 1
+        record && push!(setpoints, u)
+        for j in 0:(nsub - 1)
+            input = SVector(y[1], y[2], y[3], u)
+            F = ST.output_control(loop, loop_mem, input)
+            loop_mem = ST.update_state(loop, loop_mem, input)
+            record && record!(out, t + j * SERVO.dt, y[1], y[3], x, y[2], F)
+            ynext = ST.runge_kutta4(f, y, F, SERVO.dt, 1)
+            x += (y[2] + ynext[2]) * SERVO.dt / 2
+            y = ynext
+        end
+        t += τ
+        lag = max(lag, abs(u - y[2]))
+    end
+    return (; out..., setpoints, steps, lag, reached)
+end
+
+"""
+    servo_sweep(optimizer, ctrl, target)
+
+Replay (F) from the center of every cell from which its controller starts at rest, with the ideal
+servo and with the PI loop: the number of starts, and of runs that reach the target with each.
+"""
+function servo_sweep(optimizer, ctrl, target)
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    starts =
+        [SY.get_concrete_state(abstract_system, q) for q in SY.enum_states(abstract_system)]
+    filter!(
+        z ->
+            !(z in target) &&
+            ST.output_control(ctrl, ST.initial_state(ctrl), z) !== nothing,
+        starts,
+    )
+    ideal = zeros(Bool, length(starts))
+    servo = zeros(Bool, length(starts))
+    Threads.@threads for k in eachindex(starts)
+        ideal[k] = replay_F(ctrl, target, starts[k]; record = false).reached
+        servo[k] = replay_servo(ctrl, target, starts[k]; record = false).reached
+    end
+    return (; starts = length(starts), ideal = count(ideal), servo = count(servo))
 end
 
 # ==================================================================================== runs
@@ -292,9 +383,16 @@ for (name, run) in pairs(RUNS)
     cells, ntrans, nsucc = abstraction_size(optimizer)
     ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     solved = ST.output_control(ctrl, ST.initial_state(ctrl), model.start) !== nothing
-    replay = solved ? run.replay(optimizer, model) : nothing
-    results[name] = (; solved, cells, ntrans, nsucc, t, replay)
+    replay = solved ? run.replay(ctrl, model.target, model.start) : nothing
+    servo =
+        name === :F && solved ?
+        (;
+            replay = replay_servo(ctrl, model.target, model.start),
+            sweep = servo_sweep(optimizer, ctrl, model.target),
+        ) : nothing
+    results[name] = (; solved, cells, ntrans, nsucc, t, replay, servo)
     println((name, (; solved, cells, ntrans, nsucc, t)))
+    servo === nothing || println(("(F) servo", servo.sweep))
     optimizer = ctrl = nothing
     GC.gc()
 end
@@ -324,6 +422,22 @@ for (name, r) in results
         peak <= I_MAX + 1e-9 || error("(F) exceeds the impulse budget: $peak")
         numbers["e2.F.maximpulse"] = fmt(peak)
         numbers["e2.F.maxhold"] = fmt(maximum(abs, rp.F))
+        sv, sweep = r.servo.replay, r.servo.sweep
+        # Soundness: with the ideal servo, every start of the controller reaches the target. The
+        # paper also states it with the PI loop (Section VI-B, Two time levels).
+        sweep.ideal == sweep.starts ||
+            @warn "(F) misses the target from $(sweep.starts - sweep.ideal) of $(sweep.starts) starts with the ideal servo"
+        sweep.servo == sweep.starts ||
+            @warn "(F) misses the target from $(sweep.starts - sweep.servo) of $(sweep.starts) starts with the PI loop: update Section VI-B, Two time levels"
+        numbers["e2.F.starts"] = sweep.starts
+        numbers["e2.F.ideal.reached"] = sweep.ideal
+        numbers["e2.F.servo.reached"] = sweep.servo
+        sv.reached ||
+            @warn "(F) misses the target from the start of the paper with the PI loop: update Section VI-B, Two time levels"
+        numbers["e2.F.servo.steps"] = sv.steps
+        numbers["e2.F.servo.lag"] = fmt(sv.lag)
+        saturated = count(F -> abs(F) >= F_MAX - 1e-9, sv.F) / length(sv.F)
+        numbers["e2.F.servo.saturated"] = round(Int, 100 * saturated)
     else
         maximum(abs, rp.F) <= F_MAX + 1e-9 || error("(T) exceeds the force limit")
         numbers["e2.T.maxforce"] = fmt(maximum(abs, rp.F))
@@ -391,12 +505,25 @@ function cart_plot!(; l = PARAMS.l, w = 0.4, h = 0.2)
 end
 
 if FIGURES
-    # Printed at about 0.7 of this size: fonts chosen to print at 6-7 pt. One curve, no legend.
+    # Printed at about 0.7 of this size: fonts chosen to print at 6-7 pt. No legend: the caption
+    # tells the curves apart.
+    # The panels share the time axis, labeled on the bottom one only.
     style = (; guidefontsize = 9, tickfontsize = 8, grid = false, legend = false)
-    p_θ = Plots.plot(; ylabel = "θ (deg)", yticks = 0:90:360, style...)
+    no_time = (; xformatter = _ -> "")
+    p_θ = Plots.plot(; ylabel = "θ (deg)", yticks = 0:180:360, no_time..., style...)
     Plots.hline!(p_θ, [0, 360]; color = :black, ls = :dot, label = "")
-    p_F = Plots.plot(; ylabel = "force (N)", xlabel = "t (s)", style...)
+    p_F = Plots.plot(;
+        ylabel = "force (N)",
+        xlabel = "t (s)",
+        yticks = (-F_MAX):F_MAX:F_MAX,
+        style...,
+    )
     Plots.hline!(p_F, [-F_MAX, F_MAX]; color = :gray, ls = :dash, label = "")
+    # The force of the PI servo first, light, under the curves of the ideal servo: its bursts
+    # deliver the impulses that the ideal servo applies at once.
+    servo = results[:F].solved ? results[:F].servo.replay : nothing
+    servo === nothing ||
+        Plots.plot!(p_F, servo.t, servo.F; color = 3, lw = 0.5, alpha = 0.4)
     for (name, label, color) in ((:T, "(T) force model", 2), (:F, "(F) velocity model", 1))
         r = results[name]
         r.solved || continue
@@ -404,6 +531,14 @@ if FIGURES
         Plots.plot!(p_θ, rp.t, rad2deg.(unwrap(rp.θ)); color, lw = 1.5, label)
         Plots.plot!(p_F, rp.t, rp.F; color, lw = 1.2)
     end
+    servo === nothing || Plots.plot!(
+        p_θ,
+        servo.t,
+        rad2deg.(unwrap(servo.θ));
+        color = 3,
+        lw = 1.2,
+        ls = :dash,
+    )
     if results[:F].solved
         rp = results[:F].replay
         ts = τ .* (0:(length(rp.impulses) - 1))
@@ -418,11 +553,26 @@ if FIGURES
             label = "",
         )
     end
+    # The two time levels of the PI run: its setpoints, every τ, which the ideal servo would
+    # follow at once, and the cart velocity that the loop makes follow them, every millisecond.
+    p_v = Plots.plot(;
+        ylabel = "ẋ (m/s)",
+        yticks = (-V_MAX):V_MAX:V_MAX,
+        no_time...,
+        style...,
+    )
+    if servo !== nothing
+        steps = τ .* (0:length(servo.setpoints))
+        setpoints = vcat(servo.setpoints, servo.setpoints[end])
+        Plots.plot!(p_v, steps, setpoints; seriestype = :steppost, color = :black, lw = 0.8)
+        Plots.plot!(p_v, servo.t, servo.v; color = 3, lw = 1.2)
+    end
     fig = Plots.plot(
         p_θ,
+        p_v,
         p_F;
-        layout = Plots.grid(2, 1; heights = [0.5, 0.5]),
-        size = (300, 200),
+        layout = Plots.grid(3, 1; heights = [0.38, 0.31, 0.31]),
+        size = (300, 270),
         link = :x,
     )
     Plots.savefig(fig, joinpath(RESULTS, "fig_e2.pdf"))
