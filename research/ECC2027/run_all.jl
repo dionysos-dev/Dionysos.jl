@@ -6,6 +6,8 @@
 # Switches: SAMPLES=n for the median of n timed rounds (default 3), FIGURES=0 to skip the plots.
 
 include(joinpath(@__DIR__, "common.jl"))
+# A full run regenerates every number, so none survives from an earlier run.
+rm(joinpath(RESULTS, "numbers.tex"); force = true)
 write_environment()
 
 for script in ("E1_pendulum.jl", "E2_cartpole.jl")
