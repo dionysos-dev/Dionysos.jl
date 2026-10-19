@@ -16,9 +16,10 @@ submit_all.sh N ──► array 1…N : compute_chunk.jl ──► N chunk files
 
 | file | role |
 | :--- | :--- |
-| [`submit_all.sh`](submit_all.sh) | submits the array of `N` chunks, then the merge once all have succeeded (`N` is chosen here only) |
+| [`submit_all.sh`](submit_all.sh) | submits the array of `N` chunks, then the merge, then the solve job, each after the previous one has succeeded (`N` is chosen here only) |
+| [`status.sh`](status.sh) | what happened to the jobs of the last `submit_all.sh`: state, exit code, peak memory, end of the logs (§6) |
 | [`submit_compute_chunks.sbatch`](submit_compute_chunks.sbatch) / [`compute_chunk.jl`](compute_chunk.jl) | one task of the array: computes its share of the source cells and writes `transitions_part_<id>_of_<N>.bin` |
-| [`submit_merge_chunks.sbatch`](submit_merge_chunks.sbatch) / [`merge_chunks.jl`](merge_chunks.jl) | reads the `N` chunks and writes the abstraction to `DIONYSOS_ABSTRACTION_FILE` |
+| [`submit_merge_chunks.sbatch`](submit_merge_chunks.sbatch) / [`merge_chunks.jl`](merge_chunks.jl) | copies the `N` chunks, one after the other, into the abstraction file `DIONYSOS_ABSTRACTION_FILE` (a few GB of memory whatever the size) |
 | [`submit_solve.sbatch`](submit_solve.sbatch) / [`solve.jl`](solve.jl) | control synthesis, closed loop, figures and animation on the saved abstraction; rerunnable alone |
 | `logs/` | job logs (not versioned) |
 | `out/` | default location of the chunks, of the merged file and of the results in `out/results/` (`*.jld2` and `out/` are ignored by git) |
@@ -64,10 +65,22 @@ chunks must be long enough for it not to dominate: aim for 10–30 minutes per t
 `N ≈ total core time / 20 min`. Set `--time` of `submit_compute_chunks.sbatch` (default 1 h, 4 GB) with a
 margin of 2×; the chunks have the same number of source cells, but the work per cell varies a little.
 
-The merge keeps all the transitions in memory: about `2 GB + 300 bytes × transitions` (measured: 3.5 GB
-for 9.3 M transitions); set `--mem` of `submit_merge_chunks.sbatch` (default 16 GB) accordingly. The merged
-file takes 12 bytes per transition. A grid twice as fine along the ankle angle and momentum has 4 times more
-cells and transitions.
+**Memory.** The three jobs do not need the same:
+
+* the **chunk** tasks need little (4 GB by default): their share of the transitions, 1/N of the total;
+* the **merge** copies the chunks one after the other into the file, without building the abstraction:
+  the memory is that of the model (about 2 GB) plus one chunk (about 24 bytes per transition *of that chunk*),
+  so a few GB whatever the size of the abstraction. (It used to build the whole automaton, hundreds of bytes
+  per transition: with billions of transitions that is hundreds of GB and the job was killed. Estimate the
+  transitions from the chunks, `du -sh out/transitions`, 23 bytes each);
+* the **solve** job has to put the whole abstraction into an automaton, as any synthesis does: about
+  **150 bytes per transition** (measured: a peak of 2.8 GB for 9.3 M transitions, of which about 1.2 GB is
+  the model, synthesis and animation included). With `T` transitions in the file (the merge log says it:
+  `MERGE OK … T transitions`), ask for about `2 GB + 200 bytes × T`, i.e. 400 GB for 2 billion
+  transitions. This is the one that decides whether the abstraction fits the cluster nodes.
+
+The merged file takes 12 bytes per transition. A grid twice as fine along the ankle angle and momentum
+has 4 times more cells and transitions.
 
 ## 3. Submit
 
@@ -82,16 +95,23 @@ This submits three jobs, each one running only if the previous one has succeeded
 the array `1-200`, the merge (`DIONYSOS_NCHUNKS=200`) and the **solve** job (control synthesis, closed
 loop, figures and animation, see §4), and prints the name of the animation it will write
 (`slurm_array/out/results/biped_4d_normal_form_job<solve jobid>.gif`: that is the file to download).
-`DIONYSOS_SKIP_SOLVE=1` submits the chunks and the merge only. If a task fails, the merge does not start (`afterok`): look at `logs/chunk_<jobid>_<task>.err`, re-run
-only the failed tasks with the same `N` (the chunk files of the others are kept), then submit the merge by hand:
+`DIONYSOS_SKIP_SOLVE=1` submits the chunks and the merge only. If a job fails, the ones after it are
+cancelled (`--kill-on-invalid-dep`): `status.sh` (§6) tells which one failed and why.
+
+**Only the merge** (the chunks are all there): yes, `sbatch` it, **from the root of the repository** (the log
+paths of the script are relative to it, and the `logs/` folder must exist):
 
 ```
-DIONYSOS_NCHUNKS=200 sbatch --array=17,42 problems/BipedRobot/4D_model_underactuated/slurm_array/submit_compute_chunks.sbatch
-DIONYSOS_NCHUNKS=200 sbatch problems/BipedRobot/4D_model_underactuated/slurm_array/submit_merge_chunks.sbatch
+sbatch problems/BipedRobot/4D_model_underactuated/slurm_array/submit_merge_chunks.sbatch
 ```
 
-(add `--dependency=afterok:<jobid>` to the second one to wait for the first, and submit the solve job after
-the merge in the same way, §4.)
+The number of chunks is read from the names of the chunk files (`DIONYSOS_NCHUNKS=300` overrides it), and
+the merge stops at once, naming them, if some are missing. Set `DIONYSOS_TRANSITION_OUTDIR` and
+`DIONYSOS_ABSTRACTION_FILE` again if you had changed them for `submit_all.sh`. If the output file exists, the
+job loads it (loading is the "merge" then, which is not what you want): delete it, and the `….jld2.tmp` of a
+merge that was killed. The same goes for **only the solve job** (§4), and to re-run some failed chunk tasks
+only: `DIONYSOS_NCHUNKS=300 sbatch --array=17,42 …/submit_compute_chunks.sbatch` (the chunk files of the other
+tasks are kept), then the merge.
 
 Directories: the chunks go to `slurm_array/out/transitions/`, the merged file to
 `slurm_array/out/normal_form_abstraction.jld2` and the results to `slurm_array/out/results/`. Choose others (e.g. a scratch directory) with the
@@ -117,10 +137,10 @@ synthesizes the controller, simulates the closed loop and writes, in `DIONYSOS_O
 log in `logs/solve_<jobid>.out` (`footstep success`, number of steps, ankle range). If there is no
 controller from the start state, the job says so and ends with exit code 2 (no gif).
 
-**Memory.** The solve job puts the whole abstraction in an automaton again, as the merge did: ask for
-the memory the merge job used (`seff <merge jobid>`) plus a margin for the synthesis, not for the size of
-the file (`--mem` of `submit_solve.sbatch`, 250 GB as a placeholder; 2 CPUs and 4 h too). The
-transitions are added to the automaton in blocks, so the file is not copied in tuples first.
+**Memory.** The solve job puts the whole abstraction in an automaton: see the estimate of §2
+(`--mem` of `submit_solve.sbatch`, 250 GB as a placeholder; 2 CPUs and 4 h too). Its log says how many
+transitions the file has and loads them part by part with the peak memory so far, so a job that is
+killed leaves the point it had reached.
 
 **Rerun with another start or tolerance.** What does not enter the abstraction can change freely: the
 foothold tolerance, the initial configuration and momentum, the target momentum (and the foothold). Put
@@ -150,9 +170,9 @@ example's `DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP` and obstacle: change them in 
 abstraction is needed. A different `X_BOUNDS` on the same grid is one too: compute one big box once and
 try several starts in it.
 
-The file holds the transitions only (`target`, `source`, `symbol` as integer vectors, plus the
-parameters): the compiled symbolic dynamics cannot be saved, they are rebuilt from the model at each run
-(a few seconds).
+The file holds the transitions only (`target`, `source`, `symbol` as integer vectors, one part per chunk,
+plus the parameters): the compiled symbolic dynamics cannot be saved, they are rebuilt from the model at each
+run (a few seconds). Files written by the first version (one part) are still read.
 
 ### Locally
 
@@ -173,7 +193,7 @@ The variables of the example that these scripts set before including it:
 | variable | chunk task | merge |
 | :--- | :--- | :--- |
 | `EXECUTION_BACKEND` | `SY.SlurmArrayBackend(N, chunk_id, outdir, :contiguous, true)` (the task writes its chunk and keeps nothing) | default |
-| `MERGE_CHUNKS` | – | `(; outdir, N)`: the transitions are read from the chunks instead of computed |
+| `MERGE_CHUNKS` | – | `(; outdir, N)`: the transitions are read from the chunks instead of computed, and written to `ABSTRACTION_FILE` (the run has to stop there: `ABSTRACTION_ONLY`) |
 | `ABSTRACTION_FILE` | – | where the merged abstraction is written (the solve job: where it is read) |
 | `ABSTRACTION_ONLY` | `true` | `true` |
 | `OUTPUT_DIR`, `SCENARIO_NAME`, `RUN_PLOTS` | – | – (set by `solve.jl`: where and under which name the figures are written) |
@@ -181,4 +201,34 @@ The variables of the example that these scripts set before including it:
 They are also what you would set to run the steps by hand, e.g. a chunk outside Slurm
 (`DIONYSOS_CHUNK_ID=2 DIONYSOS_NCHUNKS=3 julia --project=problems/BipedRobot .../compute_chunk.jl`). The
 functions behind them are in `LocalGrowthAbstraction.jl`: `build_abstraction(...; merge_chunks,
-abstraction_file, abstraction_info)`, `merge_chunks!`, `save_abstraction` and `load_abstraction!`.
+abstraction_file, abstraction_info)`, `merge_chunks!` (into the optimizer), `merge_chunks_to_file` (chunks to
+file, what the merge job uses), `save_abstraction` and `load_abstraction!`.
+
+## 6. Did it work? Reading the jobs
+
+```
+problems/BipedRobot/4D_model_underactuated/slurm_array/status.sh                  # the last submit_all.sh
+problems/BipedRobot/4D_model_underactuated/slurm_array/status.sh CHUNKS MERGE [SOLVE]   # given job ids
+```
+
+shows the chunk tasks by state (and the ones that did not complete), the number of chunk files, and for
+the merge and solve jobs the `sacct` line (state, exit code, elapsed, requested and **peak memory**) and the
+end of their logs. The same by hand: `sacct -j <jobid> --format=JobID,JobName,State,ExitCode,Elapsed,ReqMem,MaxRSS`.
+
+| `State` | meaning |
+| :--- | :--- |
+| `COMPLETED` | the job ended with status 0 |
+| `OUT_OF_MEMORY` | it needed more than `--mem`: Slurm killed it, and a killed job logs nothing, its log just stops (the last `Merging chunk k / N … peak_memory_GB` or `Loaded part k` line says how far it got). `MaxRSS` is the peak |
+| `TIMEOUT` | it needed more than `--time` |
+| `FAILED` | the script ended with an error: the `.err` log has it |
+| `CANCELLED` | by you, or because the job it waited for failed: look at the first job that is not `COMPLETED` |
+
+The merge and solve scripts log each stage with a time stamp and end with one of
+`MERGE OK … transitions, … peak memory`, `MERGE FAILED …`, `SOLVE OK: <gif>`, `SOLVE FAILED …`; the sbatch
+scripts add `[merge] julia exited with status …`. In the **merge**, the usual failures are chunk files that are
+missing (named at once, before any work), chunks computed for another grid or state box (the number of states
+differs), and a merged file that already exists (it is loaded, not merged: a warning says so). In the
+**solve** job: the abstraction file refused because the example's parameters are not the ones it was
+computed for (the message prints both), no controller from the start state (exit code 2: raise the
+tolerance, change the start), or `OUT_OF_MEMORY` while loading.
+

@@ -265,13 +265,19 @@ abstraction_only = @isdefined(ABSTRACTION_ONLY) ? ABSTRACTION_ONLY : false
 # An outdated `LocalGrowthAbstraction.jl` would pass `abstraction_file` on as an optimizer attribute that
 # nothing reads, and silently compute the abstraction: refuse it.
 abstraction_file === nothing ||
-    isdefined(LGA, :load_abstraction!) ||
+    isdefined(LGA, :merge_chunks_to_file) ||
     error(
-        "$(PROBLEM_DIR)/LocalGrowthAbstraction.jl is too old for ABSTRACTION_FILE (no `load_abstraction!`). " *
+        "$(PROBLEM_DIR)/LocalGrowthAbstraction.jl is too old for ABSTRACTION_FILE (no `merge_chunks_to_file`). " *
         "Dionysos is loaded from $(pathof(Dionysos)): `PROBLEM_DIR` is relative to it.",
     )
 execution_backend = @isdefined(EXECUTION_BACKEND) ? EXECUTION_BACKEND : SY.ThreadedBackend()
 merge_chunks = @isdefined(MERGE_CHUNKS) ? MERGE_CHUNKS : nothing
+# Merging the chunks into `ABSTRACTION_FILE` does not keep the abstraction in memory (it would not fit,
+# that is the point): the run has to stop there, and the next one loads the file.
+merge_chunks === nothing ||
+    abstraction_file === nothing ||
+    abstraction_only ||
+    error("`MERGE_CHUNKS` writes `ABSTRACTION_FILE` and stops: set `ABSTRACTION_ONLY = true`")
 abstraction_info = (;
     state_origin = collect(MP.get_origin(disc.state_grid)),
     state_h = collect(MP.get_h(disc.state_grid)),
@@ -295,7 +301,11 @@ abstraction_info = (;
     extra_attributes...,
 )
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-println("transitions: ", SY.get_n_transitions(abstract_system))
+if abstract_system === nothing
+    println("abstraction written to ", abstraction_file, " (not kept in memory)")
+else
+    println("transitions: ", SY.get_n_transitions(abstract_system))
+end
 println("local growth bound statistics: ", LGA.stats(lgb))
 
 if !abstraction_only

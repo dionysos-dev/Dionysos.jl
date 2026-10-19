@@ -35,4 +35,12 @@ echo "SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID"
 echo "SLURM_ARRAY_TASK_COUNT=$SLURM_ARRAY_TASK_COUNT"
 echo "DIONYSOS_TRANSITION_OUTDIR=$DIONYSOS_TRANSITION_OUTDIR"
 
+set +e
 srun --export=ALL julia --project=problems/BipedRobot "$DIR/compute_chunk.jl"
+STATUS=$?
+set -e
+echo "[chunk $SLURM_ARRAY_TASK_ID] julia exited with status $STATUS at $(date '+%Y-%m-%d %H:%M:%S')"
+if [ "$STATUS" -ne 0 ]; then
+    echo "[chunk $SLURM_ARRAY_TASK_ID] FAILED (status $STATUS): see the .out and .err logs; 'sacct -j $SLURM_JOB_ID --format=JobID,State,ExitCode,MaxRSS,Elapsed,ReqMem' says OUT_OF_MEMORY or TIMEOUT if the job was killed" >&2
+fi
+exit $STATUS
