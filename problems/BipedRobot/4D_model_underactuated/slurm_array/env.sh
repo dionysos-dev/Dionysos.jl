@@ -10,6 +10,13 @@
 #   - With JULIA_CPU_TARGET set (a portable target, see README §1), all the nodes share one directory.
 #   - DIONYSOS_CACHE_DEPOT: where these directories are (default: ~/.julia_biped_cache).
 
+# sbatch passes on the environment of the shell that submitted the job, PATH included: a `julia` that only an
+# interactive shell can find (juliaup adds it in ~/.bash_profile) is not found by the job.
+command -v julia > /dev/null 2>&1 || {
+    echo "julia is not in the PATH of this job. Submit from a shell where 'julia' works (a login shell: ssh host 'bash -l -c ...'), or put its directory in the PATH before submitting." >&2
+    exit 1
+}
+
 DIONYSOS_BASE_DEPOT="${DIONYSOS_BASE_DEPOT:-${JULIA_DEPOT_PATH:-$HOME/.julia}}"
 if [ -n "${JULIA_CPU_TARGET:-}" ]; then
     DIONYSOS_CACHE_KEY=portable

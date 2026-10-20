@@ -15,6 +15,7 @@
 set -euo pipefail
 
 NCHUNKS="${1:?usage: submit_all.sh NCHUNKS [MAX_PARALLEL]}"
+command -v julia > /dev/null 2>&1 || { echo "julia is not in the PATH: the jobs inherit it, submit from a shell where 'julia' works (a login shell)" >&2; exit 1; }
 THROTTLE="${2:+%$2}"
 DIR=problems/BipedRobot/4D_model_underactuated/slurm_array
 [ -d "$DIR" ] || { echo "run this from the root of the repository" >&2; exit 1; }
@@ -26,6 +27,24 @@ DIR=problems/BipedRobot/4D_model_underactuated/slurm_array
 read -r -a EXTRA <<< "${DIONYSOS_SBATCH_ARGS:-}"
 SBATCH=(sbatch --parsable ${EXTRA[@]+"${EXTRA[@]}"})
 [ -n "${DIONYSOS_SBATCH_ARGS:-}" ] && echo "sbatch arguments for every job: $DIONYSOS_SBATCH_ARGS"
+
+# The Julia cache is per CPU type and the precompile job builds it for the node it lands on: if the nodes of the
+# partition are not all alike and nothing pins the jobs to one type, the tasks of the other types find no
+# cache (and stop). So this is refused unless the jobs are pinned (--constraint, --nodelist, --exclude), or a
+# portable JULIA_CPU_TARGET is set, or DIONYSOS_ANY_NODE=1.
+if [[ " ${DIONYSOS_SBATCH_ARGS:-} " != *" --constraint"* && " ${DIONYSOS_SBATCH_ARGS:-} " != *" -C"* \
+   && " ${DIONYSOS_SBATCH_ARGS:-} " != *" --nodelist"* && " ${DIONYSOS_SBATCH_ARGS:-} " != *" --exclude"* \
+   && -z "${JULIA_CPU_TARGET:-}" && "${DIONYSOS_ANY_NODE:-0}" != "1" ]]; then
+    NFEATURES=$(sinfo -h -o "%f" 2>/dev/null | sort -u | wc -l)
+    if [ "$NFEATURES" -gt 1 ]; then
+        echo "The cluster has nodes of different kinds ($NFEATURES feature sets):" >&2
+        sinfo -h -o "  %20N %c cores  %f" | sort -u >&2
+        echo "and the Julia precompilation cache is per CPU type: pin every job to one of them, e.g." >&2
+        echo "  DIONYSOS_SBATCH_ARGS=\"--constraint=<one feature, e.g. Rome>\" $0 $NCHUNKS" >&2
+        echo "(or export a portable JULIA_CPU_TARGET, or DIONYSOS_ANY_NODE=1 to submit anyway: README section 1)." >&2
+        exit 1
+    fi
+fi
 
 export DIONYSOS_NCHUNKS="$NCHUNKS"
 export DIONYSOS_TRANSITION_OUTDIR="${DIONYSOS_TRANSITION_OUTDIR:-$PWD/$DIR/out/transitions}"

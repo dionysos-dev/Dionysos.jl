@@ -13,15 +13,12 @@
 #   DIONYSOS_NCHUNKS             number of chunks (default: SLURM_ARRAY_TASK_COUNT, the size of the array)
 #   SLURM_ARRAY_TASK_ID          chunk, from 1 to the number of chunks (outside Slurm: DIONYSOS_CHUNK_ID)
 
-# `instantiate` must not precompile the whole project (MeshCat, RigidBodyDynamics, ... that the experiment
-# never loads): the precompilation is the job of `precompile.jl`, once, before the array.
-ENV["JULIA_PKG_PRECOMPILE_AUTO"] = "0"
-import Pkg
-Pkg.instantiate()
-
 # A task does not build the precompilation cache: with 300 tasks at once it would take all of them an hour,
 # waiting for each other's lock files. If the cache is not valid on this node (another kind of CPU than the one
 # `precompile.jl` ran on, or it did not run), stop at once, and say so. DIONYSOS_REQUIRE_CACHE=0 disables it.
+# This is the first thing the task does, before `Pkg` is even loaded: in a depot without a cache (a CPU type
+# nobody has precompiled on), loading `Pkg` compiles it and its standard libraries first, minutes. Nor does
+# the task call `Pkg.instantiate()`: the packages are installed (by `precompile.jl`, on the shared home).
 include(joinpath(@__DIR__, "cache_check.jl"))
 if get(ENV, "DIONYSOS_REQUIRE_CACHE", "1") != "0"
     stale = stale_packages()

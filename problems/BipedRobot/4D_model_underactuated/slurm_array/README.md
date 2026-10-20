@@ -50,7 +50,7 @@ only (not the whole project), then loads them in a fresh process, twice, and fai
 if the second load is slow, which means the cache is rejected on that node. Without it, each of the
 `N` tasks would compile for itself, minutes of its budget, all of them fighting for the same lock files (the
 `attempting to remove probably stale pidfile` warnings). The tasks themselves never precompile the whole
-project: `Pkg.instantiate()` is called with `JULIA_PKG_PRECOMPILE_AUTO=0`. `DIONYSOS_SKIP_PRECOMPILE=1`
+project: the merge and solve jobs call `Pkg.instantiate()` with `JULIA_PKG_PRECOMPILE_AUTO=0`, and the tasks of the array do not call it (nor load `Pkg`). `DIONYSOS_SKIP_PRECOMPILE=1`
 skips the job (when the cache is known to be valid).
 
 **Heterogeneous clusters.** A cache file has the same name whatever the CPU that built it. On a cluster
@@ -75,7 +75,9 @@ DIONYSOS_SBATCH_ARGS="--partition=cp3 --constraint=Skylake" \
 ```
 
   (`--constraint` takes a feature of `sinfo -o "%N %f"`; without features use `--exclude=<nodes>` or
-  `--nodelist=<nodes>`);
+  `--nodelist=<nodes>`; on the UCLouvain cluster the features of `cp3` are `SkyLake`, `CascadeLake`,
+  `Rome` and `Genoa`). `submit_all.sh` **refuses to submit** when the cluster has nodes with different
+  features and nothing pins the jobs (nor a portable `JULIA_CPU_TARGET`); `DIONYSOS_ANY_NODE=1` overrides it;
 * or, to use all the node types, export one portable CPU target before `submit_all.sh` (sbatch passes it
   on); the cache is then one for all the types (directory `portable`), and the tasks that find it invalid on
   their node stop at once as above. I have not tested this target on your hardware:
@@ -129,7 +131,7 @@ has 4 times more cells and transitions.
 
 ## 3. Submit
 
-From the root of the repository:
+From the root of the repository, in a shell where `julia` works (the jobs inherit its `PATH`; over `ssh host 'command'` use a login shell, `ssh host 'bash -l -c "..."'`; the scripts stop at once with a message if `julia` is missing):
 
 ```
 problems/BipedRobot/4D_model_underactuated/slurm_array/submit_all.sh 200        # N = 200 chunks
