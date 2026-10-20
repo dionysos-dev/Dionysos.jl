@@ -156,7 +156,7 @@ disc =
 # change it.
 x_lb, x_ub =
     @isdefined(X_BOUNDS) ? X_BOUNDS :
-    (SVector(-0.6, -0.4, -1.0, -1.0, -1.0), SVector(-0.08, 0.2, 0.1, 1.0, 0.1))
+    (SVector(-0.6, -0.4, 0.0, -0.6, -1.0), SVector(-0.08, 0.4, 1.0, 0.6, 0.0))
 
 # The footstep starts from the configuration `q0 = [q₁, q₂, q₃, q₄]` and ends on the foothold. The
 # controller must work from every cell of the ankle momentum `p₁` that `INITIAL_VELOCITY` touches and
