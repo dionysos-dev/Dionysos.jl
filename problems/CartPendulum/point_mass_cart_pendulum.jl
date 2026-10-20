@@ -14,6 +14,8 @@
 # - Force model (T): the cart force F is the input, held over each sampling period, and the state is
 #   (θ, ẋ, θ̇). Its growth bound uses a Jacobian bound per cell, over an a-priori enclosure of the
 #   step from the cell.
+# - Velocity servo: a PI loop on the force model that tracks a commanded cart velocity under a
+#   force limit, to replay a controller of the velocity model without its ideal servo.
 #
 # The bounds use the interval arithmetic below, on (lo, hi) tuples; like the integration, they are
 # sound up to floating-point rounding.
@@ -304,6 +306,46 @@ function in_force_target(P::Params, Θ, V, Ω; θ_target, p_target)
     (-θ_target <= Θ[1] && Θ[2] <= θ_target) || return false
     p = iadd(iscale(P.m * P.l^2, Ω), iscale(P.m * P.l, imul(icos(Θ), V)))
     return -p_target <= p[1] && p[2] <= p_target
+end
+
+# ------------------------------------------------------------------------------ velocity servo
+"""
+    velocity_state(P, y) -> SVector
+
+The state `(θ, p)` of the velocity model at the state `y = (θ, ẋ, θ̇)` of the force model.
+"""
+velocity_state(P::Params, y) =
+    SVector(y[1], P.m * P.l^2 * y[3] + P.m * P.l * cos(y[1]) * y[2])
+
+"""
+    force_state(P, z, v) -> SVector
+
+The state `(θ, ẋ, θ̇)` of the force model at the state `z = (θ, p)` of the velocity model, with
+the cart velocity `v`.
+"""
+force_state(P::Params, z, v) = SVector(z[1], v, angular_velocity(P, z[1], z[2], v))
+
+struct VelocityError end
+(::VelocityError)(x, _, _) = x[4] - x[2]
+
+"""
+    velocity_loop(; Kp, Ki, F_max, dt) -> Dionysos.System.PIDControllers.PIDController
+
+A PI loop that drives the cart velocity of the force model to a setpoint, the servo that the
+velocity model idealizes. It runs every `dt`; its input is the state `(θ, ẋ, θ̇)` followed by the
+setpoint, and its output the cart force, clamped to `|F| ≤ F_max`, with anti-windup.
+"""
+function velocity_loop(; Kp, Ki, F_max, dt)
+    return ST.PIDControllers.PIDControllerVector(;
+        Kp,
+        Ki,
+        ref = nothing,
+        error = VelocityError(),
+        dt,
+        umin = -F_max,
+        umax = F_max,
+        e0 = 0.0,
+    )
 end
 
 end # module

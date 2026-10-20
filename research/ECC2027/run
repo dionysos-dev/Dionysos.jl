@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
-# Entry point: regenerate every number, table and figure of the paper.
-#
-# On CodeOcean, environment/postInstall has installed Julia and Dionysos.jl at the commit of the
-# paper's results, with this capsule's packages, and the results go to /results. Elsewhere, run it
-# from this folder inside the Dionysos.jl repository; the results go to ./results.
+# Regenerates all the results. On CodeOcean (set up by environment/postInstall) they go to
+# /results; locally, run from this folder inside the Dionysos.jl repository, to ./results.
 set -euo pipefail
 cd "$(dirname "$0")"
 if [ -d /opt/Dionysos.jl ]; then
     export JULIA_DEPOT_PATH=/opt/julia_depot
     export RESULTS_DIR=/results
     export GKSwstype=100 # plots without a display
-    # The cart-pole abstractions are built in parallel, on every core of the machine.
     julia --project=/opt/Dionysos.jl/research/ECC2027 --threads="${CO_CPUS:-auto}" run_all.jl
 else
     julia --project=. -e 'import Pkg; Pkg.instantiate()'

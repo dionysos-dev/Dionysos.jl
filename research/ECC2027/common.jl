@@ -1,14 +1,9 @@
-# Shared by every experiment: where results go, how they reach the paper, and small helpers.
+# Helpers shared by the experiments: results folder, numbers, tables, environment.
 #
-# An experiment records its numbers in `results/numbers.tex` with `record_numbers`, and its tables
-# in `results/<name>.tex` with `write_table`; running experiments separately is fine, since
-# `record_numbers` merges into the existing file. The paper quotes copies of these files from the
-# final run.
-#
-# Switches, read from the environment:
-#   SAMPLES=n         median of n timed rounds (default 3)
-#   FIGURES=0         skip the figures and animations (they cost more than the numbers)
-#   RESULTS_DIR=path  where the results go (default `results/` here; `/results` on CodeOcean)
+# Environment variables:
+#   SAMPLES=n         timed rounds, median reported (default 3)
+#   FIGURES=0         skip the figures and animations
+#   RESULTS_DIR=path  output folder (default results/, /results on CodeOcean)
 
 import Dates
 import InteractiveUtils
@@ -22,12 +17,7 @@ mkpath(RESULTS)
 const SAMPLES = parse(Int, get(ENV, "SAMPLES", "3"))
 const FIGURES = get(ENV, "FIGURES", "1") == "1"
 
-"""
-    timed(f; samples = SAMPLES) -> (result, seconds)
-
-Run `f()` `samples` times and return the last result with the median wall time. Garbage is
-collected before each round, so one experiment's allocations do not bill the next.
-"""
+# Runs f() `samples` times, with a GC before each, and returns the last result and the median time.
 function timed(f; samples = SAMPLES)
     times = Float64[]
     result = nothing
@@ -40,15 +30,9 @@ function timed(f; samples = SAMPLES)
     return result, times[(length(times) + 1) ÷ 2]
 end
 
-# `\resdef{key}{value}` lines, one per number.
 const _RESDEF = r"^\\resdef\{([^}]*)\}\{(.*)\}\s*$"
 
-"""
-    record_numbers(pairs)
-
-Merge `key => value` pairs into `results/numbers.tex`, keeping the keys other
-experiments wrote. Values are written as given; format them before.
-"""
+# Merges key => value pairs into results/numbers.tex, as \resdef{key}{value} lines.
 function record_numbers(pairs)
     path = joinpath(RESULTS, "numbers.tex")
     numbers = Dict{String, String}()
@@ -70,11 +54,7 @@ function record_numbers(pairs)
     return path
 end
 
-"""
-    group(n::Integer) -> String
-
-The digits of `n` grouped by thousands with thin spaces, from five digits on.
-"""
+# Thousands separated by thin spaces, from five digits on.
 function group(n::Integer)
     s = string(abs(n))
     length(s) <= 4 && return string(n)
@@ -90,13 +70,8 @@ end
 _cell(x::Integer) = group(x)
 _cell(x) = string(x)
 
-"""
-    write_table(name, header, rows; align)
-
-Write a booktabs `tabular` to `results/<name>.tex`; the table in the paper is a copy of it.
-Integer cells are grouped by thousands; other cells are written as given, so they may contain
-LaTeX.
-"""
+# Booktabs tabular in results/<name>. Integers get thousands separators; other cells are written
+# as given, so they may contain LaTeX.
 function write_table(name, header, rows; align = "l" * "c"^(length(header) - 1))
     path = joinpath(RESULTS, name)
     open(path, "w") do io
@@ -114,14 +89,8 @@ function write_table(name, header, rows; align = "l" * "c"^(length(header) - 1))
     return path
 end
 
-"""
-    write_environment()
-
-Record what produced the results: date, Julia version, Dionysos commit, machine. The paper
-quotes the machine, and a reader of the capsule can check the commit. The commit is read from the
-Dionysos.jl checkout that the environment loads, the enclosing repository or, on CodeOcean, the
-clone made by `environment/postInstall`.
-"""
+# Date, Dionysos commit, Julia version and machine of the run. The commit is that of the loaded
+# Dionysos checkout: the enclosing repository, or the clone made by environment/postInstall.
 function write_environment()
     entry = Base.find_package("Dionysos")
     repo = entry === nothing ? (@__DIR__) : dirname(dirname(entry))
@@ -151,11 +120,7 @@ function write_environment()
     return
 end
 
-"""
-    set_periodic!(optimizer)
-
-Make the first state coordinate, the angle θ, periodic on [−π, π) for a uniform grid abstraction.
-"""
+# θ, the first state coordinate, periodic on [−π, π).
 function set_periodic!(optimizer)
     for (key, value) in (
         "use_periodic_mapping" => true,
@@ -168,12 +133,7 @@ function set_periodic!(optimizer)
     return
 end
 
-"""
-    abstraction_size(optimizer) -> (cells, transitions, successors)
-
-The cells and stored transitions of the abstraction built by `optimizer`, and the mean number of
-successors of an enabled (cell, input) pair.
-"""
+# Cells, transitions, and mean number of successors per enabled (cell, input) pair.
 function abstraction_size(optimizer)
     SY = Dionysos.Symbolic
     abstract_system = MathOptInterface.get(
@@ -190,7 +150,7 @@ function abstraction_size(optimizer)
     return SY.get_n_state(autom), ntrans, ntrans / max(count(enabled), 1)
 end
 
-# Angles made continuous across the ±π wrap, for plotting.
+# Angles made continuous across ±π, for plotting.
 function unwrap(θ)
     out = copy(θ)
     for k in 2:length(out)
@@ -199,7 +159,7 @@ function unwrap(θ)
     return out
 end
 
-# `digits` significant digits, but whole numbers once the integer part needs them all (1003, not
+# `digits` significant digits, or a whole number once the integer part has that many (1003, not
 # 1000.0).
 function fmt(x; digits = 3)
     r = round(x; sigdigits = digits)

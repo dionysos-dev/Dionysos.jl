@@ -1,22 +1,11 @@
-# E1, pendulum swing-up with a weak actuator: reduction and completeness.
+# E1: pendulum swing-up with a torque limit U < g/l, torque model (T) against velocity model (F).
 #
-# A pendulum starts at rest at the bottom and must reach the top slow enough to stop. The torque
-# model (T) has the torque limit U < g/l, too small to hold the pendulum horizontal, so it has to
-# swing. The velocity models command the angular velocity on a grid, in steps:
+# (T): state (θ, θ̇), torque |Γ| ≤ U held over each step.
+# (F): θ̇ commanded in steps under the impulse budget |u − v| ≤ I_max = U τ (α = 1 in units of
+#      m l²). The grid covers the circle and the budget is state-independent, so the abstraction
+#      is a bisimulation (Theorem "Grid bisimulation").
 #
-#   (T) torque model: state (θ, dθ/dt), input = torque, growth-bound abstraction.
-#   (S) velocity model, no constraint: the classical velocity abstraction.
-#   (F) velocity model with the impulse budget |u − v| ≤ I_max = U τ (α = 1 in units of m l²),
-#       the impulse a torque-limited actuator delivers over one step; the pair synthesis enforces
-#       it. The grid is periodic over the whole circle and the budget does not depend on the
-#       state, so the abstraction is a bisimulation (Theorem "Grid bisimulation") and the
-#       controllable set is exactly the set of starts from which a controller of the class exists.
-#
-# Every controller is replayed on the exact dynamics; the velocity models report the impulse of
-# each step and the hold torque (g/l) sin θ between samples, which the budget does not bound.
-#
-# Writes results/params_e1.md, results/table_e1.tex, results/fig_e1.{pdf,png},
-# results/e1_{T,F}.gif, and the numbers e1.* that the paper quotes.
+# Writes params_e1.md, table_e1.tex, fig_e1.{pdf,png}, e1_{T,F}.gif and the numbers e1.*.
 
 module E1Pendulum
 
@@ -41,9 +30,8 @@ include(joinpath(PROBLEMS, "velocity_pendulum.jl"))
 import .SimplePendulum
 import .VelocityPendulum as VP
 
-# =============================================================================== parameters
-# Torques are in units of m l² (the input of `SimplePendulum` is τ / m l²), so α = 1 and the
-# impulse of a step from v to u is u − v.
+# Parameters. Torques in units of m l² (the input of SimplePendulum), so α = 1 and the impulse
+# of a step from v to u is u − v.
 
 # Physics, shared by both models
 const PARAMS = SimplePendulum.Params()       # l = 1 m, g = 9.81 m/s², no friction
@@ -95,7 +83,7 @@ function write_parameters()
     return
 end
 
-# ---------------------------------------------------------------------------- (T) torque model
+# (T) torque model
 function solve_torque()
     _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -U_BAR), high = SVector(π, U_BAR))
     _U_ = LazySets.Hyperrectangle(; low = SVector(-U), high = SVector(U))
@@ -137,9 +125,7 @@ function solve_torque()
     return optimizer
 end
 
-# ------------------------------------------------------------------------------ velocity models
-# (S) and (F) share the grid, the task and the step dynamics; they differ only in the constraint
-# on consecutive commands that the synthesis enforces. The budget starts and ends at rest.
+# (F) velocity model. The budget starts and ends at rest.
 function impulse_budget()
     return OPDS.BoundedInputVariation(
         (a, b) -> abs(a[1] - b[1]),
@@ -149,12 +135,7 @@ function impulse_budget()
     )
 end
 
-const VARIANTS = (
-    S = (; label = "(S)", constraint = nothing),
-    F = (; label = "(F)", constraint = impulse_budget()),
-)
-
-function solve_velocity(constraint)
+function solve_velocity()
     sys = VP.system(DISC)
     problem = VP.swing_up_problem(
         sys;
@@ -167,22 +148,18 @@ function solve_velocity(constraint)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), DISC.state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), DISC.input_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), τ)
-    # Deterministic since τ δu = h: one cell center per transition, the translation of the paper.
+    # τ δu = h: a cell center moves onto a cell center, so this is exact.
     MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), UGA.CENTER_SIMULATION)
     set_periodic!(optimizer)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("intersample_checked"), true)
-    if constraint !== nothing
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("bounded_input_variation"), constraint)
-    end
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("bounded_input_variation"),
+        impulse_budget(),
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
     MOI.optimize!(optimizer)
     return optimizer
-end
-
-# Number of cells from which the controller can start at rest.
-function controllable_cells(optimizer)
-    set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-    return length(set.bits)
 end
 
 # The target `[π − 15°, π + 15°]` is not periodic, so an arrival near −π is wrapped first.
@@ -207,43 +184,29 @@ function closed_loop_torque(optimizer; nstep = 400)
     return traj, at_top(DI.System.states(traj)[end], prob)
 end
 
-"""
-    replay(optimizer; constrained, nstep = 400) -> (traj, reached)
-
-Run the controller of a velocity model on the exact step dynamics, `θ ↦ θ + τ u`; `reached`
-is whether the pendulum is in the target when the run ends. Without a constraint on
-consecutive commands, (S), the run ends on entering the target. With one, (F), the controller
-itself ends the run where the stop command is admissible, and crosses the target otherwise
-(Problem 2 of the paper), so `reached` also requires the last command to allow the stop.
-"""
-function replay(optimizer; constrained, nstep = 400)
+# (F) on the step dynamics θ ↦ θ + τ u. The controller stops where the stop command is
+# admissible and crosses the target otherwise, so `reached` also requires the last command to
+# allow the stop.
+function replay(optimizer; nstep = 400)
     ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"))
     step(x, u) = SVector(x[1] + τ * u[1])
     meas(x) = SVector(rem2pi(x[1], RoundNearest))
-    stopping = constrained ? (x -> false) : (x -> at_top(x, prob))
     traj = DI.System.get_closed_loop_trajectory(
         nothing,
         ctrl,
         SVector(THETA_0),
         nstep;
         meas,
-        stopping,
         f_map_override = step,
     )
     us = DI.System.inputs(traj)
-    can_stop = !constrained || (!isempty(us) && abs(us[end][1]) <= SLEW + 1e-9)
+    can_stop = !isempty(us) && abs(us[end][1]) <= SLEW + 1e-9
     return traj, at_top(DI.System.states(traj)[end], prob) && can_stop
 end
 
-"""
-    fewest_steps(optimizer, constraint) -> Union{Int, Nothing}
-
-Fewest commands from the start at rest to the target, by breadth-first search on the augmented
-abstraction (cell, last command), independently of the synthesis. With unit stage cost and a
-deterministic abstraction this is the optimal cost V(p0, 0) of Problem 2, which the paper says
-(F) attains (Section VI-A, Completeness).
-"""
+# Fewest commands from the start to the target, by breadth-first search on (cell, last command),
+# independent of the synthesis: the optimal cost of (F) with unit stage cost.
 function fewest_steps(optimizer, constraint)
     abs_sys = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
@@ -254,8 +217,7 @@ function fewest_steps(optimizer, constraint)
     end
     inputs = collect(SY.enum_inputs(abs_sys))
     targets = Set(prob.target_set)
-    # A run ends at a target cell where the stop command is allowed; a target cell entered too
-    # fast to stop is crossed like any other cell (Problem 2 of the paper).
+    # A target cell entered too fast to stop is crossed like any other cell.
     arrived((q, v)) = q in targets && κ.compatible[v, κ.target_input]
     frontier = [(SY.get_abstract_state(abs_sys, SVector(THETA_0)), κ.initial_input)]
     seen = Set(frontier)
@@ -276,13 +238,7 @@ function fewest_steps(optimizer, constraint)
     return nothing
 end
 
-"""
-    hold_profile(θs, us; samples = 101) -> (t, θ, torque)
-
-The motion of the pendulum under the step commands, from the angles `θs` at the sampling
-instants, and the hold torque `(g/l) sin θ` between samples, recomputed from the physics
-independently of the synthesis.
-"""
+# Angle and hold torque (g/l) sin θ between samples, under the step commands `us`.
 function hold_profile(θs, us; samples = 101)
     ts, θ, torque = Float64[], Float64[], Float64[]
     t0 = 0.0
@@ -298,13 +254,10 @@ function hold_profile(θs, us; samples = 101)
     return ts, θ, torque
 end
 
-# ====================================================================================== runs
+# Runs
 write_parameters()
 
-solvers = (;
-    T = solve_torque,
-    (k => () -> solve_velocity(v.constraint) for (k, v) in pairs(VARIANTS))...,
-)
+solvers = (; T = solve_torque, F = solve_velocity)
 results = Dict{Symbol, Any}()
 for (name, solve) in pairs(solvers)
     solve() # compile, so the timed round does not pay for it
@@ -339,11 +292,6 @@ for (name, r) in results
 end
 numbers["e1.ratio.states"] = round(Int, results[:T].nstates / results[:F].nstates)
 numbers["e1.ratio.trans"] = round(Int, results[:T].ntrans / results[:F].ntrans)
-numbers["e1.F.controllable"] = controllable_cells(results[:F].optimizer)
-# The paper states that (F) finds a controller from every cell at rest (VI-A, Completeness).
-numbers["e1.F.controllable"] == N_CELLS ||
-    @warn "not every cell is controllable from rest: update the Completeness paragraph of the paper"
-numbers["e1.S.controllable"] = controllable_cells(results[:S].optimizer)
 
 traj = Dict{Symbol, Any}()
 if results[:T].success
@@ -354,28 +302,26 @@ if results[:T].success
     numbers["e1.T.steps"] = length(uT)
     numbers["e1.T.maxtorque"] = fmt(maximum(abs, uT))
 end
-for name in keys(VARIANTS)
-    results[name].success || continue
-    tr, reached =
-        replay(results[name].optimizer; constrained = VARIANTS[name].constraint !== nothing)
+if results[:F].success
+    tr, reached = replay(results[:F].optimizer)
     θs = [x[1] for x in DI.System.states(tr)]
     us = [u[1] for u in DI.System.inputs(tr)]
     impulses = us .- vcat(0.0, us[1:(end - 1)])      # α = 1: the impulse is the change of command
     profile = hold_profile(θs, us)
-    traj[name] = (; tr, reached, θs, us, impulses, profile)
-    numbers["e1.$name.steps"] = length(us)
-    numbers["e1.$name.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
-    numbers["e1.$name.maxhold"] = fmt(maximum(abs, profile[3]))
+    traj[:F] = (; tr, reached, θs, us, impulses, profile)
+    numbers["e1.F.steps"] = length(us)
+    numbers["e1.F.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
+    numbers["e1.F.maxhold"] = fmt(maximum(abs, profile[3]))
 end
-# The guarantees, checked on the replay: (F) is sound, so it must reach the target within budget.
+# (F) is sound: its replay must reach the target within the budget.
 traj[:F].reached || error("(F) did not reach the target on the step dynamics")
 parse(Float64, numbers["e1.F.maximpulse"]) <= I_MAX + 1e-9 ||
     error("(F) exceeds the impulse budget")
-# The paper states that the steps of (F) from the bottom are the fewest possible (VI-A).
+# Optimality, stated in Section VI-A.
 numbers["e1.F.fewest"] =
     something(fewest_steps(results[:F].optimizer, impulse_budget()), "none")
 numbers["e1.F.fewest"] == numbers["e1.F.steps"] ||
-    @warn "(F) replay takes $(numbers["e1.F.steps"]) steps, but the fewest is $(numbers["e1.F.fewest"]): update the Completeness paragraph of the paper"
+    @warn "(F) replay takes $(numbers["e1.F.steps"]) steps, but the fewest is $(numbers["e1.F.fewest"]): update the optimality claim of Section VI-A"
 record_numbers(numbers)
 for name in keys(solvers)
     haskey(traj, name) || (println("($name) infeasible"); continue)
@@ -388,14 +334,6 @@ for name in keys(solvers)
         ", peak impulse $(numbers["e1.$name.maximpulse"]) (I_max = $(fmt(I_MAX))), peak hold torque $(numbers["e1.$name.maxhold"])",
     )
 end
-println(
-    "controllable cells at rest: (F) ",
-    numbers["e1.F.controllable"],
-    ", (S) ",
-    numbers["e1.S.controllable"],
-    " of ",
-    N_CELLS,
-)
 
 function table_row(name, label)
     r = results[name]
@@ -425,20 +363,20 @@ end
 write_table(
     "table_e1.tex",
     ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "torque"],
-    [table_row(:T, "(T)"), (table_row(name, "($name)") for name in keys(VARIANTS))...];
+    [table_row(:T, "(T)"), table_row(:F, "(F)")];
     align = "lrrrrrrr",
 )
 
-# =================================================================================== figures
+# Figures
 if FIGURES
-    # Printed at about 0.7 of this size: fonts chosen to print at 6-7 pt.
+    # Printed at about 0.7 scale (6-7 pt fonts).
     style = (; guidefontsize = 9, tickfontsize = 8, legendfontsize = 8, grid = false)
     θ_band = rad2deg(asin(U / G_L)) # where the hold torque alone exceeds U
 
     p_θ = Plots.plot(;
         ylabel = "θ (deg)",
         legend = :outertop,
-        legend_columns = 3,
+        legend_columns = 2,
         yticks = -180:180:180,
         ylims = (-195, 195),
         style...,
@@ -464,22 +402,19 @@ if FIGURES
         Plots.plot!(p_θ, tT, θT; color = 2, lw = 1.5, label = "(T)")
         Plots.plot!(p_τ, tT[1:(end - 1)], uT; seriestype = :steppost, color = 2, lw = 1.5)
     end
-    for (name, color, lw) in ((:S, 3, 1.2), (:F, 1, 1.5))
-        haskey(traj, name) || continue
-        ts, θ, torque = traj[name].profile
-        Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color, lw, label = VARIANTS[name].label)
-        name === :F && Plots.plot!(p_τ, ts, torque; color, lw)
-    end
     if haskey(traj, :F)
+        ts, θ, torque = traj[:F].profile
+        Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(F)")
+        Plots.plot!(p_τ, ts, torque; color = 1, lw = 1.5)
         ts = τ .* (0:(length(traj[:F].impulses) - 1))
-        Plots.scatter!(
+        # Impulse of each step over τ, as a stem from 0.
+        Plots.plot!(
             p_τ,
             ts,
             traj[:F].impulses ./ τ;
+            seriestype = :sticks,
             color = :navy,
-            markershape = :vline,
-            markersize = 6,
-            markerstrokewidth = 1.5,
+            lw = 1.2,
             label = "",
         )
     end
