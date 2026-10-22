@@ -44,7 +44,7 @@ At each sampling instant `kτ`, a controller reads the cell `p` of the state and
 held until the next instant:
 
 - (T): a torque or force, `u_k = C(p)`.
-- (F): a velocity command, `u_k = C(p, u_{k-1})`, with `u_{-1} = 0`. The impulse budget restricts
+- (R): a velocity command, `u_k = C(p, u_{k-1})`, with `u_{-1} = 0`. The impulse budget restricts
   which commands may follow `u_{k-1}`.
 
 The controller is `MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))`, used
@@ -55,14 +55,14 @@ Each controller is replayed on the continuous-time model:
 
 - (T) (`closed_loop_torque` in E1, `replay_T` in E2): the input is held over each period, and the
   dynamics are integrated with RK4.
-- (F) with an ideal servo (`replay` in E1, `replay_F` in E2): the velocity jumps to each new
+- (R) with an ideal servo (`replay` in E1, `replay_F` in E2): the velocity jumps to each new
   command, as in Assumption "Velocity servos", and the rest of the state is integrated with RK4
   (in E1, θ simply moves by `τ u_k`). The replay reports the impulse `α(q)(u_k − u_{k-1})` of
   each step, bounded by the budget, and the hold torque or force between steps, which is not
   bounded (columns "impulse" and "torque"/"force" of Tables I–II).
-- (F) with a PI servo (`replay_servo` in E2, Section VI-B): a PI loop on the cart velocity
+- (R) with a PI servo (`replay_servo` in E2, Section VI-B): a PI loop on the cart velocity
   (`velocity_loop` in the problem file) sets the force every 1 ms, clamped to the 20 N of (T),
-  while the controller of (F) sets its setpoint every 0.05 s. This replay is not certified; it
+  while the controller of (R) sets its setpoint every 0.05 s. This replay is not certified; it
   shows how close a force-limited servo comes to the ideal one. It runs from the start used in
   the paper (green in Fig. 5) and from every cell where the controller starts at rest (numbers
   `e2.F.servo.*`).
@@ -72,19 +72,19 @@ Each controller is replayed on the continuous-time model:
 The scripts write `params_e1.md` and `params_e2.md` from the constants they use:
 
 - `params_e1.md`: pendulum physics, torque limit, impulse budget, sampling period, speed limit,
-  target; grid and commands of (F); grid, torque step and arrival speed of (T).
+  target; grid and commands of (R); grid, torque step and arrival speed of (T).
 - `params_e2.md`: masses and length, force limit, impulse budget, speed limit, sampling period,
-  target; grid, commands and budget steps of (F); grid and forces of (T); gains of the PI loop.
+  target; grid, commands and budget steps of (R); grid and forces of (T); gains of the PI loop.
 
 ## Checks
 
 The run stops with an error, or warns, if a result contradicts the paper:
 
-- the replays of (F) reach the target within the impulse budget (E1, E2), the replay of (T)
+- the replays of (R) reach the target within the impulse budget (E1, E2), the replay of (T)
   reaches the target (E1), and a solved (T) stays within its force limit (E2);
-- the steps of (F) from the bottom are the fewest possible, compared with a breadth-first search
+- the steps of (R) from the bottom are the fewest possible, compared with a breadth-first search
   on the augmented abstraction (E1);
-- (F) reaches the target from every cell where its controller starts at rest, with the ideal
+- (R) reaches the target from every cell where its controller starts at rest, with the ideal
   servo and with the PI loop (E2, warning).
 
 ## Environment

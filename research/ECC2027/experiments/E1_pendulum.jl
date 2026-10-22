@@ -1,7 +1,7 @@
-# E1: pendulum swing-up with a torque limit U < g/l, torque model (T) against velocity model (F).
+# E1: pendulum swing-up with a torque limit U < g/l, torque model (T) against reduced model (R).
 #
 # (T): state (θ, θ̇), torque |Γ| ≤ U held over each step.
-# (F): θ̇ commanded in steps under the impulse budget |u − v| ≤ I_max = U τ (α = 1 in units of
+# (R): θ̇ commanded in steps under the impulse budget |u − v| ≤ I_max = U τ (α = 1 in units of
 #      m l²). The grid covers the circle and the budget is state-independent, so the abstraction
 #      is a bisimulation (Theorem "Grid bisimulation").
 #
@@ -38,13 +38,13 @@ const PARAMS = SimplePendulum.Params()       # l = 1 m, g = 9.81 m/s², no frict
 const G_L = PARAMS.g / PARAMS.l              # torque needed to hold θ = 90°
 const U = 7.0                                # torque limit of (T), U < g/l
 const τ = 0.1                                # sampling period of both abstractions (s)
-const I_MAX = U * τ                          # impulse budget of (F)
+const I_MAX = U * τ                          # impulse budget of (R)
 
 # Task, shared by both models
 const THETA_0 = 0.0                          # start: at rest at the bottom
 const TARGET_HALFWIDTH = 15π / 180           # target: |θ − π| ≤ 15°, slow enough to stop
 
-# (F) velocity model
+# (R) reduced model
 const N_CELLS = 125                          # odd, so that θ = 0 is a cell center
 const LEVELS = 10                            # speed levels on each side of 0
 const DISC = VP.discretization(; τ = τ, n = N_CELLS, levels = LEVELS)
@@ -64,15 +64,15 @@ function write_parameters()
         for (k, v) in (
             "g/l (torque to hold θ = 90°)" => G_L,
             "torque limit U of (T)" => U,
-            "impulse budget I_max = U τ of (F)" => fmt(I_MAX),
+            "impulse budget I_max = U τ of (R)" => fmt(I_MAX),
             "sampling period τ" => "$τ s (step commands)",
             "speed limit (both models)" => "$(fmt(U_BAR)) rad/s",
             "start" => "θ = 0, at rest",
             "target" => "\\|θ − π\\| ≤ 15°, slow enough to stop",
-            "(F) angle cells" => "$N_CELLS (h = $(fmt(DISC.h)) rad)",
-            "(F) speed notch δu = h/τ" => "$(fmt(DISC.δu)) rad/s",
-            "(F) speed levels" => "±$LEVELS notches",
-            "(F) budget on the grid" => "\\|u − v\\| ≤ $(round(Int, SLEW / DISC.δu)) notch",
+            "(R) angle cells" => "$N_CELLS (h = $(fmt(DISC.h)) rad)",
+            "(R) speed notch δu = h/τ" => "$(fmt(DISC.δu)) rad/s",
+            "(R) speed levels" => "±$LEVELS notches",
+            "(R) budget on the grid" => "\\|u − v\\| ≤ $(round(Int, SLEW / DISC.δu)) notch",
             "(T) grid" => "3° × $(H_T[2]) rad/s",
             "(T) torque step" => DTORQUE,
             "(T) arrival" => "\\|dθ/dt\\| ≤ $(fmt(V_ARRIVAL)) rad/s",
@@ -88,7 +88,7 @@ function solve_torque()
     _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -U_BAR), high = SVector(π, U_BAR))
     _U_ = LazySets.Hyperrectangle(; low = SVector(-U), high = SVector(U))
     sys = SimplePendulum.system(; params = PARAMS, _X_ = _X_, _U_ = _U_)
-    # The same start as (F): a quarter cell around the bottom, at rest.
+    # The same start as (R): a quarter cell around the bottom, at rest.
     _I_ = LazySets.Hyperrectangle(;
         low = SVector(THETA_0 - DISC.h / 4, -0.01),
         high = SVector(THETA_0 + DISC.h / 4, 0.01),
@@ -125,7 +125,7 @@ function solve_torque()
     return optimizer
 end
 
-# (F) velocity model. The budget starts and ends at rest.
+# (R) reduced model. The budget starts and ends at rest.
 function impulse_budget()
     return OPDS.BoundedInputVariation(
         (a, b) -> abs(a[1] - b[1]),
@@ -184,7 +184,7 @@ function closed_loop_torque(optimizer; nstep = 400)
     return traj, at_top(DI.System.states(traj)[end], prob)
 end
 
-# (F) on the step dynamics θ ↦ θ + τ u. The controller stops where the stop command is
+# (R) on the step dynamics θ ↦ θ + τ u. The controller stops where the stop command is
 # admissible and crosses the target otherwise, so `reached` also requires the last command to
 # allow the stop.
 function replay(optimizer; nstep = 400)
@@ -206,7 +206,7 @@ function replay(optimizer; nstep = 400)
 end
 
 # Fewest commands from the start to the target, by breadth-first search on (cell, last command),
-# independent of the synthesis: the optimal cost of (F) with unit stage cost.
+# independent of the synthesis: the optimal cost of (R) with unit stage cost.
 function fewest_steps(optimizer, constraint)
     abs_sys = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
@@ -313,15 +313,15 @@ if results[:F].success
     numbers["e1.F.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
     numbers["e1.F.maxhold"] = fmt(maximum(abs, profile[3]))
 end
-# (F) is sound: its replay must reach the target within the budget.
-traj[:F].reached || error("(F) did not reach the target on the step dynamics")
+# (R) is sound: its replay must reach the target within the budget.
+traj[:F].reached || error("(R) did not reach the target on the step dynamics")
 parse(Float64, numbers["e1.F.maximpulse"]) <= I_MAX + 1e-9 ||
-    error("(F) exceeds the impulse budget")
+    error("(R) exceeds the impulse budget")
 # Optimality, stated in Section VI-A.
 numbers["e1.F.fewest"] =
     something(fewest_steps(results[:F].optimizer, impulse_budget()), "none")
 numbers["e1.F.fewest"] == numbers["e1.F.steps"] ||
-    @warn "(F) replay takes $(numbers["e1.F.steps"]) steps, but the fewest is $(numbers["e1.F.fewest"]): update the optimality claim of Section VI-A"
+    @warn "(R) replay takes $(numbers["e1.F.steps"]) steps, but the fewest is $(numbers["e1.F.fewest"]): update the optimality claim of Section VI-A"
 record_numbers(numbers)
 for name in keys(solvers)
     haskey(traj, name) || (println("($name) infeasible"); continue)
@@ -363,7 +363,7 @@ end
 write_table(
     "table_e1.tex",
     ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "torque"],
-    [table_row(:T, "(T)"), table_row(:F, "(F)")];
+    [table_row(:T, "(T)"), table_row(:F, "(R)")];
     align = "lrrrrrrr",
 )
 
@@ -404,7 +404,7 @@ if FIGURES
     end
     if haskey(traj, :F)
         ts, θ, torque = traj[:F].profile
-        Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(F)")
+        Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(R)")
         Plots.plot!(p_τ, ts, torque; color = 1, lw = 1.5)
         ts = τ .* (0:(length(traj[:F].impulses) - 1))
         # Impulse of each step over τ, as a stem from 0.
@@ -450,7 +450,7 @@ if FIGURES
         Δt = τ,
         ylabel_state = "θ (rad)",
         ylabel_input = "commanded dθ/dt (rad/s)",
-        title = "Velocity model (F), impulse budget $(fmt(I_MAX))",
+        title = "Reduced model (R), impulse budget $(fmt(I_MAX))",
         filename = joinpath(RESULTS, "e1_F.gif"),
     )
     println("figures written to ", RESULTS)

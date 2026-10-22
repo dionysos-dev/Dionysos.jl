@@ -1,7 +1,7 @@
-# E2: cart-pole swing-up, force model (T) against velocity model (F).
+# E2: cart-pole swing-up, force model (T) against reduced model (R).
 #
 # (T): state (θ, ẋ, θ̇), cart force |F| ≤ F_MAX held over each step.
-# (F): state (θ, p_θ), cart velocity commanded in steps under the impulse budget
+# (R): state (θ, p_θ), cart velocity commanded in steps under the impulse budget
 #      |α(θ)(u − v)| ≤ I_MAX = F_MAX τ.
 # The cart position is left out: neither the pole nor the task depends on it.
 #
@@ -38,11 +38,11 @@ const PARAMS = PM.Params()          # M = 1 kg cart, m = 0.2 kg at l = 1 m, g = 
 const F_MAX = 20.0                  # force limit of (T) (N)
 const V_MAX = 2.0                   # cart speed limit (m/s)
 const τ = 0.05                      # sampling period (s)
-const I_MAX = F_MAX * τ             # impulse budget of (F) (N s)
+const I_MAX = F_MAX * τ             # impulse budget of (R) (N s)
 const θ_TARGET = 0.2                # target: |θ| ≤ 0.2 rad ...
 const P_TARGET = 0.2                # ... and |p_θ| ≤ 0.2 kg m²/s
 
-# (F): cells in (θ, p_θ), commands on a grid
+# (R): cells in (θ, p_θ), commands on a grid
 const N_θ = 251
 const H_P = 0.02
 const P_MAX = 2.0
@@ -76,17 +76,17 @@ function write_parameters()
         for (k, v) in (
             "cart mass M, pole mass m, length l" => "$(PARAMS.M) kg, $(PARAMS.m) kg, $(PARAMS.l) m",
             "force limit of (T)" => "$F_MAX N",
-            "impulse budget of (F)" => "$I_MAX N s (= F_max τ)",
+            "impulse budget of (R)" => "$I_MAX N s (= F_max τ)",
             "cart speed limit" => "$V_MAX m/s",
             "sampling period τ" => "$τ s (step commands)",
             "start" => "hanging down, at rest",
             "target" => "\\|θ\\| ≤ $θ_TARGET rad, \\|p_θ\\| ≤ $P_TARGET kg m²/s, any cart velocity",
-            "(F) grid" => "$N_θ × $(round(Int, 2P_MAX / H_P)) cells in (θ, p_θ), \\|p_θ\\| ≤ $P_MAX kg m²/s",
-            "(F) commands" => "$nΣ speeds, notch $δu m/s",
-            "(F) notches per step" => "$per_cell, with α bounded over the cell (the exact budget allows $(notches(PARAMS.M)) at θ = 0)",
+            "(R) grid" => "$N_θ × $(round(Int, 2P_MAX / H_P)) cells in (θ, p_θ), \\|p_θ\\| ≤ $P_MAX kg m²/s",
+            "(R) commands" => "$nΣ speeds, notch $δu m/s",
+            "(R) notches per step" => "$per_cell, with α bounded over the cell (the exact budget allows $(notches(PARAMS.M)) at θ = 0)",
             "(T) grid" => "$N_θ × $(round(Int, 2V_MAX / H_V)) × $(round(Int, 2ω_MAX / H_ω)) cells in (θ, ẋ, θ̇)",
             "(T) forces" => "$(2 * round(Int, F_MAX / DF) + 1) levels, step $DF N",
-            "(F) servo replay" => "PI on the cart velocity, Kp = $(SERVO.Kp) N s/m, Ki = $(SERVO.Ki) N/m, every $(SERVO.dt) s, \\|F\\| ≤ $F_MAX N, anti-windup",
+            "(R) servo replay" => "PI on the cart velocity, Kp = $(SERVO.Kp) N s/m, Ki = $(SERVO.Ki) N/m, every $(SERVO.dt) s, \\|F\\| ≤ $F_MAX N, anti-windup",
         )
             println(io, "| ", k, " | ", v, " |")
         end
@@ -116,7 +116,7 @@ function model_F(; nθ, hp)
     )
 end
 
-# Same target as (F), with p_θ = m l² θ̇ + m l cos θ ẋ bounded over each cell.
+# Same target as (R), with p_θ = m l² θ̇ + m l cos θ ẋ bounded over each cell.
 function model_T(; nθ, hv, hω)
     hθ = 2π / nθ
     grid = MP.GridFree(
@@ -201,7 +201,7 @@ function record!(out, t, θ, θdot, x, v, F)
     return
 end
 
-# (F) on the exact step dynamics from z0 at rest, K samples per step. Records the hold force
+# (R) on the exact step dynamics from z0 at rest, K samples per step. Records the hold force
 # between samples and the impulse of each step; with record = false, only whether it reached.
 function replay_F(ctrl, target, z0; nmax = 2000, K = 20, record = true)
     f = PM.velocity_dynamics(PARAMS)
@@ -261,7 +261,7 @@ function replay_T(ctrl, target, y0; nmax = 2000, K = 20)
     return (; out..., impulses = Float64[], reached)
 end
 
-# (F) with a PI loop on the cart velocity instead of the ideal servo, on the force model: the
+# (R) with a PI loop on the cart velocity instead of the ideal servo, on the force model: the
 # controller sets the setpoint every τ, the loop sets the force every SERVO.dt, |F| ≤ F_MAX.
 # Also returns the setpoints and the largest velocity lag |u − ẋ| at a sampling instant.
 const SERVO = (Kp = 100.0, Ki = 500.0, dt = 1e-3)
@@ -301,7 +301,7 @@ function replay_servo(ctrl, target, z0; nmax = 2000, record = true)
     return (; out..., setpoints, steps, lag, reached)
 end
 
-# From every cell center where the controller of (F) starts at rest: how many runs reach the
+# From every cell center where the controller of (R) starts at rest: how many runs reach the
 # target with the ideal servo and with the PI loop.
 function servo_sweep(optimizer, ctrl, target)
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -347,7 +347,7 @@ for (name, run) in pairs(RUNS)
         ) : nothing
     results[name] = (; solved, cells, ntrans, nsucc, t, replay, servo)
     println((name, (; solved, cells, ntrans, nsucc, t)))
-    servo === nothing || println(("(F) servo", servo.sweep))
+    servo === nothing || println(("(R) servo", servo.sweep))
     optimizer = ctrl = nothing
     GC.gc()
 end
@@ -374,21 +374,21 @@ for (name, r) in results
     numbers["e2.$name.steps"] = length(rp.t) ÷ 20 # the replays sample each step 20 times
     if name === :F
         peak = maximum(abs, rp.impulses)
-        peak <= I_MAX + 1e-9 || error("(F) exceeds the impulse budget: $peak")
+        peak <= I_MAX + 1e-9 || error("(R) exceeds the impulse budget: $peak")
         numbers["e2.F.maximpulse"] = fmt(peak)
         numbers["e2.F.maxhold"] = fmt(maximum(abs, rp.F))
         sv, sweep = r.servo.replay, r.servo.sweep
         # Every start must reach the target with the ideal servo (soundness), and, as the paper
         # states, with the PI loop.
         sweep.ideal == sweep.starts ||
-            @warn "(F) misses the target from $(sweep.starts - sweep.ideal) of $(sweep.starts) starts with the ideal servo"
+            @warn "(R) misses the target from $(sweep.starts - sweep.ideal) of $(sweep.starts) starts with the ideal servo"
         sweep.servo == sweep.starts ||
-            @warn "(F) misses the target from $(sweep.starts - sweep.servo) of $(sweep.starts) starts with the PI loop: update Section VI-B, Two time levels"
+            @warn "(R) misses the target from $(sweep.starts - sweep.servo) of $(sweep.starts) starts with the PI loop: update Section VI-B, Two time levels"
         numbers["e2.F.starts"] = sweep.starts
         numbers["e2.F.ideal.reached"] = sweep.ideal
         numbers["e2.F.servo.reached"] = sweep.servo
         sv.reached ||
-            @warn "(F) misses the target from the start of the paper with the PI loop: update Section VI-B, Two time levels"
+            @warn "(R) misses the target from the start of the paper with the PI loop: update Section VI-B, Two time levels"
         numbers["e2.F.servo.steps"] = sv.steps
         numbers["e2.F.servo.lag"] = fmt(sv.lag)
         saturated = count(F -> abs(F) >= F_MAX - 1e-9, sv.F) / length(sv.F)
@@ -417,7 +417,7 @@ write_table(
             get(numbers, "e2.T.maxforce", "--"),
         ],
         [
-            "(F)",
+            "(R)",
             results[:F].cells,
             results[:F].ntrans,
             numbers["e2.F.succ"],
@@ -500,7 +500,7 @@ if FIGURES
     servo = results[:F].solved ? results[:F].servo.replay : nothing
     servo === nothing ||
         Plots.plot!(p_F, servo.t, servo.F; color = 3, lw = 0.5, alpha = 0.4)
-    for (name, label, color) in ((:T, "(T) force model", 2), (:F, "(F) velocity model", 1))
+    for (name, label, color) in ((:T, "(T) force model", 2), (:F, "(R) reduced model", 1))
         r = results[name]
         r.solved || continue
         rp = r.replay
@@ -554,10 +554,10 @@ if FIGURES
     Plots.savefig(fig, joinpath(RESULTS, "fig_e2.png"))
 
     # Same frame rate for all: the ideal replays sample a step 20 times, the PI replay 50 times.
-    for (name, title) in ((:T, "Force model (T)"), (:F, "Velocity model (F)"))
+    for (name, title) in ((:T, "Force model (T)"), (:F, "Reduced model (R)"))
         results[name].solved && animate(results[name].replay, 5, title, "e2_$name.gif")
     end
-    servo === nothing || animate(servo, 12, "Velocity model (F), PI servo", "e2_F_PI.gif")
+    servo === nothing || animate(servo, 12, "Reduced model (R), PI servo", "e2_F_PI.gif")
     println("figures written to ", RESULTS)
 end
 
