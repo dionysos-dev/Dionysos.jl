@@ -2,7 +2,7 @@
 
 Reproducibility capsule of the ECC 2027 paper by R. Bertollo, J. Calbert and R. M. Jungers.
 
-It regenerates the numbers, tables and plots of the paper (Tables I–II, Figs. 4–5). It also gives
+It regenerates the numbers, tables and plots of the paper (Table I, Figs. 4–5). It also gives
 the parameters left out of the paper: masses, grids, command sets, torque and force steps, and the
 gains of the PI loop of Section VI-B.
 
@@ -23,7 +23,7 @@ julia --project=. --threads=auto experiments/E1_pendulum.jl   # one experiment
 | `FIGURES=0` | on | skip the plots and animations |
 | `RESULTS_DIR=path` | `results/` | output folder (`/results` on CodeOcean) |
 
-A full run takes about 20 minutes, mostly for the abstraction of the cart-pole force model (T),
+A full run takes about 15 minutes, mostly for the abstraction of the cart-pole force model (T),
 which is built in parallel. The timings in the paper come from a 14-thread laptop
 (`results/environment.txt`).
 
@@ -31,12 +31,13 @@ which is built in parallel. The timings in the paper come from a 14-thread lapto
 
 | Paper | Script | Outputs in `results/` |
 |---|---|---|
-| Section VI-A, pendulum; Table I, Fig. 4 | `experiments/E1_pendulum.jl`, models in Dionysos's `problems/Pendulum/` | `params_e1.md`, `table_e1.tex`, `fig_e1.pdf`, `e1_{T,F}.gif`, numbers `e1.*` |
-| Section VI-B, cart-pole; Table II, Fig. 5 | `experiments/E2_cartpole.jl`, models in Dionysos's `problems/CartPendulum/point_mass_cart_pendulum.jl` | `params_e2.md`, `table_e2.tex`, `fig_e2.pdf`, `e2_F.gif` (ideal servo; (T) is unsolved), `e2_F_PI.gif` (PI servo), numbers `e2.*` |
+| Section VI-A, pendulum; Table I (top), Fig. 4 | `experiments/E1_pendulum.jl`, models in Dionysos's `problems/Pendulum/` | `params_e1.md`, `table_e1.tex`, `fig_e1.pdf`, `e1_{T,R}.gif`, numbers `e1.*` |
+| Section VI-B, cart-pole; Table I (bottom), Fig. 5 | `experiments/E2_cartpole.jl`, models in Dionysos's `problems/CartPendulum/point_mass_cart_pendulum.jl` | `params_e2.md`, `table_e2.tex`, `fig_e2.pdf`, `e2_R.gif` (ideal impulses; (T) is unsolved), `e2_R_PI.gif` (inner PI loop), numbers `e2.*` |
 
 The abstractions and controllers are computed by Dionysos's uniform grid abstraction solver. The
-tables and plots of the paper are copies of `table_e*.tex` and `fig_e*.pdf`, and its numbers come
-from `numbers.tex`. The `.png` previews and `.gif` animations are not used in the paper.
+table of the paper stacks `table_e1.tex` and `table_e2.tex`, its plots are copies of
+`fig_e*.pdf`, and its numbers come from `numbers.tex`, where `T` and `R` name the two
+approaches. The `.png` previews and `.gif` animations are not used in the paper.
 
 ## Controllers and replays
 
@@ -55,17 +56,17 @@ Each controller is replayed on the continuous-time model:
 
 - (T) (`closed_loop_torque` in E1, `replay_T` in E2): the input is held over each period, and the
   dynamics are integrated with RK4.
-- (R) with an ideal servo (`replay` in E1, `replay_F` in E2): the velocity jumps to each new
-  command, as in Assumption "Velocity servos", and the rest of the state is integrated with RK4
+- (R) with ideal impulses (`replay` in E1, `replay_R` in E2): the velocity jumps to each new
+  command, as in Assumption 1 (impulsive actuation), and the rest of the state is integrated with RK4
   (in E1, θ simply moves by `τ u_k`). The replay reports the impulse `α(q)(u_k − u_{k-1})` of
   each step, bounded by the budget, and the hold torque or force between steps, which is not
-  bounded (columns "impulse" and "torque"/"force" of Tables I–II).
-- (R) with a PI servo (`replay_servo` in E2, Section VI-B): a PI loop on the cart velocity
-  (`velocity_loop` in the problem file) sets the force every 1 ms, clamped to the 20 N of (T),
-  while the controller of (R) sets its setpoint every 0.05 s. This replay is not certified; it
-  shows how close a force-limited servo comes to the ideal one. It runs from the start used in
-  the paper (green in Fig. 5) and from every cell where the controller starts at rest (numbers
-  `e2.F.servo.*`).
+  bounded (columns "impulse" and "force" of Table I).
+- (R) with an inner PI loop (`replay_inner_loop` in E2, Section VI-B, Inner loop): a PI loop on
+  the cart velocity (`velocity_loop` in the problem file) sets the force every 1 ms, clamped to
+  the 20 N of (T), while the controller of (R) sets its setpoint, the command, every 0.05 s. This
+  replay is not certified; it shows how close a force-limited loop comes to ideal impulses. It
+  runs from the start used in the paper (green in Fig. 5) and from every cell where the
+  controller starts at rest (numbers `e2.R.loop.*`).
 
 ## Parameters
 
@@ -84,8 +85,8 @@ The run stops with an error, or warns, if a result contradicts the paper:
   reaches the target (E1), and a solved (T) stays within its force limit (E2);
 - the steps of (R) from the bottom are the fewest possible, compared with a breadth-first search
   on the augmented abstraction (E1);
-- (R) reaches the target from every cell where its controller starts at rest, with the ideal
-  servo and with the PI loop (E2, warning).
+- (R) reaches the target from every cell where its controller starts at rest, with ideal
+  impulses and with the inner PI loop (E2, warning).
 
 ## Environment
 

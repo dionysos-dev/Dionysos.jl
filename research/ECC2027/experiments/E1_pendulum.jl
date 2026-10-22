@@ -3,9 +3,9 @@
 # (T): state (θ, θ̇), torque |Γ| ≤ U held over each step.
 # (R): θ̇ commanded in steps under the impulse budget |u − v| ≤ I_max = U τ (α = 1 in units of
 #      m l²). The grid covers the circle and the budget is state-independent, so the abstraction
-#      is a bisimulation (Theorem "Grid bisimulation").
+#      is a bisimulation (Remark 2 of the paper).
 #
-# Writes params_e1.md, table_e1.tex, fig_e1.{pdf,png}, e1_{T,F}.gif and the numbers e1.*.
+# Writes params_e1.md, table_e1.tex, fig_e1.{pdf,png}, e1_{T,R}.gif and the numbers e1.*.
 
 module E1Pendulum
 
@@ -54,7 +54,7 @@ const SLEW = floor(I_MAX / DISC.δu + 1e-9) * DISC.δu   # the budget on the com
 # (T) torque model
 const H_T = SVector(3π / 180, 0.05)          # grid: 3° × 0.05 rad/s
 const DTORQUE = 0.3                          # torque step of the input grid
-const V_ARRIVAL = DISC.δu                    # (T) may stop at the top below one speed notch
+const V_ARRIVAL = DISC.δu                    # (T) may stop at the top below one command step
 
 function write_parameters()
     open(joinpath(RESULTS, "params_e1.md"), "w") do io
@@ -70,9 +70,9 @@ function write_parameters()
             "start" => "θ = 0, at rest",
             "target" => "\\|θ − π\\| ≤ 15°, slow enough to stop",
             "(R) angle cells" => "$N_CELLS (h = $(fmt(DISC.h)) rad)",
-            "(R) speed notch δu = h/τ" => "$(fmt(DISC.δu)) rad/s",
-            "(R) speed levels" => "±$LEVELS notches",
-            "(R) budget on the grid" => "\\|u − v\\| ≤ $(round(Int, SLEW / DISC.δu)) notch",
+            "(R) command step δu = h/τ" => "$(fmt(DISC.δu)) rad/s",
+            "(R) commands" => "$(2LEVELS + 1), from −$LEVELS δu to $LEVELS δu",
+            "(R) budget on the grid" => "\\|u − v\\| ≤ $(round(Int, SLEW / DISC.δu)) δu",
             "(T) grid" => "3° × $(H_T[2]) rad/s",
             "(T) torque step" => DTORQUE,
             "(T) arrival" => "\\|dθ/dt\\| ≤ $(fmt(V_ARRIVAL)) rad/s",
@@ -135,7 +135,7 @@ function impulse_budget()
     )
 end
 
-function solve_velocity()
+function solve_reduced()
     sys = VP.system(DISC)
     problem = VP.swing_up_problem(
         sys;
@@ -257,7 +257,7 @@ end
 # Runs
 write_parameters()
 
-solvers = (; T = solve_torque, F = solve_velocity)
+solvers = (; T = solve_torque, R = solve_reduced)
 results = Dict{Symbol, Any}()
 for (name, solve) in pairs(solvers)
     solve() # compile, so the timed round does not pay for it
@@ -274,15 +274,15 @@ numbers = Dict{String, Any}(
     "e1.Imax" => fmt(I_MAX),
     "e1.tau" => τ,
     "e1.umax" => fmt(U_BAR),
-    "e1.F.ncells" => N_CELLS,
-    "e1.F.hdeg" => fmt(rad2deg(DISC.h)),
-    "e1.F.du" => fmt(DISC.δu),
-    "e1.F.levels" => LEVELS,
-    "e1.F.nsigma" => 2LEVELS + 1,
+    "e1.R.ncells" => N_CELLS,
+    "e1.R.hdeg" => fmt(rad2deg(DISC.h)),
+    "e1.R.du" => fmt(DISC.δu),
+    "e1.R.levels" => LEVELS,
+    "e1.R.nsigma" => 2LEVELS + 1,
     "e1.T.hdeg" => fmt(rad2deg(H_T[1])),
     "e1.T.hv" => H_T[2],
     "e1.T.dtorque" => DTORQUE,
-    "e1.budget.notches" => round(Int, SLEW / DISC.δu),
+    "e1.budget.steps" => round(Int, SLEW / DISC.δu),
 )
 for (name, r) in results
     numbers["e1.$name.states"] = r.nstates
@@ -290,8 +290,8 @@ for (name, r) in results
     numbers["e1.$name.succ"] = fmt(r.nsucc; digits = 2)
     numbers["e1.$name.time"] = fmt(r.t)
 end
-numbers["e1.ratio.states"] = round(Int, results[:T].nstates / results[:F].nstates)
-numbers["e1.ratio.trans"] = round(Int, results[:T].ntrans / results[:F].ntrans)
+numbers["e1.ratio.states"] = round(Int, results[:T].nstates / results[:R].nstates)
+numbers["e1.ratio.trans"] = round(Int, results[:T].ntrans / results[:R].ntrans)
 
 traj = Dict{Symbol, Any}()
 if results[:T].success
@@ -302,26 +302,26 @@ if results[:T].success
     numbers["e1.T.steps"] = length(uT)
     numbers["e1.T.maxtorque"] = fmt(maximum(abs, uT))
 end
-if results[:F].success
-    tr, reached = replay(results[:F].optimizer)
+if results[:R].success
+    tr, reached = replay(results[:R].optimizer)
     θs = [x[1] for x in DI.System.states(tr)]
     us = [u[1] for u in DI.System.inputs(tr)]
     impulses = us .- vcat(0.0, us[1:(end - 1)])      # α = 1: the impulse is the change of command
     profile = hold_profile(θs, us)
-    traj[:F] = (; tr, reached, θs, us, impulses, profile)
-    numbers["e1.F.steps"] = length(us)
-    numbers["e1.F.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
-    numbers["e1.F.maxhold"] = fmt(maximum(abs, profile[3]))
+    traj[:R] = (; tr, reached, θs, us, impulses, profile)
+    numbers["e1.R.steps"] = length(us)
+    numbers["e1.R.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
+    numbers["e1.R.maxhold"] = fmt(maximum(abs, profile[3]))
 end
 # (R) is sound: its replay must reach the target within the budget.
-traj[:F].reached || error("(R) did not reach the target on the step dynamics")
-parse(Float64, numbers["e1.F.maximpulse"]) <= I_MAX + 1e-9 ||
+traj[:R].reached || error("(R) did not reach the target on the step dynamics")
+parse(Float64, numbers["e1.R.maximpulse"]) <= I_MAX + 1e-9 ||
     error("(R) exceeds the impulse budget")
 # Optimality, stated in Section VI-A.
-numbers["e1.F.fewest"] =
-    something(fewest_steps(results[:F].optimizer, impulse_budget()), "none")
-numbers["e1.F.fewest"] == numbers["e1.F.steps"] ||
-    @warn "(R) replay takes $(numbers["e1.F.steps"]) steps, but the fewest is $(numbers["e1.F.fewest"]): update the optimality claim of Section VI-A"
+numbers["e1.R.fewest"] =
+    something(fewest_steps(results[:R].optimizer, impulse_budget()), "none")
+numbers["e1.R.fewest"] == numbers["e1.R.steps"] ||
+    @warn "(R) replay takes $(numbers["e1.R.steps"]) steps, but the fewest is $(numbers["e1.R.fewest"]): update the optimality claim of Section VI-A"
 record_numbers(numbers)
 for name in keys(solvers)
     haskey(traj, name) || (println("($name) infeasible"); continue)
@@ -340,7 +340,7 @@ function table_row(name, label)
     solved = haskey(traj, name)
     reached = solved && traj[name].reached
     impulse =
-        name === :T ? "--" :
+        name === :T ? "n/a" :
         !solved ? "--" :
         parse(Float64, numbers["e1.$name.maximpulse"]) > I_MAX + 1e-9 ?
         "\\textbf{$(numbers["e1.$name.maximpulse"])}" : numbers["e1.$name.maximpulse"]
@@ -362,8 +362,8 @@ function table_row(name, label)
 end
 write_table(
     "table_e1.tex",
-    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "torque"],
-    [table_row(:T, "(T)"), table_row(:F, "(R)")];
+    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "force"],
+    [table_row(:T, "(T)"), table_row(:R, "(R)")];
     align = "lrrrrrrr",
 )
 
@@ -375,8 +375,7 @@ if FIGURES
 
     p_θ = Plots.plot(;
         ylabel = "θ (deg)",
-        legend = :outertop,
-        legend_columns = 2,
+        legend = false,
         yticks = -180:180:180,
         ylims = (-195, 195),
         style...,
@@ -402,16 +401,16 @@ if FIGURES
         Plots.plot!(p_θ, tT, θT; color = 2, lw = 1.5, label = "(T)")
         Plots.plot!(p_τ, tT[1:(end - 1)], uT; seriestype = :steppost, color = 2, lw = 1.5)
     end
-    if haskey(traj, :F)
-        ts, θ, torque = traj[:F].profile
+    if haskey(traj, :R)
+        ts, θ, torque = traj[:R].profile
         Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(R)")
         Plots.plot!(p_τ, ts, torque; color = 1, lw = 1.5)
-        ts = τ .* (0:(length(traj[:F].impulses) - 1))
+        ts = τ .* (0:(length(traj[:R].impulses) - 1))
         # Impulse of each step over τ, as a stem from 0.
         Plots.plot!(
             p_τ,
             ts,
-            traj[:F].impulses ./ τ;
+            traj[:R].impulses ./ τ;
             seriestype = :sticks,
             color = :navy,
             lw = 1.2,
@@ -421,8 +420,8 @@ if FIGURES
     fig = Plots.plot(
         p_θ,
         p_τ;
-        layout = Plots.grid(2, 1; heights = [0.55, 0.45]),
-        size = (300, 215),
+        layout = Plots.grid(2, 1; heights = [0.5, 0.5]),
+        size = (300, 170),
         link = :x,
     )
     Plots.savefig(fig, joinpath(RESULTS, "fig_e1.pdf"))
@@ -444,14 +443,14 @@ if FIGURES
     end
     DI.animate_trajectory_dashboard(
         SimplePendulum.system_plot!(; params = PARAMS, show_input = false),
-        traj[:F].tr;
+        traj[:R].tr;
         xdims = (1,),
         udims = (1,),
         Δt = τ,
         ylabel_state = "θ (rad)",
         ylabel_input = "commanded dθ/dt (rad/s)",
         title = "Reduced model (R), impulse budget $(fmt(I_MAX))",
-        filename = joinpath(RESULTS, "e1_F.gif"),
+        filename = joinpath(RESULTS, "e1_R.gif"),
     )
     println("figures written to ", RESULTS)
 end

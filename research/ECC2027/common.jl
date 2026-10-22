@@ -133,7 +133,7 @@ function set_periodic!(optimizer)
     return
 end
 
-# Cells, transitions, and mean number of successors per enabled (cell, input) pair.
+# Cells, transitions, and mean number of successors per admissible (cell, input) pair.
 function abstraction_size(optimizer)
     SY = Dionysos.Symbolic
     abstract_system = MathOptInterface.get(
