@@ -32,6 +32,8 @@ const AB = OP.Abstraction
 
 const PCQ = AB.PCLFBisimulationQuotient
 const PCLF = UT.PathCompleteFramework
+@isdefined(PCLFProducer) ||
+    include(joinpath(dirname(@__DIR__), "common", "pclf_producer.jl"))
 
 # ---------------------------------------------------------
 # Persisting a solved optimizer
@@ -234,7 +236,7 @@ function observer_graph_pclf(f; max_iter::Int = 1000)
 
     sdp_optimizer =
         JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => max_iter)
-    return PCLF.compute_polyhedral_pieces_pclf(
+    return PCLFProducer.compute_polyhedral_pieces_pclf(
         f,
         graph,
         sdp_optimizer,

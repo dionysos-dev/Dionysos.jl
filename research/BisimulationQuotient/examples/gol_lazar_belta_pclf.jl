@@ -32,11 +32,11 @@ gr()
 # De Bruijn graph of order 1 over 2 modes, so two nodes, each carrying a piece built from the
 # order-2 conic partition of the plane.
 
-graph = PCLF.generate_DeBruijn_edges(2, 1)
+graph = PCLFProducer.generate_DeBruijn_edges(2, 1)
 println(graph)
 
-partition = PCLF.conic_partitions_2d(2)
-pclf = PCLF.compute_polyhedral_pieces_pclf(
+partition = PCLFProducer.conic_partitions_2d(2)
+pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
     f,
     graph,
     JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000),
@@ -97,7 +97,7 @@ verification = synthesize_cosafe_ltl(
 # own 4-row certificate, which E4 validated against their published numbers.
 
 pclf_common = PCLF.PCLF(
-    PCLF.generate_DeBruijn_edges(2, 0),
+    PCLFProducer.generate_DeBruijn_edges(2, 0),
     Dict{Any, PCLF.AbstractPiece}(
         1 => PCLF.PolyhedralPiece(gol_lazar_belta_L(), ones(size(gol_lazar_belta_L(), 1))),
     ),

@@ -404,8 +404,15 @@ via the controller protocol`. The [`/commit`](.claude/commands/commit.md) comman
 **Package extensions.** Optional features live in [ext/](ext/) behind `[weakdeps]`/`[extensions]` in
 [Project.toml](Project.toml): `DionysosPlotsExt`, `DionysosSymbolicsExt` (Symbolics + IntervalArithmetic),
 `DionysosSpotExt`, `DionysosCSVExt` (CSV + DataFrames), `DionysosMathOptSymbolicADExt`,
-`DionysosRigidBodyDynamicsExt`. The stub functions in `src/Dionysos.jl` error until the corresponding
-extension is loaded (`using Plots`, `using Symbolics`, …).
+`DionysosRigidBodyDynamicsExt`, `DionysosPathCompleteCertificatesExt`. The stub functions in
+`src/Dionysos.jl` error until the corresponding extension is loaded (`using Plots`, `using Symbolics`,
+…).
+
+**Path-complete certificates come from PathCompleteCertificates.jl.** `Utils.PathCompleteFramework`
+only reads a certificate as geometry; `DionysosPathCompleteCertificatesExt` converts a PCC
+`StabilityCertificate` into its `PCLF`. The former certificate code lives on, verbatim, in
+[research/common/pclf_producer.jl](research/common/pclf_producer.jl), for the research scripts only:
+their published counts depend on the exact programs it solves.
 
 ---
 

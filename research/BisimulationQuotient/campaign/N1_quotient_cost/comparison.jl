@@ -174,7 +174,7 @@ const EXAMPLES = (
         end,
         pclf_of = function (f, graph)
             nodes = sort(collect(graph.verts); by = string)
-            return PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+            return PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
                 f,
                 graph,
                 OPTIMIZER;
@@ -214,11 +214,11 @@ const EXAMPLES = (
         end,
         pclf_of = function (f, graph)
             nodes = sort(collect(graph.verts); by = string)
-            return PCLF.compute_polyhedral_pieces_pclf(
+            return PCLFProducer.compute_polyhedral_pieces_pclf(
                 f,
                 graph,
                 OPTIMIZER,
-                PCLF.conic_partitions_dict_2d(2, nodes);
+                PCLFProducer.conic_partitions_dict_2d(2, nodes);
                 MLF = true,
             )
         end,
@@ -249,11 +249,11 @@ const EXAMPLES = (
         end,
         pclf_of = function (f, graph)
             nodes = sort(collect(graph.verts); by = string)
-            return PCLF.compute_polyhedral_pieces_pclf(
+            return PCLFProducer.compute_polyhedral_pieces_pclf(
                 f,
                 graph,
                 OPTIMIZER,
-                PCLF.conic_partitions_dict_2d(2, nodes);
+                PCLFProducer.conic_partitions_dict_2d(2, nodes);
                 MLF = true,
             )
         end,
@@ -795,7 +795,7 @@ function both_cases(ex, sys, gname, dual, order, inst)
     bare = PR.BisimulationQuotientProblem(sys.f, sys.X, typeof(sys.X)[])
     has_regions = !isempty(sys.regions)
 
-    p2 = ex.pclf_of(sys.f, PCLF.generate_DeBruijn_edges(2, order; dual = dual))
+    p2 = ex.pclf_of(sys.f, PCLFProducer.generate_DeBruijn_edges(2, order; dual = dual))
     (isfinite(p2.JSRapprox) && p2.JSRapprox < 1) ||
         (println("\n", gname, ": no certificate"); return nothing)
     p1 = PCLF.build_common_lyapunov(p2)

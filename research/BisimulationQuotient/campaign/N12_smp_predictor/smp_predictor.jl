@@ -92,14 +92,14 @@ function budget_sweep(name, f; orders = 1:3, ks = 0:2)
         join([rpad("k=$k ($(2^k) node$(2^k == 1 ? "" : "s"))", 22) for k in ks]),
     )
     for order in orders
-        partition = PCLF.conic_partitions_2d(order)
+        partition = PCLFProducer.conic_partitions_2d(order)
         cells = [rpad(string(order), 13), rpad(string(length(partition)), 11)]
         for k in ks
-            graph = PCLF.generate_DeBruijn_edges(2, k)
+            graph = PCLFProducer.generate_DeBruijn_edges(2, k)
             rate = try
                 string(
                     round(
-                        PCLF.compute_polyhedral_pieces_pclf(
+                        PCLFProducer.compute_polyhedral_pieces_pclf(
                             f,
                             graph,
                             optimizer,

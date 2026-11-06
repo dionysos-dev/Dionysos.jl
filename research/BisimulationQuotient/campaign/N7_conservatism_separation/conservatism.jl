@@ -52,7 +52,7 @@ function single_node_curve(f, partition; draws = 40, seed = 11)
     for i in 0:draws
         M = i == 0 ? Matrix{Float64}(I, 2, 2) : Matrix(qr(randn(rng, 2, 2)).Q)
         rate = try
-            PCLF.compute_polyhedral_pieces_pclf(
+            PCLFProducer.compute_polyhedral_pieces_pclf(
                 f,
                 graph,
                 OPTIMIZER,
@@ -87,7 +87,7 @@ function jsr_lower_bound(A, Lmax)
 end
 
 (; f) = observer_graph_problem(; p = 1.7)
-partition = PCLF.base_conic_partition_2d()
+partition = PCLFProducer.base_conic_partition_2d()
 
 bound, word = jsr_lower_bound(UT.mode_matrices(f), 10)
 pclf_rate = observer_graph_pclf(f).JSRapprox

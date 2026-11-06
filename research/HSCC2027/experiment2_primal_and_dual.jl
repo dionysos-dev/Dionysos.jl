@@ -31,6 +31,8 @@ const ST = DI.System
 const PR = DI.Problem
 const PCQ = DI.Optim.Abstraction.PCLFBisimulationQuotient
 const PCLF = UT.PathCompleteFramework
+@isdefined(PCLFProducer) ||
+    include(joinpath(dirname(@__DIR__), "common", "pclf_producer.jl"))
 
 gr()
 
@@ -132,10 +134,10 @@ end
 function run_graph(dual)
     label = dual ? "DUAL (co-complete)" : "PRIMAL (complete)"
     tag = dual ? "dual" : "primal"
-    graph = PCLF.generate_DeBruijn_edges(2, 1; dual = dual)
+    graph = PCLFProducer.generate_DeBruijn_edges(2, 1; dual = dual)
     nodes = sort(collect(graph.verts); by = string)
     Rot = [cos(THETA) -sin(THETA); sin(THETA) cos(THETA)]
-    pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+    pclf = PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         f,
         graph,
         SOLVER;
