@@ -89,6 +89,21 @@ function write_table(name, header, rows; align = "l" * "c"^(length(header) - 1))
     return path
 end
 
+# Columns of Table I.
+const TABLE_HEADER = [
+    "",
+    "cells",
+    "trans.",
+    "succ.",
+    "time (s)",
+    "steps",
+    "\$\\max|\\gamma_k|\$",
+    "\$\\max|\\Gamma|\$",
+]
+
+# A formatted force, in bold when above the limit (Table I: bold, above Γ_max).
+bold_above(s, limit) = parse(Float64, s) > limit + 1e-9 ? "\\textbf{$s}" : s
+
 # Date, Dionysos commit, Julia version and machine of the run. The commit is that of the loaded
 # Dionysos checkout: the enclosing repository, or the clone made by environment/postInstall.
 function write_environment()
