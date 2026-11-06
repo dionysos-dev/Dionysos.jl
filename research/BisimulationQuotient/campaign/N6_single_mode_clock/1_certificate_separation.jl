@@ -89,7 +89,7 @@ function single_node_rate(ρ, q; draws = 40, seed = 11)
     for i in 0:draws
         M = i == 0 ? Matrix{Float64}(I, 2, 2) : Matrix(qr(randn(rng, 2, 2)).Q)
         rate = try
-            PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+            PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
                 f,
                 graph,
                 optimizer;

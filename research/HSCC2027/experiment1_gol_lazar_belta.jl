@@ -29,6 +29,8 @@ const ST = DI.System
 const PR = DI.Problem
 const PCQ = DI.Optim.Abstraction.PCLFBisimulationQuotient
 const PCLF = UT.PathCompleteFramework
+@isdefined(PCLFProducer) ||
+    include(joinpath(dirname(@__DIR__), "common", "pclf_producer.jl"))
 const OPDS = DI.Optim.DiscreteSystems
 
 gr()
@@ -94,9 +96,9 @@ println("="^84, "\nEXPERIMENT 1 — Gol-Lazar-Belta Example 3.1\n", "="^84)
 cones = let a = deg2rad.(RAYS_DEG)
     [hcat([cos(a[i]), sin(a[i])], [cos(a[i + 1]), sin(a[i + 1])]) for i in 1:(length(a) - 1)]
 end
-graph = PCLF.generate_DeBruijn_edges(2, 1)
+graph = PCLFProducer.generate_DeBruijn_edges(2, 1)
 nodes = sort(collect(graph.verts); by = string)
-pclf = PCLF.compute_polyhedral_pieces_pclf(
+pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
     f,
     graph,
     HiGHS.Optimizer,

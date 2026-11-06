@@ -31,12 +31,12 @@ Rates certified over conic partition orders 1, 2, 3 by the De Bruijn graph of or
 infeasibility rather than returning a bound.
 """
 function rates_over_orders(f, k, optimizer)
-    graph = PCLF.generate_DeBruijn_edges(2, k)
+    graph = PCLFProducer.generate_DeBruijn_edges(2, k)
     out = Float64[]
     for order in 1:3
-        partition = PCLF.conic_partitions_2d(order)
+        partition = PCLFProducer.conic_partitions_2d(order)
         rate = try
-            PCLF.compute_polyhedral_pieces_pclf(
+            PCLFProducer.compute_polyhedral_pieces_pclf(
                 f,
                 graph,
                 optimizer,

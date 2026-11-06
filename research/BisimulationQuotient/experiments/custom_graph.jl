@@ -27,7 +27,7 @@ graph = PCLF.edgeList_to_LabDigraph([
 rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
 templates = Dict(1 => rotation(π / 6), 2 => rotation(π / 4))
 
-pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+pclf = PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     f,
     graph,
     JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000);

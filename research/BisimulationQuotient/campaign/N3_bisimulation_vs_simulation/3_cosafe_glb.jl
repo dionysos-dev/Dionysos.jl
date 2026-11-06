@@ -54,11 +54,14 @@ function load_or_build()
         MOI.get(opt, MOI.RawOptimizerAttribute("D"))
     end
     println("building the E8 quotient (a few minutes) ...")
-    pclf = PCLF.compute_polyhedral_pieces_pclf(
+    pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
         f,
-        PCLF.generate_DeBruijn_edges(2, 1),
+        PCLFProducer.generate_DeBruijn_edges(2, 1),
         JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000),
-        Dict((1,) => PCLF.conic_partitions_2d(2), (2,) => PCLF.conic_partitions_2d(2));
+        Dict(
+            (1,) => PCLFProducer.conic_partitions_2d(2),
+            (2,) => PCLFProducer.conic_partitions_2d(2),
+        );
         MLF = true,
     )
     r = build_quotient(problem, pclf; atol = 1e-4, level_tol = 1e-2, max_slices = 50)

@@ -38,7 +38,7 @@ problem = PR.BisimulationQuotientProblem(f, X, [R1])
 graph = dwell_graph(2, TAU)
 println("dwell automaton: ", length(graph.verts), " nodes, ", length(graph.edges), " edges")
 
-pclf = PCLF.compute_polyhedral_pieces_pclf(
+pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
     f,
     graph,
     JuMP.optimizer_with_attributes(
@@ -49,7 +49,7 @@ pclf = PCLF.compute_polyhedral_pieces_pclf(
         "tol_gap_abs" => 1e-6,
         "tol_gap_rel" => 1e-6,
     ),
-    Dict(v => PCLF.conic_partitions_2d(ORDER) for v in graph.verts);
+    Dict(v => PCLFProducer.conic_partitions_2d(ORDER) for v in graph.verts);
     MLF = true,
 )
 println("certificate rate = ", pclf.JSRapprox)

@@ -68,11 +68,11 @@ const OPTIMIZER = JuMP.optimizer_with_attributes(
     "tol_gap_rel" => 1e-6,
 )
 
-pclf = PCLF.compute_polyhedral_pieces_pclf(
+pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
     scaled,
     no_11,
     OPTIMIZER,
-    Dict(v => PCLF.conic_partitions_2d(ORDER) for v in no_11.verts);
+    Dict(v => PCLFProducer.conic_partitions_2d(ORDER) for v in no_11.verts);
     MLF = true,
 )
 println(

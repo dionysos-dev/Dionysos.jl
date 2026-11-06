@@ -222,9 +222,9 @@ end
 println(
     "Building the PCLF quotient (single node, so the smallest quotient of the family) ...",
 )
-pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+pclf = PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     f,
-    PCLF.generate_DeBruijn_edges(2, 0),
+    PCLFProducer.generate_DeBruijn_edges(2, 0),
     JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000);
     Gmats = rotation_templates([1]; θ = π / 6, mode = :rotation),
     MLF = true,

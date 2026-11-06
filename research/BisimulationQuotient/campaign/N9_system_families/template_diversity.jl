@@ -39,9 +39,9 @@ const OPTIMIZER = JuMP.optimizer_with_attributes(
 )
 
 function rate_of(f, k, dual, mode, θ)
-    graph = PCLF.generate_DeBruijn_edges(2, k; dual = dual)
+    graph = PCLFProducer.generate_DeBruijn_edges(2, k; dual = dual)
     nodes = sort(collect(graph.verts); by = string)
-    return PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+    return PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         f,
         graph,
         OPTIMIZER;
