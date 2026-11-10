@@ -237,7 +237,7 @@ function print_results_table(
             du,
             all_results[1]["trials"],
             all_results[1]["warmups"]
-        )
+        ),
     )
     println(repeat("-", 108))
     @printf(
