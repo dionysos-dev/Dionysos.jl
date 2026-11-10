@@ -1,11 +1,13 @@
-# E1: pendulum swing-up with a torque limit U < g/l, torque model (T) against reduced model (R).
+# E1: pendulum swing-up with a torque limit Γ_max < g/l, baseline (B) against proposed
+# approach (P).
 #
-# (T): state (θ, θ̇), torque |Γ| ≤ U held over each step.
-# (R): θ̇ commanded in steps under the impulse budget |u − v| ≤ I_max = U τ (α = 1 in units of
-#      m l²). The grid covers the circle and the budget is state-independent, so the abstraction
-#      is a bisimulation (Remark 2 of the paper).
+# (B): torque model, state (θ, θ̇), torque |Γ| ≤ Γ_max held over each step.
+# (P): reduced model θ̇ = u, the command u held over each step under the impulse budget
+#      |u − v| ≤ I_max = Γ_max τ (α = 1 in units of m l²). The grid covers the circle and the
+#      budget is state-independent, so the synthesis is complete and optimal (Remark 2 of the
+#      paper).
 #
-# Writes params_e1.md, table_e1.tex, fig_e1.{pdf,png}, e1_{T,R}.gif and the numbers e1.*.
+# Writes params_e1.md, table_e1.tex, fig_e1.{pdf,png}, e1_{B,P}.gif and the numbers e1.*.
 
 module E1Pendulum
 
@@ -36,25 +38,25 @@ import .VelocityPendulum as VP
 # Physics, shared by both models
 const PARAMS = SimplePendulum.Params()       # l = 1 m, g = 9.81 m/s², no friction
 const G_L = PARAMS.g / PARAMS.l              # torque needed to hold θ = 90°
-const U = 7.0                                # torque limit of (T), U < g/l
+const Γ_MAX = 7.0                            # torque limit of (B), Γ_max < g/l
 const τ = 0.1                                # sampling period of both abstractions (s)
-const I_MAX = U * τ                          # impulse budget of (R)
+const I_MAX = Γ_MAX * τ                      # impulse budget of (P)
 
 # Task, shared by both models
 const THETA_0 = 0.0                          # start: at rest at the bottom
 const TARGET_HALFWIDTH = 15π / 180           # target: |θ − π| ≤ 15°, slow enough to stop
 
-# (R) reduced model
+# (P) reduced model
 const N_CELLS = 125                          # odd, so that θ = 0 is a cell center
 const LEVELS = 10                            # speed levels on each side of 0
 const DISC = VP.discretization(; τ = τ, n = N_CELLS, levels = LEVELS)
-const U_BAR = DISC.u_max                     # speed limit, shared with (T)
+const U_BAR = DISC.u_max                     # speed limit, shared with (B)
 const SLEW = floor(I_MAX / DISC.δu + 1e-9) * DISC.δu   # the budget on the command grid
 
-# (T) torque model
+# (B) torque model
 const H_T = SVector(3π / 180, 0.05)          # grid: 3° × 0.05 rad/s
 const DTORQUE = 0.3                          # torque step of the input grid
-const V_ARRIVAL = DISC.δu                    # (T) may stop at the top below one command step
+const V_ARRIVAL = DISC.δu                    # (B) may stop at the top below one command step
 
 function write_parameters()
     open(joinpath(RESULTS, "params_e1.md"), "w") do io
@@ -63,19 +65,19 @@ function write_parameters()
         println(io, "| | value |\n|---|---|")
         for (k, v) in (
             "g/l (torque to hold θ = 90°)" => G_L,
-            "torque limit U of (T)" => U,
-            "impulse budget I_max = U τ of (R)" => fmt(I_MAX),
+            "torque limit Γ_max of (B)" => Γ_MAX,
+            "impulse budget I_max = Γ_max τ of (P)" => fmt(I_MAX),
             "sampling period τ" => "$τ s (step commands)",
-            "speed limit (both models)" => "$(fmt(U_BAR)) rad/s",
+            "speed limit (both approaches)" => "$(fmt(U_BAR)) rad/s",
             "start" => "θ = 0, at rest",
             "target" => "\\|θ − π\\| ≤ 15°, slow enough to stop",
-            "(R) angle cells" => "$N_CELLS (h = $(fmt(DISC.h)) rad)",
-            "(R) command step δu = h/τ" => "$(fmt(DISC.δu)) rad/s",
-            "(R) commands" => "$(2LEVELS + 1), from −$LEVELS δu to $LEVELS δu",
-            "(R) budget on the grid" => "\\|u − v\\| ≤ $(round(Int, SLEW / DISC.δu)) δu",
-            "(T) grid" => "3° × $(H_T[2]) rad/s",
-            "(T) torque step" => DTORQUE,
-            "(T) arrival" => "\\|dθ/dt\\| ≤ $(fmt(V_ARRIVAL)) rad/s",
+            "(P) angle cells" => "$N_CELLS (h_a = $(fmt(DISC.h)) rad)",
+            "(P) command step δu = h_a/τ" => "$(fmt(DISC.δu)) rad/s",
+            "(P) commands" => "$(2LEVELS + 1), from −$LEVELS δu to $LEVELS δu",
+            "(P) budget on the grid" => "\\|u − v\\| ≤ $(round(Int, SLEW / DISC.δu)) δu",
+            "(B) grid" => "3° × $(H_T[2]) rad/s",
+            "(B) torque step" => DTORQUE,
+            "(B) arrival" => "\\|dθ/dt\\| ≤ $(fmt(V_ARRIVAL)) rad/s",
         )
             println(io, "| ", k, " | ", v, " |")
         end
@@ -83,12 +85,12 @@ function write_parameters()
     return
 end
 
-# (T) torque model
+# (B): the torque model
 function solve_torque()
     _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -U_BAR), high = SVector(π, U_BAR))
-    _U_ = LazySets.Hyperrectangle(; low = SVector(-U), high = SVector(U))
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-Γ_MAX), high = SVector(Γ_MAX))
     sys = SimplePendulum.system(; params = PARAMS, _X_ = _X_, _U_ = _U_)
-    # The same start as (R): a quarter cell around the bottom, at rest.
+    # The same start as (P): a quarter cell around the bottom, at rest.
     _I_ = LazySets.Hyperrectangle(;
         low = SVector(THETA_0 - DISC.h / 4, -0.01),
         high = SVector(THETA_0 + DISC.h / 4, 0.01),
@@ -125,7 +127,7 @@ function solve_torque()
     return optimizer
 end
 
-# (R) reduced model. The budget starts and ends at rest.
+# (P): the reduced model. The budget starts and ends at rest.
 function impulse_budget()
     return OPDS.BoundedInputVariation(
         (a, b) -> abs(a[1] - b[1]),
@@ -168,8 +170,8 @@ function at_top(x, prob)
     return SVector(θ, x[2:end]...) ∈ prob.target_set
 end
 
-# (T) stops on entering its concrete target.
-function closed_loop_torque(optimizer; nstep = 400)
+# (B) on the torque model, stopped on entering its concrete target.
+function replay_torque(optimizer; nstep = 400)
     ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     sys = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"))
@@ -184,10 +186,10 @@ function closed_loop_torque(optimizer; nstep = 400)
     return traj, at_top(DI.System.states(traj)[end], prob)
 end
 
-# (R) on the step dynamics θ ↦ θ + τ u. The controller stops where the stop command is
+# (P) on the step dynamics θ ↦ θ + τ u. The controller stops where the stop command is
 # admissible and crosses the target otherwise, so `reached` also requires the last command to
 # allow the stop.
-function replay(optimizer; nstep = 400)
+function replay_reduced(optimizer; nstep = 400)
     ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"))
     step(x, u) = SVector(x[1] + τ * u[1])
@@ -206,7 +208,7 @@ function replay(optimizer; nstep = 400)
 end
 
 # Fewest commands from the start to the target, by breadth-first search on (cell, last command),
-# independent of the synthesis: the optimal cost of (R) with unit stage cost.
+# independent of the synthesis: the optimal cost of (P) with unit stage cost.
 function fewest_steps(optimizer, constraint)
     abs_sys = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     prob = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
@@ -257,113 +259,106 @@ end
 # Runs
 write_parameters()
 
-solvers = (; T = solve_torque, R = solve_reduced)
+solvers = (; B = solve_torque, P = solve_reduced)
 results = Dict{Symbol, Any}()
 for (name, solve) in pairs(solvers)
     solve() # compile, so the timed round does not pay for it
     optimizer, t = timed(solve)
     success = MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
-    nstates, ntrans, nsucc = abstraction_size(optimizer)
-    results[name] = (; success, nstates, ntrans, nsucc, t, optimizer)
-    println((name, (; success, nstates, ntrans, nsucc, t)))
+    cells, ntrans, nsucc = abstraction_size(optimizer)
+    results[name] = (; success, cells, ntrans, nsucc, t, optimizer)
+    println((name, (; success, cells, ntrans, nsucc, t)))
 end
 
 numbers = Dict{String, Any}(
     "e1.gl" => G_L,
-    "e1.U" => U,
+    "e1.Gmax" => Γ_MAX,
     "e1.Imax" => fmt(I_MAX),
     "e1.tau" => τ,
     "e1.umax" => fmt(U_BAR),
-    "e1.R.ncells" => N_CELLS,
-    "e1.R.hdeg" => fmt(rad2deg(DISC.h)),
-    "e1.R.du" => fmt(DISC.δu),
-    "e1.R.levels" => LEVELS,
-    "e1.R.nsigma" => 2LEVELS + 1,
-    "e1.T.hdeg" => fmt(rad2deg(H_T[1])),
-    "e1.T.hv" => H_T[2],
-    "e1.T.dtorque" => DTORQUE,
+    "e1.P.ncells" => N_CELLS,
+    "e1.P.hdeg" => fmt(rad2deg(DISC.h)),
+    "e1.P.du" => fmt(DISC.δu),
+    "e1.P.levels" => LEVELS,
+    "e1.P.nsigma" => 2LEVELS + 1,
+    "e1.B.hdeg" => fmt(rad2deg(H_T[1])),
+    "e1.B.hv" => H_T[2],
+    "e1.B.dtorque" => DTORQUE,
     "e1.budget.steps" => round(Int, SLEW / DISC.δu),
 )
 for (name, r) in results
-    numbers["e1.$name.states"] = r.nstates
+    numbers["e1.$name.cells"] = r.cells
     numbers["e1.$name.trans"] = r.ntrans
     numbers["e1.$name.succ"] = fmt(r.nsucc; digits = 2)
     numbers["e1.$name.time"] = fmt(r.t)
 end
-numbers["e1.ratio.states"] = round(Int, results[:T].nstates / results[:R].nstates)
-numbers["e1.ratio.trans"] = round(Int, results[:T].ntrans / results[:R].ntrans)
+numbers["e1.ratio.cells"] = round(Int, results[:B].cells / results[:P].cells)
+numbers["e1.ratio.trans"] = round(Int, results[:B].ntrans / results[:P].ntrans)
 
 traj = Dict{Symbol, Any}()
-if results[:T].success
-    tr, reached = closed_loop_torque(results[:T].optimizer)
-    reached || error("(T) closed loop did not reach the target")
-    uT = [u[1] for u in DI.System.inputs(tr)]
-    traj[:T] = (; tr, reached)
-    numbers["e1.T.steps"] = length(uT)
-    numbers["e1.T.maxtorque"] = fmt(maximum(abs, uT))
+if results[:B].success
+    tr, reached = replay_torque(results[:B].optimizer)
+    reached || error("(B) did not reach the target on the torque model")
+    uB = [u[1] for u in DI.System.inputs(tr)]
+    traj[:B] = (; tr, reached)
+    numbers["e1.B.steps"] = length(uB)
+    numbers["e1.B.maxtorque"] = fmt(maximum(abs, uB))
 end
-if results[:R].success
-    tr, reached = replay(results[:R].optimizer)
+if results[:P].success
+    tr, reached = replay_reduced(results[:P].optimizer)
     θs = [x[1] for x in DI.System.states(tr)]
     us = [u[1] for u in DI.System.inputs(tr)]
     impulses = us .- vcat(0.0, us[1:(end - 1)])      # α = 1: the impulse is the change of command
     profile = hold_profile(θs, us)
-    traj[:R] = (; tr, reached, θs, us, impulses, profile)
-    numbers["e1.R.steps"] = length(us)
-    numbers["e1.R.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
-    numbers["e1.R.maxhold"] = fmt(maximum(abs, profile[3]))
+    traj[:P] = (; tr, reached, θs, us, impulses, profile)
+    numbers["e1.P.steps"] = length(us)
+    numbers["e1.P.maximpulse"] = fmt(maximum(abs, vcat(impulses, us[end])))  # with the stop
+    numbers["e1.P.maxhold"] = fmt(maximum(abs, profile[3]))
 end
-# (R) is sound: its replay must reach the target within the budget.
-traj[:R].reached || error("(R) did not reach the target on the step dynamics")
-parse(Float64, numbers["e1.R.maximpulse"]) <= I_MAX + 1e-9 ||
-    error("(R) exceeds the impulse budget")
+# (P) is sound: its replay must reach the target within the budget.
+traj[:P].reached || error("(P) did not reach the target on the step dynamics")
+parse(Float64, numbers["e1.P.maximpulse"]) <= I_MAX + 1e-9 ||
+    error("(P) exceeds the impulse budget")
 # Optimality, stated in Section VI-A.
-numbers["e1.R.fewest"] =
-    something(fewest_steps(results[:R].optimizer, impulse_budget()), "none")
-numbers["e1.R.fewest"] == numbers["e1.R.steps"] ||
-    @warn "(R) replay takes $(numbers["e1.R.steps"]) steps, but the fewest is $(numbers["e1.R.fewest"]): update the optimality claim of Section VI-A"
+numbers["e1.P.fewest"] =
+    something(fewest_steps(results[:P].optimizer, impulse_budget()), "none")
+numbers["e1.P.fewest"] == numbers["e1.P.steps"] ||
+    @warn "(P) replay takes $(numbers["e1.P.steps"]) steps, but the fewest is $(numbers["e1.P.fewest"]): update the optimality claim of Section VI-A"
 record_numbers(numbers)
 for name in keys(solvers)
-    haskey(traj, name) || (println("($name) infeasible"); continue)
+    haskey(traj, name) || (println("($name) unsolved"); continue)
     println(
         "($name) ",
         numbers["e1.$name.steps"],
-        " steps, reached ",
-        traj[name].reached,
-        name === :T ? ", peak torque $(numbers["e1.T.maxtorque"]) (U = $U)" :
-        ", peak impulse $(numbers["e1.$name.maximpulse"]) (I_max = $(fmt(I_MAX))), peak hold torque $(numbers["e1.$name.maxhold"])",
+        " steps",
+        name === :B ? ", peak torque $(numbers["e1.B.maxtorque"]) (Γ_max = $Γ_MAX)" :
+        ", peak impulse $(numbers["e1.P.maximpulse"]) (I_max = $(fmt(I_MAX))), peak hold torque $(numbers["e1.P.maxhold"])",
     )
 end
 
-function table_row(name, label)
+# Columns as in Table I: (B) has no impulses, and "--" marks an unsolved task.
+function table_row(name)
     r = results[name]
     solved = haskey(traj, name)
-    reached = solved && traj[name].reached
-    impulse =
-        name === :T ? "n/a" :
+    impulse = name === :B ? "n/a" : solved ? numbers["e1.P.maximpulse"] : "--"
+    force =
         !solved ? "--" :
-        parse(Float64, numbers["e1.$name.maximpulse"]) > I_MAX + 1e-9 ?
-        "\\textbf{$(numbers["e1.$name.maximpulse"])}" : numbers["e1.$name.maximpulse"]
-    hold =
-        name === :T ? numbers["e1.T.maxtorque"] :
-        !solved ? "--" :
-        parse(Float64, numbers["e1.$name.maxhold"]) > U ?
-        "\\textbf{$(numbers["e1.$name.maxhold"])}" : numbers["e1.$name.maxhold"]
+        bold_above(numbers[name === :B ? "e1.B.maxtorque" : "e1.P.maxhold"], Γ_MAX)
     return [
-        label,
-        r.nstates,
+        "($name)",
+        r.cells,
         r.ntrans,
         numbers["e1.$name.succ"],
-        fmt(r.t),
-        solved ? (reached ? numbers["e1.$name.steps"] : "missed") : "infeasible",
+        numbers["e1.$name.time"],
+        solved ? numbers["e1.$name.steps"] : "--",
         impulse,
-        hold,
+        force,
     ]
 end
 write_table(
     "table_e1.tex",
-    ["", "cells", "trans.", "succ.", "time (s)", "steps", "impulse", "force"],
-    [table_row(:T, "(T)"), table_row(:R, "(R)")];
+    TABLE_HEADER,
+    [table_row(:B), table_row(:P)];
     align = "lrrrrrrr",
 )
 
@@ -371,7 +366,7 @@ write_table(
 if FIGURES
     # Printed at about 0.7 scale (6-7 pt fonts).
     style = (; guidefontsize = 9, tickfontsize = 8, legendfontsize = 8, grid = false)
-    θ_band = rad2deg(asin(U / G_L)) # where the hold torque alone exceeds U
+    θ_band = rad2deg(asin(Γ_MAX / G_L)) # where the hold torque alone exceeds Γ_max
 
     p_θ = Plots.plot(;
         ylabel = "θ (deg)",
@@ -392,25 +387,25 @@ if FIGURES
         )
     end
     Plots.hline!(p_θ, [180, -180]; color = :black, ls = :dot, label = "")
-    Plots.hline!(p_τ, [-U, U]; color = :gray, ls = :dash)
-    if haskey(traj, :T)
-        xs = collect(DI.System.states(traj[:T].tr))
-        uT = [u[1] for u in DI.System.inputs(traj[:T].tr)]
-        tT = τ .* (0:(length(xs) - 1))
-        θT = rad2deg.(unwrap([x[1] for x in xs]))
-        Plots.plot!(p_θ, tT, θT; color = 2, lw = 1.5, label = "(T)")
-        Plots.plot!(p_τ, tT[1:(end - 1)], uT; seriestype = :steppost, color = 2, lw = 1.5)
+    Plots.hline!(p_τ, [-Γ_MAX, Γ_MAX]; color = :gray, ls = :dash)
+    if haskey(traj, :B)
+        xs = collect(DI.System.states(traj[:B].tr))
+        uB = [u[1] for u in DI.System.inputs(traj[:B].tr)]
+        tB = τ .* (0:(length(xs) - 1))
+        θB = rad2deg.(unwrap([x[1] for x in xs]))
+        Plots.plot!(p_θ, tB, θB; color = 2, lw = 1.5, label = "(B)")
+        Plots.plot!(p_τ, tB[1:(end - 1)], uB; seriestype = :steppost, color = 2, lw = 1.5)
     end
-    if haskey(traj, :R)
-        ts, θ, torque = traj[:R].profile
-        Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(R)")
+    if haskey(traj, :P)
+        ts, θ, torque = traj[:P].profile
+        Plots.plot!(p_θ, ts, rad2deg.(unwrap(θ)); color = 1, lw = 1.5, label = "(P)")
         Plots.plot!(p_τ, ts, torque; color = 1, lw = 1.5)
-        ts = τ .* (0:(length(traj[:R].impulses) - 1))
+        ts = τ .* (0:(length(traj[:P].impulses) - 1))
         # Impulse of each step over τ, as a stem from 0.
         Plots.plot!(
             p_τ,
             ts,
-            traj[:R].impulses ./ τ;
+            traj[:P].impulses ./ τ;
             seriestype = :sticks,
             color = :navy,
             lw = 1.2,
@@ -427,30 +422,30 @@ if FIGURES
     Plots.savefig(fig, joinpath(RESULTS, "fig_e1.pdf"))
     Plots.savefig(fig, joinpath(RESULTS, "fig_e1.png"))
 
-    if haskey(traj, :T)
+    if haskey(traj, :B)
         DI.animate_trajectory_dashboard(
             SimplePendulum.system_plot!(; params = PARAMS),
-            traj[:T].tr;
+            traj[:B].tr;
             xdims = (1, 2),
             udims = (1,),
             Δt = τ,
             xlabel_state = "θ (rad)",
             ylabel_state = "dθ/dt (rad/s)",
             ylabel_input = "torque / ml²",
-            title = "Torque model (T), U = $U",
-            filename = joinpath(RESULTS, "e1_T.gif"),
+            title = "Baseline (B), torque limit $Γ_MAX",
+            filename = joinpath(RESULTS, "e1_B.gif"),
         )
     end
     DI.animate_trajectory_dashboard(
         SimplePendulum.system_plot!(; params = PARAMS, show_input = false),
-        traj[:R].tr;
+        traj[:P].tr;
         xdims = (1,),
         udims = (1,),
         Δt = τ,
         ylabel_state = "θ (rad)",
         ylabel_input = "commanded dθ/dt (rad/s)",
-        title = "Reduced model (R), impulse budget $(fmt(I_MAX))",
-        filename = joinpath(RESULTS, "e1_R.gif"),
+        title = "Proposed approach (P), impulse budget $(fmt(I_MAX))",
+        filename = joinpath(RESULTS, "e1_P.gif"),
     )
     println("figures written to ", RESULTS)
 end
