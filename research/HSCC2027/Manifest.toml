@@ -384,7 +384,7 @@ version = "1.16.0"
 
 [[deps.Dionysos]]
 deps = ["DataStructures", "Distributed", "FillArrays", "HybridSystems", "JuMP", "LazySets", "LinearAlgebra", "MathOptInterface", "MathematicalSystems", "MutableArithmetics", "Polyhedra", "ProgressMeter", "RecipesBase", "Serialization", "SpecialFunctions", "StaticArrays"]
-path = "C:\\Users\\jcalbert\\Documents\\Github\\Dionysos.jl\\research\\HSCC2027\\..\\.."
+path = "../.."
 uuid = "d92c97cf-b87d-42c1-a9c0-25df00b4d958"
 version = "0.1.3"
 

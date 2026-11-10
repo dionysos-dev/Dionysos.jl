@@ -55,9 +55,9 @@ const OPTIMIZER = JuMP.optimizer_with_attributes(
 )
 
 function rate(f, graph, order)
-    partition = PCLF.conic_partitions_2d(order)
+    partition = PCLFProducer.conic_partitions_2d(order)
     value = try
-        PCLF.compute_polyhedral_pieces_pclf(
+        PCLFProducer.compute_polyhedral_pieces_pclf(
             f,
             graph,
             OPTIMIZER,

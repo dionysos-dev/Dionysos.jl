@@ -109,11 +109,11 @@ function both_semantics(name, graph, cache_file)
     # The certificate itself costs seconds, so it is recomputed even on a cache hit: the rate is
     # reported in every table here and a cached number that no longer matches the code would be
     # worse than the seconds saved.
-    pclf = PCLF.compute_polyhedral_pieces_pclf(
+    pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
         f,
         graph,
         OPTIMIZER,
-        Dict(v => PCLF.conic_partitions_2d(ORDER) for v in graph.verts);
+        Dict(v => PCLFProducer.conic_partitions_2d(ORDER) for v in graph.verts);
         MLF = true,
     )
     isfinite(pclf.JSRapprox) || error("no certificate for $name")
@@ -318,7 +318,7 @@ end
 # Unconstrained: the De Bruijn graph of order 1, which is E8's certificate.
 unconstrained = both_semantics(
     "unconstrained",
-    PCLF.generate_DeBruijn_edges(2, 1),
+    PCLFProducer.generate_DeBruijn_edges(2, 1),
     joinpath(@__DIR__, "exp1_unconstrained.jld2"),
 )
 

@@ -11,8 +11,8 @@
 # function `V(x, y) = ‖x - y‖_P`: the error `e = x - y` obeys the same switched dynamics, so
 # the stability certificate is also the incremental one. Obtain `P` and the per-step
 # contraction `γ` (the factor by which `V` shrinks each sampling step) from
-# `compute_quadratic_pieces_pclf` applied to the sampled modes `exp(A_σ · τ)` with a
-# single-node graph; the helpers below turn `(P, γ)` into a grid step or a precision.
+# PathCompleteCertificates.jl, `certify(QuadraticTemplate(), common_graph(M), problem)` on the
+# sampled modes `exp(A_σ · τ)`; the helpers below turn `(P, γ)` into a grid step or a precision.
 
 """
     grid_step_from_lyapunov(P, ε, γ; state_dim = size(P, 1)) -> η
@@ -37,8 +37,9 @@ so
 
 The condition number of `P` therefore directly controls how fine the grid must be.
 
-Obtain `(P, γ)` from a common quadratic Lyapunov function, e.g. `compute_quadratic_pieces_pclf`
-on the sampled modes. See [`precision_from_grid_step`](@ref) for the inverse.
+Obtain `(P, γ)` from a common quadratic Lyapunov function of the sampled modes, e.g. with
+PathCompleteCertificates.jl, as in `examples/DCDC/incremental_grid_dcdc.jl`. See
+[`precision_from_grid_step`](@ref) for the inverse.
 """
 function grid_step_from_lyapunov(P, ε, γ; state_dim::Int = size(P, 1))
     0 <= γ < 1 ||

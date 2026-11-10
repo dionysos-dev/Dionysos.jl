@@ -22,7 +22,6 @@ const TEST_FILES = [
     ("./utils/pclf.jl",),
     ("./utils/sets/set_algebra.jl",),
     ("./utils/periodic.jl",),
-    ("./utils/pclf.jl",),
     ("./utils/incremental_stability.jl",),
     ("./utils/plotting.jl",),  # the DrawPoint/DrawArrow/DrawSegment recipes
     ("./symbolic/automaton.jl",),
@@ -125,6 +124,7 @@ const TEST_FILES = [
     ("./ext/plots_dashboard.jl", :slow),
     ("./ext/csv_controller.jl", :slow),
     ("./ext/makie_augmented.jl", :slow),
+    ("./ext/path_complete_certificates.jl",),
 ]
 
 const _timings = Tuple{String, Float64}[]

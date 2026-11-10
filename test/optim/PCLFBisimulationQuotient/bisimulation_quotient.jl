@@ -13,6 +13,7 @@ import Clarabel
 import HybridSystems
 import CDDLib
 import Spot
+import PathCompleteCertificates as PCC
 using LazySets
 
 const PCLF = UT.PathCompleteFramework
@@ -45,7 +46,9 @@ const PCLF = UT.PathCompleteFramework
     ])
     problem = PR.BisimulationQuotientProblem(f, X, [R1])
 
-    graph = PCLF.edgeList_to_LabDigraph([
+    # The certificate comes from PathCompleteCertificates.jl, through the package extension.
+    graph = PCC.empty_graph(4)
+    for (s, d, m) in [
         (1, 2, 1),
         (2, 1, 1),
         (2, 4, 1),
@@ -54,18 +57,25 @@ const PCLF = UT.PathCompleteFramework
         (4, 3, 2),
         (4, 4, 2),
         (4, 1, 2),
-    ])
-    v1, v2, v3, v4, v5 = [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [-1.0, 1.0], [-1.0, 0.0]
-    pieces = [hcat(v1, v2), hcat(v2, v3), hcat(v3, v4), hcat(v4, v5)]
-    partitions = Dict(k => pieces for k in 1:4)
-
+    ]
+        PCC.add_edge!(graph, s, d, m)
+    end
+    # The dual piecewise linear template on the octagon with vertices (1, 0), (1, 1), (0, 1),
+    # (-1, 1) and their opposites: V(x) = max_k |r_k'x| / w_k over those four directions. Symmetric
+    # by construction, so each sublevel set has eight facets, as the case study's pieces had.
+    partition = PCC.planar_conic_partition(1)
     lp_optimizer = JuMP.optimizer_with_attributes(
         Clarabel.Optimizer,
         "max_iter" => 1000,
         MOI.Silent() => true,
     )
-    pclf_poly =
-        PCLF.compute_polyhedral_pieces_pclf(f, graph, lp_optimizer, partitions; MLF = true)
+    certificate = PCC.certify(
+        PCC.DualPiecewiseLinearTemplate(fill(partition, 4)),
+        graph,
+        PCC.StabilityProblem(PCC.switched_system([A1, A2]));
+        optimizer = lp_optimizer,
+    )
+    pclf_poly = PCLF.PCLF(certificate)
     @test isfinite(pclf_poly.JSRapprox)
 
     optimizer = MOI.instantiate(PCQ.OptimizerBisimulationQuotient)
@@ -192,10 +202,14 @@ const PCLF = UT.PathCompleteFramework
     MOI.optimize!(verification_optimizer)
 
     # The atol-erosion caveat is measured, not assumed: a small sliver of the slice family is
-    # uncovered by the cells, and the verified set says nothing there.
+    # uncovered by the cells, and the verified set says nothing there. The two volumes are
+    # inclusion–exclusion sums over large regions: this certificate's node 2 is much smaller than
+    # the others, so the outer slices of nodes 1, 3 and 4 reach far beyond X. Their round-off, a
+    # few tenths of a percent, can exceed the erosion, and the fraction then reads slightly
+    # negative although the cells are disjoint.
     uncovered = verification_optimizer.uncovered_fraction
     @test uncovered !== nothing
-    @test 0.0 <= uncovered < 0.1
+    @test -0.01 < uncovered < 0.1
 
     verified_set =
         MOI.get(verification_optimizer, MOI.RawOptimizerAttribute("controllable_set"))

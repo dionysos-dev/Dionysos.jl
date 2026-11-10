@@ -15,10 +15,10 @@ gr()
 # Path-complete Lyapunov function
 # ---------------------------------------------------------
 
-graph = PCLF.generate_DeBruijn_edges(2, 1; dual = true)
+graph = PCLFProducer.generate_DeBruijn_edges(2, 1; dual = true)
 nodes = sort(collect(graph.verts))
 
-pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+pclf = PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     f,
     graph,
     JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000);

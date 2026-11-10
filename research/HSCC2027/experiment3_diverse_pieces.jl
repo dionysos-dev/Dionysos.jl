@@ -32,6 +32,8 @@ const ST = DI.System
 const PR = DI.Problem
 const PCQ = DI.Optim.Abstraction.PCLFBisimulationQuotient
 const PCLF = UT.PathCompleteFramework
+@isdefined(PCLFProducer) ||
+    include(joinpath(dirname(@__DIR__), "common", "pclf_producer.jl"))
 
 gr()
 
@@ -138,13 +140,13 @@ end
 function run_graph(dual)
     label = dual ? "DUAL (co-complete)" : "PRIMAL (complete)"
     tag = dual ? "dual" : "primal"
-    graph = PCLF.generate_DeBruijn_edges(2, 1; dual = dual)
+    graph = PCLFProducer.generate_DeBruijn_edges(2, 1; dual = dual)
     nodes = sort(collect(graph.verts); by = string)
-    pclf = PCLF.compute_polyhedral_pieces_pclf(
+    pclf = PCLFProducer.compute_polyhedral_pieces_pclf(
         f,
         graph,
         SOLVER,
-        PCLF.conic_partitions_dict_2d(2, nodes);
+        PCLFProducer.conic_partitions_dict_2d(2, nodes);
         MLF = true,
     )
     isinf(pclf.JSRapprox) && error("no certificate on the $label graph")
