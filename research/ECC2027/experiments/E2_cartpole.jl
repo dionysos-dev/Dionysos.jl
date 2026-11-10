@@ -1,8 +1,8 @@
 # E2: cart-pole swing-up, baseline (B) against proposed approach (P).
 #
-# (B): force model, state (θ, ẋ, θ̇), cart force |F| ≤ Γ_max held over each step.
+# (B): full model, state (θ, ẋ_c, θ̇), cart force |Γ| ≤ Γ_max held over each step.
 # (P): reduced model, state (θ, p_θ), cart velocity commanded in steps under the impulse budget
-#      |α(θ)(u − v)| ≤ I_max = Γ_max τ.
+#      |α(θ)(u − v)| ≤ I_max = Γ_max τ. As N > M, (P) is sound but not guaranteed complete.
 # The cart position is left out: neither the pole nor the task depends on it.
 #
 # Writes params_e2.md, table_e2.tex, fig_e2.{pdf,png}, e2_P.gif, e2_P_PI.gif and the numbers e2.*.
@@ -33,8 +33,8 @@ include(
 )
 import .PointMassCartPendulum as PM
 
-# Parameters
-const PARAMS = PM.Params()          # M = 1 kg cart, m = 0.2 kg at l = 1 m, g = 9.81
+# Parameters, in SI units
+const PARAMS = PM.Params()          # M_c = 1 kg cart, m = 0.2 kg at l = 1 m, g = 9.81 m/s²
 const Γ_MAX = 20.0                  # force limit of (B) (N)
 const V_MAX = 2.0                   # cart speed limit (m/s)
 const τ = 0.05                      # sampling period (s)
@@ -48,7 +48,7 @@ const H_P = 0.02
 const P_MAX = 2.0
 const δu = 0.25
 
-# (B): cells in (θ, ẋ, θ̇), forces on a grid
+# (B): cells in (θ, ẋ_c, θ̇), forces on a grid
 const H_V = 0.2
 const H_ω = 0.2
 const ω_MAX = 10.0
@@ -81,14 +81,14 @@ function write_parameters()
             "impulse budget I_max = Γ_max τ of (P)" => "$I_MAX N s",
             "cart speed limit" => "$V_MAX m/s",
             "sampling period τ" => "$τ s (step commands)",
-            "start" => "hanging down, at rest",
+            "start" => "θ = 180° (hanging down), at rest",
             "target" => "\\|θ\\| ≤ $θ_TARGET rad, \\|p_θ\\| ≤ $P_TARGET kg m²/s, any cart velocity",
             "(P) grid" => "$N_θ × $(round(Int, 2P_MAX / H_P)) cells in (θ, p_θ), \\|p_θ\\| ≤ $P_MAX kg m²/s",
             "(P) commands" => "$nΣ, step δu = $δu m/s",
             "(P) command change per period" => "$per_cell, with α bounded over the cell (the exact budget allows $(budget_steps(PARAMS.M)) δu at θ = 0)",
-            "(B) grid" => "$N_θ × $(round(Int, 2V_MAX / H_V)) × $(round(Int, 2ω_MAX / H_ω)) cells in (θ, ẋ, θ̇)",
+            "(B) grid" => "$N_θ × $(round(Int, 2V_MAX / H_V)) × $(round(Int, 2ω_MAX / H_ω)) cells in (θ, ẋ_c, θ̇)",
             "(B) forces" => "$(2 * round(Int, Γ_MAX / DF) + 1) levels, step $DF N",
-            "(P) inner PI loop" => "on the cart velocity, Kp = $(PI_LOOP.Kp) N s/m, Ki = $(PI_LOOP.Ki) N/m, every $(PI_LOOP.dt) s, \\|F\\| ≤ $Γ_MAX N, anti-windup",
+            "(P) inner PI loop" => "on the cart velocity, Kp = $(PI_LOOP.Kp) N s/m, Ki = $(PI_LOOP.Ki) N/m, every $(PI_LOOP.dt) s, \\|Γ\\| ≤ $Γ_MAX N, anti-windup",
         )
             println(io, "| ", k, " | ", v, " |")
         end
@@ -118,7 +118,7 @@ function reduced_model(; nθ, hp)
     )
 end
 
-# (B): the force model, with the target of (P), p_θ = m l² θ̇ + m l cos θ ẋ bounded over each
+# (B): the full model, with the target of (P), p_θ = m l² θ̇ + m l cos θ ẋ_c bounded over each
 # cell.
 function force_model(; nθ, hv, hω)
     hθ = 2π / nθ
@@ -237,7 +237,7 @@ function replay_reduced(ctrl, target, z0; nmax = 2000, K = 20, record = true)
     return (; out..., impulses, reached)
 end
 
-# (B) on the force dynamics, the force held over each step.
+# (B) on the full model, the force held over each step.
 function replay_force(ctrl, target, y0; nmax = 2000, K = 20)
     f = PM.force_dynamics(PARAMS)
     out = samples()
@@ -264,10 +264,10 @@ function replay_force(ctrl, target, y0; nmax = 2000, K = 20)
     return (; out..., impulses = Float64[], reached)
 end
 
-# (P) with an inner PI loop on the cart velocity instead of ideal impulses, on the force
-# model: the controller sets the setpoint every τ, the loop sets the force every PI_LOOP.dt,
-# |F| ≤ Γ_max.
-# Also returns the setpoints and the largest velocity lag |u − ẋ| at a sampling instant.
+# (P) with an inner PI loop on the cart velocity instead of ideal impulses, on the full model:
+# the controller sets the setpoint every τ, the loop sets the force every PI_LOOP.dt,
+# |Γ| ≤ Γ_max.
+# Also returns the setpoints and the largest velocity lag |u − ẋ_c| at a sampling instant.
 const PI_LOOP = (Kp = 100.0, Ki = 500.0, dt = 1e-3)
 
 function replay_inner_loop(ctrl, target, z0; nmax = 2000, record = true)
@@ -305,8 +305,8 @@ function replay_inner_loop(ctrl, target, z0; nmax = 2000, record = true)
     return (; out..., setpoints, steps, lag, reached)
 end
 
-# From every cell center where the controller of (P) starts at rest: how many runs reach the
-# target with ideal impulses and with the inner PI loop.
+# From every cell center where the controller of (P) is defined, starting at rest: how many runs
+# reach the target with ideal impulses and with the inner PI loop.
 function start_sweep(optimizer, ctrl, target)
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     starts =
@@ -530,7 +530,7 @@ if FIGURES
     end
     # PI run: setpoints (every τ) and cart velocity.
     p_v = Plots.plot(;
-        ylabel = "ẋ (m/s)",
+        ylabel = "ẋ\$_c\$ (m/s)",
         yticks = (-V_MAX):V_MAX:V_MAX,
         no_time...,
         style...,
