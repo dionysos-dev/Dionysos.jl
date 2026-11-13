@@ -65,3 +65,7 @@ outputs/
 problems/BipedRobot/4D_model_underactuated/slurm_array/logs/*
 !problems/BipedRobot/4D_model_underactuated/slurm_array/logs/.gitkeep
 problems/BipedRobot/4D_model_underactuated/slurm_array/out/
+
+# Tests in the BipedRobot problem and their documentation
+problems/BipedRobot/4D_model_underactuated/tests/ground_cells_plots/
+problems/BipedRobot/4D_model_underactuated/Documentation
