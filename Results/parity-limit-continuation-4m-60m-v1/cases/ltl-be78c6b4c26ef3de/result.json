@@ -1,0 +1,15 @@
+{
+  "class_id": "ltl-be78c6b4c26ef3de",
+  "formula": "(purple & F((yellow & (blue U green)) | (!yellow & (!blue R !green)))) | (!purple & G((!yellow & (blue U green)) | (yellow & (!blue R !green))))",
+  "issued": false,
+  "outcome": "computational_failure",
+  "native_execution": {
+    "exit_code": 2,
+    "guard": null,
+    "seconds": 1.921278459019959,
+    "peak_rss_kib": 2600768
+  },
+  "artifact_base_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-be78c6b4c26ef3de",
+  "subreason": "node_limit",
+  "elapsed_seconds": 1.9249204169027507
+}

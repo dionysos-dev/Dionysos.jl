@@ -1,0 +1,19 @@
+{
+    "repetition": 10,
+    "response": {
+        "finish_reason": "stop",
+        "formula": "((yellow) & (((green)) | (((brown) | (!(purple))) & (X(brown))) | (((!(brown)) & (purple)) & (X(!(brown)))))) | (((!(green)) & (!(yellow))) & ((((brown) | (!(purple))) & (X(!(brown)))) | (((!(brown)) & (purple)) & (X(brown)))))",
+        "raw_output": "((yellow) & (((green)) | (((brown) | (!(purple))) & (X(brown))) | (((!(brown)) & (purple)) & (X(!(brown)))))) | (((!(green)) & (!(yellow))) & ((((brown) | (!(purple))) & (X(!(brown)))) | (((!(brown)) & (purple)) & (X(brown)))))",
+        "usage": {
+            "prompt_tokens": 760,
+            "completion_tokens": 92,
+            "total_tokens": 852,
+            "prompt_tokens_details": {
+                "cached_tokens": 640
+            },
+            "prompt_cache_hit_tokens": 640,
+            "prompt_cache_miss_tokens": 120
+        },
+        "returned_model": "deepseek-v4-pro"
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "repetition": 10,
+    "response": {
+        "finish_reason": "stop",
+        "formula": "(brown & blue) | (!(green) | !(purple) | F(!(green) | !(purple)))",
+        "raw_output": "(brown & blue) | (!(green) | !(purple) | F(!(green) | !(purple)))",
+        "usage": {
+            "prompt_tokens": 642,
+            "completion_tokens": 28,
+            "total_tokens": 670,
+            "prompt_tokens_details": {
+                "cached_tokens": 640
+            },
+            "prompt_cache_hit_tokens": 640,
+            "prompt_cache_miss_tokens": 2
+        },
+        "returned_model": "deepseek-v4-pro"
+    }
+}

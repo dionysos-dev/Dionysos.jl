@@ -1,0 +1,85 @@
+{
+    "analysis_identity": {
+        "schema_version": 1,
+        "temperature": 0.7,
+        "source_directory": "/Users/abayat/Documents/PhD/Code/CoCo-NL-to-LTL/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "987a044a34b267637a811cd54ccdb6a70a6d643b3df54956311ac60ea67383ce",
+    "prompt_index": 4,
+    "record_id": 1230,
+    "input_field": "paraphrase_deepseek_gpt54mini_rewritten",
+    "reference_ltl": "((F((yellow & green)) | (blue & F(X(blue)))) -> brown)",
+    "samples": 10,
+    "valid_samples": 10,
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "((yellow & green) | (blue & F(blue))) -> brown",
+            "frequency": 9,
+            "sample_indices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                8,
+                9,
+                10
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 2,
+            "representative": "G(((yellow & green) | (blue & F(blue))) -> brown)",
+            "frequency": 1,
+            "sample_indices": [
+                7
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(((yellow & green) | (blue & F(blue))) -> brown)",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 2,
+            "phi_k": "(((yellow & green) | (blue & F(blue))) -> brown) & (G(((yellow & green) | (blue & F(blue))) -> brown))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

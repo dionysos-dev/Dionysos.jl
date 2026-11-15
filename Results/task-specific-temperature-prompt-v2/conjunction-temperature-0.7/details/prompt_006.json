@@ -1,0 +1,57 @@
+{
+    "analysis_identity": {
+        "schema_version": 1,
+        "temperature": 0.7,
+        "source_directory": "/Users/abayat/Documents/PhD/Code/CoCo-NL-to-LTL/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "e2edc4cf24c5c8fc1949a8a522c4ddaa243d23bc56a69121c9f52c6a27775a4f",
+    "prompt_index": 6,
+    "record_id": 547,
+    "input_field": "paraphrase_gpt5.4-mini_gpt54mini_rewritten",
+    "reference_ltl": "((!(purple) & F(brown)) | (purple & G(!(brown))))",
+    "samples": 10,
+    "valid_samples": 10,
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "((!(purple)) U (brown)) | ((purple) & G(!(brown)))",
+            "frequency": 10,
+            "sample_indices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(((!(purple)) U (brown)) | ((purple) & G(!(brown))))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

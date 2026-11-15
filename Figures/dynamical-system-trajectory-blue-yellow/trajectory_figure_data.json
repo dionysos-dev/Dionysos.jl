@@ -1,0 +1,53 @@
+{
+  "formula": "F(blue & F(yellow))",
+  "start": [
+    4.800000000000001,
+    5.0,
+    1.5707963267948966
+  ],
+  "end": [
+    2.1591216441406593,
+    3.4870423000124995,
+    -1.9381832365913443
+  ],
+  "visits": {
+    "yellow": {
+      "point_index": 1200,
+      "position": [
+        2.1623542456428364,
+        3.4954417218692777,
+        -1.9381832365913443
+      ]
+    },
+    "blue": {
+      "point_index": 395,
+      "position": [
+        6.006472259824011,
+        7.976317629854849,
+        0.3718904908039789
+      ]
+    }
+  },
+  "controller_certificate": {
+    "reachable_product_states": 47774,
+    "satisfied": true,
+    "has_reachable_nonaccepting_cycle": false,
+    "nonaccepting_product_states": 3926,
+    "transition_violation_count": 0
+  },
+  "infinite_word_accepted_by_spot": true,
+  "trajectory_source": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/paper-trajectory-blue-yellow-buffer005/trajectory.json",
+  "trajectory_sha256": "d41d980b6712747e29f5a63a9a9455d310a620c91cc9975dee4f70fda085a546",
+  "figure_style": {
+    "obstacle_display": "physical bounds with buffer",
+    "obstacle_buffer": 0.05,
+    "legend_location": "inside lower right",
+    "grid_display": "uniform background grid",
+    "font": "Times New Roman",
+    "font_file": "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+    "png_dpi": 1200,
+    "width_inches": 3.9,
+    "height_inches": 3.75
+  },
+  "script_sha256": "c2361fc8920aabd3b988a82b4a19a045c1311d3f78e032dbbe66bd76d34f73d7"
+}

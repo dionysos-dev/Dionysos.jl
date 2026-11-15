@@ -1,0 +1,2930 @@
+{
+    "analysis_identity": {
+        "denominator_policy": "all_prompts",
+        "allowed_propositions": [
+            "prop_1",
+            "prop_2",
+            "prop_3",
+            "prop_4"
+        ],
+        "missing_policy": "saturate",
+        "ranking": "frequency_descending_then_earliest_query",
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "adapter_sha256": "c387a2d27efc0bbde8db9d395447c5c6f0ff170656bf97e13bddea451b32fdd5",
+        "source_sha256": "981e63eb3835a50caa9bffaa661989043d0eaa9f2a54bd7602183cf31371ebc8",
+        "engine_sha256": "b3be393cc4140008837ebdfbcd16e15a5b899aaa5f0e2a9772090abe2d404b0a",
+        "max_k": 10
+    },
+    "source_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-v4-pro-VLTL-T0.7-R10.json",
+    "benchmark": "VLTL",
+    "model": "deepseek-v4-pro",
+    "temperature": 0.7,
+    "repetitions": 10,
+    "prompt_count": 42,
+    "samples": 420,
+    "prompt_results": [
+        {
+            "prompt_index": 1,
+            "record_id": 1,
+            "input_field": "NL",
+            "source_text": "Every prop_1 is eventually followed by prop_2.",
+            "reference_ltl": "G (prop_1 -> F prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(prop_1 -> F(prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(prop_1 -> F(prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 2,
+            "record_id": 2,
+            "input_field": "NL",
+            "source_text": "It is never the case that prop_1 and prop_2 hold at the same time.",
+            "reference_ltl": "G(!(prop_1 & prop_2))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(!((prop_1) & (prop_2)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(!((prop_1) & (prop_2))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 3,
+            "record_id": 3,
+            "input_field": "NL",
+            "source_text": "Whenever prop_1 is enabled, prop_2 is enabled three steps later.",
+            "reference_ltl": "G(prop_1 -> X (X (X prop_2)))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> X(X(X(prop_2))))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> X(X(X(prop_2)))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 4,
+            "record_id": 4,
+            "input_field": "NL",
+            "source_text": "prop_1 must hold everywhere until from some point on, prop_2 holds infinitely often.",
+            "reference_ltl": "prop_1 U (G (F prop_2))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "(prop_1) U (G(F(prop_2)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "((prop_1) U (G(F(prop_2))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 5,
+            "record_id": 5,
+            "input_field": "NL",
+            "source_text": "If prop_1 holds at some point, prop_2 has to hold somewhere beforehand.",
+            "reference_ltl": "(F prop_1) -> (!prop_1 U (prop_2 & !prop_1))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 3,
+                    "representative": "F((prop_2) & F(prop_1))",
+                    "frequency": 5,
+                    "sample_indices": [
+                        4,
+                        5,
+                        6,
+                        7,
+                        8
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 2,
+                    "representative": "(F(prop_1)) -> (F(prop_2))",
+                    "frequency": 3,
+                    "sample_indices": [
+                        3,
+                        9,
+                        10
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 1,
+                    "representative": "F(prop_2) & (F(prop_1) -> (!(prop_1) U (prop_2)))",
+                    "frequency": 2,
+                    "sample_indices": [
+                        1,
+                        2
+                    ],
+                    "rank": 3,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F((prop_2) & F(prop_1)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(F((prop_2) & F(prop_1))) & ((F(prop_1)) -> (F(prop_2)))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 3,
+                    "phi_k": "(F((prop_2) & F(prop_1))) & ((F(prop_1)) -> (F(prop_2))) & (F(prop_2) & (F(prop_1) -> (!(prop_1) U (prop_2))))",
+                    "cluster_ranks": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 6,
+            "record_id": 6,
+            "input_field": "NL",
+            "source_text": "Whenever prop_1 holds, prop_2 holds as well.",
+            "reference_ltl": "G(prop_1 -> prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 7,
+            "record_id": 7,
+            "input_field": "NL",
+            "source_text": "Both prop_1 and prop_2 hold in every time step.",
+            "reference_ltl": "G (prop_1 & prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) & (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) & (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 8,
+            "record_id": 8,
+            "input_field": "NL",
+            "source_text": "prop_1 holds always and whenever prop_2 holds, prop_3 does not hold.",
+            "reference_ltl": "G prop_1 & G(prop_2 -> !prop_3)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) & (prop_2 -> !(prop_3)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) & (prop_2 -> !(prop_3))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 9,
+            "record_id": 9,
+            "input_field": "NL",
+            "source_text": "If it is the case that every prop_1 is eventually followed by a prop_2, then prop_3 needs to holds infinitely often.",
+            "reference_ltl": "G(prop_1 -> F prop_2) -> G F prop_3",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(F(prop_1 -> F(prop_2))) -> G(F(prop_3))",
+                    "frequency": 5,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        5,
+                        7
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 2,
+                    "representative": "(G(prop_1 -> F(prop_2))) -> G(F(prop_3))",
+                    "frequency": 4,
+                    "sample_indices": [
+                        4,
+                        6,
+                        9,
+                        10
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                },
+                {
+                    "cluster_id": 3,
+                    "representative": "(F(G((prop_1) -> F(prop_2)))) -> G(F(prop_3))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        8
+                    ],
+                    "rank": 3,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(F(prop_1 -> F(prop_2))) -> G(F(prop_3)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(G(F(prop_1 -> F(prop_2))) -> G(F(prop_3))) & ((G(prop_1 -> F(prop_2))) -> G(F(prop_3)))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 3,
+                    "phi_k": "(G(F(prop_1 -> F(prop_2))) -> G(F(prop_3))) & ((G(prop_1 -> F(prop_2))) -> G(F(prop_3))) & ((F(G((prop_1) -> F(prop_2)))) -> G(F(prop_3)))",
+                    "cluster_ranks": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 10,
+            "record_id": 10,
+            "input_field": "NL",
+            "source_text": "If prop_1 holds infinitely often, then prop_2 holds infinitely often as well.",
+            "reference_ltl": "G F prop_1 -> G F prop_2",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(F(prop_1)) -> G(F(prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(F(prop_1)) -> G(F(prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 11,
+            "record_id": 11,
+            "input_field": "NL",
+            "source_text": "Either prop_1 or prop_2 holds infinitely often.",
+            "reference_ltl": "G F prop_1 | G F prop_2",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "(GF(prop_1)) | (GF(prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "((GF(prop_1)) | (GF(prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 12,
+            "record_id": 12,
+            "input_field": "NL",
+            "source_text": "prop_1 never holds from some point in time on.",
+            "reference_ltl": "F G ! prop_1",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "F(G(!(prop_1)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F(G(!(prop_1))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 13,
+            "record_id": 13,
+            "input_field": "NL",
+            "source_text": "Whenever prop_1 and prop_2 do not hold, prop_3 holds eventually.",
+            "reference_ltl": "G (!(prop_1 & prop_2) -> F prop_3)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((!(prop_1) & !(prop_2)) -> F(prop_3))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((!(prop_1) & !(prop_2)) -> F(prop_3)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 14,
+            "record_id": 14,
+            "input_field": "NL",
+            "source_text": "prop_1 and prop_2 never occur at the same time but one of them holds in every time step.",
+            "reference_ltl": "G(!(prop_1 & prop_2)) & G(prop_1 | prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((!(prop_1 & prop_2)) & (prop_1 | prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((!(prop_1 & prop_2)) & (prop_1 | prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 15,
+            "record_id": 15,
+            "input_field": "NL",
+            "source_text": "Whenever the inputs prop_1 and prop_2 are the same, the outputs prop_3 and prop_4 are the same.",
+            "reference_ltl": "G ((prop_1 <-> prop_2) -> (prop_3 <-> prop_4))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(((prop_1) <-> (prop_2)) -> ((prop_3) <-> (prop_4)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(((prop_1) <-> (prop_2)) -> ((prop_3) <-> (prop_4))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 16,
+            "record_id": 16,
+            "input_field": "NL",
+            "source_text": "prop_1 can only happen if prop_2 happend before",
+            "reference_ltl": "(! prop_1) U prop_2",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(!(prop_1) | (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(!(prop_1) | (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 17,
+            "record_id": 17,
+            "input_field": "NL",
+            "source_text": "Once prop_1 happened, prop_2 won't happen again.",
+            "reference_ltl": "G (prop_1 -> X G ! prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> G(!(prop_2)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> G(!(prop_2))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                }
+            ]
+        },
+        {
+            "prompt_index": 18,
+            "record_id": 18,
+            "input_field": "NL",
+            "source_text": "prop_1 releases prop_2",
+            "reference_ltl": "(prop_2 U (prop_2 & ! prop_1)) | G prop_2",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "(prop_2) R (prop_1)",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "((prop_2) R (prop_1))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 19,
+            "record_id": 19,
+            "input_field": "NL",
+            "source_text": "prop_1 and prop_2 won't occur at the same time",
+            "reference_ltl": "G !(prop_1 & prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(!((prop_1) & (prop_2)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(!((prop_1) & (prop_2))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 20,
+            "record_id": 20,
+            "input_field": "NL",
+            "source_text": "Whenever prop_1 holds and prop_2 holds in the next step, then prop_3 holds one step after prop_2.",
+            "reference_ltl": "G (prop_1 & X prop_2 -> X X prop_3)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 2,
+                    "representative": "G((prop_1 & X(prop_2)) -> X(prop_3))",
+                    "frequency": 7,
+                    "sample_indices": [
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1 & X(prop_2)) -> X(X(prop_3)))",
+                    "frequency": 3,
+                    "sample_indices": [
+                        1,
+                        9,
+                        10
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1 & X(prop_2)) -> X(prop_3)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(G((prop_1 & X(prop_2)) -> X(prop_3))) & (G((prop_1 & X(prop_2)) -> X(X(prop_3))))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": true,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 21,
+            "record_id": 21,
+            "input_field": "NL",
+            "source_text": "Whenever prop_1 holds, prop_2 holds eventually from the next step on.",
+            "reference_ltl": "G (prop_1 -> X F prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> X(F(prop_2)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> X(F(prop_2))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 22,
+            "record_id": 22,
+            "input_field": "NL",
+            "source_text": "prop_1 holds in every fifth step.",
+            "reference_ltl": "prop_1 & G (prop_1 -> X ! prop_1 & X X ! prop_1 & X X X ! prop_1 & X X X X ! prop_1 & X X X X X prop_1)",
+            "samples": 10,
+            "satisfiable_samples": 5,
+            "excluded_candidates": [
+                {
+                    "repetition": 1,
+                    "reason": "unsatisfiable",
+                    "candidate_formula": "G((((((X(prop_1) & !prop_1) & X(X(!prop_1))) & X(X(X(!prop_1)))) & X(X(X(X(!prop_1))))) & X(X(X(X(X(prop_1)))))))"
+                },
+                {
+                    "repetition": 2,
+                    "reason": "unsatisfiable",
+                    "candidate_formula": "G((prop_1) & X(!(prop_1)) & X(X(!(prop_1))) & X(X(X(!(prop_1)))) & X(X(X(X(prop_1)))))"
+                },
+                {
+                    "repetition": 6,
+                    "reason": "unsatisfiable",
+                    "candidate_formula": "G((!(prop_1) & X(!(prop_1) & X(!(prop_1) & X(!(prop_1) & X(prop_1))))) | (prop_1 & X(!(prop_1) & X(!(prop_1) & X(!(prop_1) & X(!(prop_1)))))))"
+                },
+                {
+                    "repetition": 7,
+                    "reason": "unsatisfiable",
+                    "candidate_formula": "G((prop_1) & X(!(prop_1)) & X(X(!(prop_1))) & X(X(X(!(prop_1)))) & X(X(X(X(prop_1)))))"
+                },
+                {
+                    "repetition": 8,
+                    "reason": "unsatisfiable",
+                    "candidate_formula": "G((!(prop_1) & X(!(prop_1) & X(!(prop_1) & X(!(prop_1) & X(prop_1))))))"
+                }
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(prop_1)",
+                    "frequency": 2,
+                    "sample_indices": [
+                        3,
+                        9
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 2,
+                    "representative": "G((prop_1) | X(!(prop_1)))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        4
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 3,
+                    "representative": "G(prop_1 <-> X(X(X(X(X(prop_1))))))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        5
+                    ],
+                    "rank": 3,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 4,
+                    "representative": "G((prop_1) <-> (X(X(X(X(prop_1))))))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        10
+                    ],
+                    "rank": 4,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(prop_1))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(G(prop_1)) & (G((prop_1) | X(!(prop_1))))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 3,
+                    "phi_k": "(G(prop_1)) & (G((prop_1) | X(!(prop_1)))) & (G(prop_1 <-> X(X(X(X(X(prop_1)))))))",
+                    "cluster_ranks": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 4,
+                    "phi_k": "(G(prop_1)) & (G((prop_1) | X(!(prop_1)))) & (G(prop_1 <-> X(X(X(X(X(prop_1))))))) & (G((prop_1) <-> (X(X(X(X(prop_1)))))))",
+                    "cluster_ranks": [
+                        1,
+                        2,
+                        3,
+                        4
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 23,
+            "record_id": 23,
+            "input_field": "NL",
+            "source_text": "Either prop_1 holds infinitely often or prop_2 holds in the next step.",
+            "reference_ltl": "G F prop_1 | X prop_2",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "(GF(prop_1)) | X(prop_2)",
+                    "frequency": 6,
+                    "sample_indices": [
+                        1,
+                        4,
+                        5,
+                        6,
+                        8,
+                        9
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                },
+                {
+                    "cluster_id": 2,
+                    "representative": "(F(G(prop_1)) | X(prop_2))",
+                    "frequency": 4,
+                    "sample_indices": [
+                        2,
+                        3,
+                        7,
+                        10
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "((GF(prop_1)) | X(prop_2))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 2,
+                    "phi_k": "((GF(prop_1)) | X(prop_2)) & ((F(G(prop_1)) | X(prop_2)))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 24,
+            "record_id": 24,
+            "input_field": "NL",
+            "source_text": "prop_1 will hold at all instances.",
+            "reference_ltl": "G (prop_1)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(prop_1)",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(prop_1))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 25,
+            "record_id": 25,
+            "input_field": "NL",
+            "source_text": "Whenever prop_1 holds, prop_2 must hold in the next two steps",
+            "reference_ltl": "G (prop_1 -> (prop_2 | X prop_2))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> (X(prop_2) & X(X(prop_2))))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> (X(prop_2) & X(X(prop_2)))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                }
+            ]
+        },
+        {
+            "prompt_index": 26,
+            "record_id": 26,
+            "input_field": "NL",
+            "source_text": "One of the following aps will hold at all instances: prop_1,prop_2,prop_3.",
+            "reference_ltl": "G (prop_1 | prop_2 | prop_3)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) | (prop_2) | (prop_3))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) | (prop_2) | (prop_3)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 27,
+            "record_id": 27,
+            "input_field": "NL",
+            "source_text": "If prop_1 holds prop_2 will eventually hold.",
+            "reference_ltl": "G (prop_1 -> F prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> F(prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> F(prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 28,
+            "record_id": 28,
+            "input_field": "NL",
+            "source_text": "prop_1 must always hold, but if is execeeds, it allow two timestamps to recover.",
+            "reference_ltl": "! G (! (prop_1 & X prop_1))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(prop_1)",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(prop_1))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                }
+            ]
+        },
+        {
+            "prompt_index": 29,
+            "record_id": 29,
+            "input_field": "NL",
+            "source_text": "not prop_1 holds at most two timestamps",
+            "reference_ltl": "! G (! (prop_1 & X prop_1))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 2,
+                    "representative": "G(!(prop_1)) | X(G(!(prop_1)))",
+                    "frequency": 8,
+                    "sample_indices": [
+                        2,
+                        3,
+                        4,
+                        5,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 1,
+                    "representative": "G(!(prop_1)) | X(G(!(prop_1))) | X(X(G(!(prop_1))))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        1
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 3,
+                    "representative": "G(!(prop_1)) | (!(prop_1) & X(G(!(prop_1))))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        6
+                    ],
+                    "rank": 3,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(!(prop_1)) | X(G(!(prop_1))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(G(!(prop_1)) | X(G(!(prop_1)))) & (G(!(prop_1)) | X(G(!(prop_1))) | X(X(G(!(prop_1)))))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 3,
+                    "phi_k": "(G(!(prop_1)) | X(G(!(prop_1)))) & (G(!(prop_1)) | X(G(!(prop_1))) | X(X(G(!(prop_1))))) & (G(!(prop_1)) | (!(prop_1) & X(G(!(prop_1)))))",
+                    "cluster_ranks": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 30,
+            "record_id": 30,
+            "input_field": "NL",
+            "source_text": "prop_1 can only hold every three timestamps",
+            "reference_ltl": "G ( prop_1 -> (X !prop_1 | XX !prop_1 | XXX !prop_1))",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> (X(!(prop_1)) & X(X(!(prop_1)))))",
+                    "frequency": 9,
+                    "sample_indices": [
+                        1,
+                        2,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                },
+                {
+                    "cluster_id": 2,
+                    "representative": "G(prop_1 -> (X(!prop_1 & X(!prop_1 & X(prop_1)))))",
+                    "frequency": 1,
+                    "sample_indices": [
+                        3
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> (X(!(prop_1)) & X(X(!(prop_1))))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(G((prop_1) -> (X(!(prop_1)) & X(X(!(prop_1)))))) & (G(prop_1 -> (X(!prop_1 & X(!prop_1 & X(prop_1))))))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                }
+            ]
+        },
+        {
+            "prompt_index": 31,
+            "record_id": 31,
+            "input_field": "NL",
+            "source_text": "Every prop_1 is followed by prop_2.",
+            "reference_ltl": "G ( prop_1 -> X prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(prop_1 -> F(prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "individually_sufficient": false,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(prop_1 -> F(prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": false,
+                    "logical_good": false,
+                    "not_guaranteed": true,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 32,
+            "record_id": 32,
+            "input_field": "NL",
+            "source_text": "Eventually prop_1 and prop_2 hold.",
+            "reference_ltl": "F (prop_1 & prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "F((prop_1) & (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F((prop_1) & (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 33,
+            "record_id": 33,
+            "input_field": "NL",
+            "source_text": "Both prop_1 and prop_2 hold eventually.",
+            "reference_ltl": "F prop_1 & F prop_2",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "F(prop_1) & F(prop_2)",
+                    "frequency": 9,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                },
+                {
+                    "cluster_id": 2,
+                    "representative": "F(prop_1 & prop_2)",
+                    "frequency": 1,
+                    "sample_indices": [
+                        4
+                    ],
+                    "rank": 2,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F(prop_1) & F(prop_2))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                },
+                {
+                    "k": 2,
+                    "phi_k": "(F(prop_1) & F(prop_2)) & (F(prop_1 & prop_2))",
+                    "cluster_ranks": [
+                        1,
+                        2
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 34,
+            "record_id": 34,
+            "input_field": "NL",
+            "source_text": "It is always the case that prop_1 is the same as prop_2 in the next step.",
+            "reference_ltl": "G (prop_1 <-> X prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) <-> X(prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) <-> X(prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 35,
+            "record_id": 35,
+            "input_field": "NL",
+            "source_text": "If prop_1 holds then, in the next step, prop_2 holds until prop_3 holds or always prop_2 holds.",
+            "reference_ltl": "prop_1 -> X ((prop_2 U prop_3) | G prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) -> X(((prop_2) U (prop_3)) | G(prop_2)))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": false
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) -> X(((prop_2) U (prop_3)) | G(prop_2))))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": true
+                }
+            ]
+        },
+        {
+            "prompt_index": 36,
+            "record_id": 36,
+            "input_field": "NL",
+            "source_text": "prop_1 holds until prop_2 holds or always prop_1 holds.",
+            "reference_ltl": "(prop_1 U prop_2) | G prop_1",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "(prop_1) U ((prop_2) | G(prop_1))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "((prop_1) U ((prop_2) | G(prop_1)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 37,
+            "record_id": 37,
+            "input_field": "NL",
+            "source_text": "eventually, avoid prop_1",
+            "reference_ltl": "F(!prop_1)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "F(!(prop_1))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F(!(prop_1)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 38,
+            "record_id": 38,
+            "input_field": "NL",
+            "source_text": "prop_1 must never occur",
+            "reference_ltl": "G !prop_1",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G(!(prop_1))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G(!(prop_1)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 39,
+            "record_id": 39,
+            "input_field": "NL",
+            "source_text": "at the next time step, prop_1 holds",
+            "reference_ltl": "X prop_1",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "X(prop_1)",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(X(prop_1))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 40,
+            "record_id": 40,
+            "input_field": "NL",
+            "source_text": "At some point, prop_1 and prop_2 will both hold at the same time.",
+            "reference_ltl": "F (prop_1 & prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "F((prop_1) & (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F((prop_1) & (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 41,
+            "record_id": 41,
+            "input_field": "NL",
+            "source_text": "At all time steps, prop_1 and prop_2 both hold.",
+            "reference_ltl": "G (prop_1 & prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "G((prop_1) & (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(G((prop_1) & (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        },
+        {
+            "prompt_index": 42,
+            "record_id": 42,
+            "input_field": "NL",
+            "source_text": "either prop_1 or prop_2 will hold at some point in time.",
+            "reference_ltl": "F (prop_1 | prop_2)",
+            "samples": 10,
+            "satisfiable_samples": 10,
+            "excluded_candidates": [
+            ],
+            "ranked_clusters": [
+                {
+                    "cluster_id": 1,
+                    "representative": "F((prop_1) | (prop_2))",
+                    "frequency": 10,
+                    "sample_indices": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ],
+                    "rank": 1,
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "individually_sufficient": true,
+                    "equivalent_to_reference": true
+                }
+            ],
+            "conjunctions": [
+                {
+                    "k": 1,
+                    "phi_k": "(F((prop_1) | (prop_2)))",
+                    "cluster_ranks": [
+                        1
+                    ],
+                    "satisfiable": true,
+                    "implies_reference": true,
+                    "logical_good": true,
+                    "not_guaranteed": false,
+                    "unsatisfiable": false,
+                    "semantic_rescue_no_individual_sufficient": false,
+                    "semantic_rescue_top_not_sufficient": false,
+                    "semantic_rescue_no_individual_equivalent": false
+                }
+            ]
+        }
+    ],
+    "complete": true,
+    "summary": [
+        {
+            "k": 1,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 34,
+                "logical_good": 34,
+                "not_guaranteed": 8,
+                "unsatisfiable": 0,
+                "semantic_rescue": 6,
+                "top1_rescue": 0,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8095238095238095,
+                "logical_good": 0.8095238095238095,
+                "not_guaranteed": 0.19047619047619047,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.14285714285714285,
+                "top1_rescue": 0,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 42,
+            "prompts_with_at_least_k_clusters": 42
+        },
+        {
+            "k": 2,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 50,
+            "prompts_with_at_least_k_clusters": 8
+        },
+        {
+            "k": 3,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 54,
+            "prompts_with_at_least_k_clusters": 4
+        },
+        {
+            "k": 4,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 1
+        },
+        {
+            "k": 5,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 0
+        },
+        {
+            "k": 6,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 0
+        },
+        {
+            "k": 7,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 0
+        },
+        {
+            "k": 8,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 0
+        },
+        {
+            "k": 9,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 0
+        },
+        {
+            "k": 10,
+            "eligible_prompts": 42,
+            "total_prompts": 42,
+            "counts": {
+                "satisfiable": 42,
+                "implies_reference": 35,
+                "logical_good": 35,
+                "not_guaranteed": 7,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 1,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.8333333333333334,
+                "logical_good": 0.8333333333333334,
+                "not_guaranteed": 0.16666666666666666,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.11904761904761904,
+                "top1_rescue": 0.023809523809523808,
+                "synergistic_rescue": 0,
+                "abstain": 0
+            },
+            "denominator_policy": "all_prompts",
+            "available_candidates": 415,
+            "available_semantic_clusters": 55,
+            "included_representatives": 55,
+            "prompts_with_at_least_k_clusters": 0
+        }
+    ],
+    "exclusion_counts": {
+        "disallowed_propositions": 0,
+        "invalid_ltl": 0,
+        "unsatisfiable": 5
+    },
+    "completed_prompts": 42
+}

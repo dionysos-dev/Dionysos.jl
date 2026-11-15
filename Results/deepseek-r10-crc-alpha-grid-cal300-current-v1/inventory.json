@@ -1,0 +1,10 @@
+{
+  "prompts": 4736,
+  "calibration_prompts": 1256,
+  "test_prompts": 3480,
+  "distinct_normalized_conjunctions": 6848,
+  "existing_normalized_decisions": 1720,
+  "new_api_calls": 0,
+  "calibration_k1_missing_distinct_formulas": 226,
+  "test_k1_missing_distinct_formulas": 652
+}

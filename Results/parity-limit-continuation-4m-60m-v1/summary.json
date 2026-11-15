@@ -1,0 +1,41 @@
+{
+  "complete": true,
+  "new_api_calls": 0,
+  "algorithm_change": false,
+  "pilot_cases_reused": 6,
+  "new_cases_total": 159,
+  "new_cases_completed": 159,
+  "new_case_outcomes": {
+    "controller_issued": 67,
+    "plant_unrealizable": 4,
+    "computational_failure": 88
+  },
+  "known_results": {
+    "semantic_classes": 1126,
+    "benchmark_records": 1184,
+    "class_counts": {
+      "controller_issued": 992,
+      "computational_failure": 96,
+      "plant_unrealizable": 38
+    },
+    "record_counts": {
+      "controller_issued": 1049,
+      "computational_failure": 97,
+      "plant_unrealizable": 38
+    },
+    "class_rates": {
+      "controller_issued": 0.8809946714031972,
+      "computational_failure": 0.0852575488454707,
+      "plant_unrealizable": 0.03374777975133215
+    },
+    "record_rates": {
+      "controller_issued": 0.8859797297297297,
+      "computational_failure": 0.08192567567567567,
+      "plant_unrealizable": 0.03209459459459459
+    }
+  },
+  "cooldown_seconds": 60,
+  "failure_reasons": {
+    "node_limit": 88
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "pid": 74467,
+  "command": [
+    "python3",
+    "ParityContinuation/run.py",
+    "--root",
+    "."
+  ],
+  "working_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1",
+  "log_file": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/run.log",
+  "started_at_utc": "2026-11-05T12:35:05.873956+00:00",
+  "new_cases": 159,
+  "pilot_cases_reused": 6,
+  "workers": 1,
+  "max_nodes": 4000000,
+  "max_edges": 60000000,
+  "timeout_seconds": 600,
+  "process_group_rss_guard_gib": 3,
+  "system_memory_free_floor_percent": 15,
+  "cooldown_seconds": 60,
+  "long_break_seconds": 300,
+  "long_break_after_processing_seconds": 1800,
+  "temperature_measured": false,
+  "resumed_at_utc": "2026-11-05T13:21:52.324930+00:00",
+  "completed_case_checkpoints_preserved": 22
+}

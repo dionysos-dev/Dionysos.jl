@@ -1,0 +1,8 @@
+{
+  "stage": "independent_parity_verification",
+  "case_index": 1,
+  "completed_cases": 0,
+  "total_cases": 159,
+  "formula": "!blue | FG!green",
+  "synthesis_process_active": true
+}

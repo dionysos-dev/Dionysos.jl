@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-11-12T01:27:11.931603+00:00",
+  "frozen_config_sha256": "3fccccb6ac66c3e9e722934aa7b16814e39703d1b0e4e0b300dffd825529d214",
+  "launcher_sha256": "f574ad48942343b6b2e40e391030e950542a8b8c55759b1dabc9804f6b4a7f9c",
+  "frozen_cooldown_seconds": 60,
+  "effective_cooldown_seconds": 30.0,
+  "long_rest_seconds": 300,
+  "long_rest_after_active_seconds": 1800
+}

@@ -1,0 +1,13 @@
+{
+  "test_prompts": 3480,
+  "test_classes": 826,
+  "reuse_counts": {
+    "normalized_formula": 3090,
+    "baseline_checkpoint": 87,
+    "reference_equivalence": 12,
+    "spot_r3_equivalence": 90
+  },
+  "invalid_or_unsatisfiable": 54,
+  "pending_prompts": 147,
+  "missing_distinct_formulas": 147
+}

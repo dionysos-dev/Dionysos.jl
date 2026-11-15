@@ -16,37 +16,34 @@ This model approximates system behavior by propagating the linearized dynamics a
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> LazySets.Hyperrectangle`
+    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
 It evaluates the system at the center, adds linearized spread based on Jacobian, and inflates with the error bound.
 """
-struct DiscreteTimeLinearized{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, FL, FE} <:
-       DiscreteTimeSystemOverApproximation
-    system::S
-    linsys_map::FL
-    error_map::FE
+struct DiscreteTimeLinearized <: DiscreteTimeSystemOverApproximation
+    system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
+    linsys_map::Function
+    error_map::Function
 end
 
 get_system(approx::DiscreteTimeLinearized) = approx.system
 
-function input_cache(approx::DiscreteTimeLinearized, r, u)
-    N = length(r)
-    e = LA.norm(r, Inf)
-    Fe = approx.error_map(e, u)
-    _H_ = SMatrix{N, N}(LA.I) .* r
-    _ONE_ = ones(SVector{N})
-    return (Fe = Fe, H = _H_, ONE = _ONE_)
-end
-
-function reach_set(approx::DiscreteTimeLinearized, elem, u, cache)
-    Fx, DFx = approx.linsys_map(LazySets.center(elem), cache.H, u)
-    rad = abs.(DFx) * cache.ONE .+ cache.Fe
-    return LazySets.Hyperrectangle(Fx, rad)
-end
-
 function get_over_approximation_map(approx::DiscreteTimeLinearized)
-    return (elem, u) -> begin
-        r = LazySets.radius_hyperrectangle(elem)
-        return reach_set(approx, elem, u, input_cache(approx, r, u))
+    return (rect::UT.HyperRectangle, u) -> begin
+        x = UT.get_center(rect)
+        r = UT.get_r(rect)
+        e = norm(r, Inf)
+        N = UT.get_dims(rect)
+
+        _H_ = SMatrix{N, N}(I) .* r
+        _ONE_ = ones(SVector{N})
+
+        Fe = approx.error_map(e, u)
+        Fr = r .+ Fe
+
+        Fx, DFx = approx.linsys_map(x, _H_, u)
+
+        rad = abs.(DFx) * _ONE_ .+ Fe
+        return UT.HyperRectangle(Fx - rad, Fx + rad)
     end
 end
 
@@ -64,49 +61,57 @@ The method propagates both the nominal trajectory and its linearized sensitivity
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::LazySets.AbstractHyperrectangle, u::SVector, tstep::Real) -> LazySets.Hyperrectangle`
+    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
 The result is a conservative reachable set from the center using linearization + second-order error correction.
 """
-struct ContinuousTimeLinearized{
-    S <: MS.ConstrainedBlackBoxControlContinuousSystem,
-    FL,
-    FE,
-} <: ContinuousTimeSystemOverApproximation
-    system::S
-    linsys_map::FL
-    error_map::FE
+struct ContinuousTimeLinearized <: ContinuousTimeSystemOverApproximation
+    system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
+    linsys_map::Function
+    error_map::Function
 end
 
 get_system(approx::ContinuousTimeLinearized) = approx.system
 
 function get_over_approximation_map(approx::ContinuousTimeLinearized)
-    return (rect, u, tstep) -> begin
-        x = LazySets.center(rect)
-        r = LazySets.radius_hyperrectangle(rect)
-        e = LA.norm(r, Inf)
-        N = LazySets.dim(rect)
+    return (rect::UT.HyperRectangle, u, tstep) -> begin
+        x = UT.get_center(rect)
+        r = UT.get_r(rect)
+        e = norm(r, Inf)
+        N = UT.get_dims(rect)
 
-        _H_ = SMatrix{N, N}(LA.I) .* r
+        _H_ = SMatrix{N, N}(I) .* r
         _ONE_ = ones(SVector{N})
 
         Fe = approx.error_map(e, u, tstep)
+        Fr = r .+ Fe
 
         Fx, DFx = approx.linsys_map(x, _H_, u, tstep)
         rad = abs.(DFx) * _ONE_ .+ Fe
-        return LazySets.Hyperrectangle(Fx, rad)
+        return UT.HyperRectangle(Fx - rad, Fx + rad)
     end
 end
 
-function discretize(
-    approx::ContinuousTimeLinearized,
-    tstep::Float64;
-    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
-)
-    discretized_system =
-        discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
+function discretize(approx::ContinuousTimeLinearized, tstep::Float64)
+    discretized_system = discretize_continuous_system(get_system(approx), tstep)
     linsys_map = (x, dx, u) -> approx.linsys_map(x, dx, u, tstep)
     error_map = (r, u) -> approx.error_map(r, u, tstep)
     return DiscreteTimeLinearized(discretized_system, linsys_map, error_map)
+end
+
+function get_DiscreteTimeGrowthBound(approx::DiscreteTimeLinearized)
+    return DiscreteTimeGrowthBound(
+        get_system(approx),
+        approx.linsys_map,
+        error_map.error_map,
+    )
+end
+
+function get_ContinuousTimeGrowthBound(approx::ContinuousTimeLinearized)
+    return ContinuousTimeGrowthBound(
+        get_system(approx),
+        approx.linsys_map,
+        error_map.error_map,
+    )
 end
 
 ## Constructors
@@ -133,69 +138,11 @@ function ContinuousTimeLinearized(
     DF_sys,
     bound_DF,
     bound_DDF;
-    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+    num_substeps = 5,
 )
     linsys_map =
         (x, dx, u, tstep) ->
             RungeKutta4Linearized(system.f, DF_sys, x, dx, u, tstep, num_substeps)
     error_map = (r, u, tstep) -> BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep) * (r^2)
     return ContinuousTimeLinearized(system, linsys_map, error_map)
-end
-
-# ------------------------------------------------------------
-# Perturbed systems
-# ------------------------------------------------------------
-
-# The deviation a disturbance can build up over `tstep` against a Lipschitz-`a` field:
-# decompose the perturbed trajectory as the nominal one from the same start plus η with
-# η̇ = f(x_nom + η, u) − f(x_nom, u) + w and η(0) = 0. The Lipschitz bound gives
-# d‖η‖/dt ≤ a‖η‖ + w̄ exactly — no second-order term is dropped, the bound absorbs it — and
-# Grönwall integrates that to the closed form below. The nominal-vs-linearized error is bounded
-# separately by `BoundSecondOrder` and is untouched by the decomposition, so the two add.
-function BoundPerturbation(a, w̄, tstep)
-    return a ≈ 0.0 ? w̄ * tstep : w̄ * (exp(a * tstep) - 1.0) / a
-end
-
-"""
-    ContinuousTimeLinearized(system::MS.NoisyConstrainedBlackBoxControlContinuousSystem, DF_sys, bound_DF, bound_DDF; noise_bound = nothing, num_substeps = DEFAULT_NUM_SUBSTEPS)
-
-The linearized over-approximation for a perturbed system: the nominal trajectory and
-sensitivity are propagated at the centre of the disturbance set, and the error map gains the
-Grönwall term `w̄∞ (e^{aτ} − 1)/a` for the deviation a disturbance can build up against the
-Lipschitz bound `a = bound_DF(u)`, on top of the second-order term the unperturbed kernel
-already carries.
-
-`noise_bound` follows the growth-bound contract (`_fold_noise`): read off the disturbance set
-in the additive case, required otherwise; only its `∞`-norm enters, matching the kernel's
-scalar error style. `DF_sys` and the two bounds are over the nominal system, which is exact for
-an additive disturbance — the Jacobian does not see `w` — and the caller's obligation beyond it.
-"""
-function ContinuousTimeLinearized(
-    system::MS.NoisyConstrainedBlackBoxControlContinuousSystem,
-    DF_sys,
-    bound_DF,
-    bound_DDF;
-    noise_bound = nothing,
-    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
-)
-    w_c, z = _fold_noise(system, noise_bound)
-    w∞ = LA.norm(z, Inf)
-
-    f = system.f
-    nominal = MS.ConstrainedBlackBoxControlContinuousSystem(
-        (x, u) -> f(x, u, w_c),
-        MS.statedim(system),
-        MS.inputdim(system),
-        MS.stateset(system),
-        MS.inputset(system),
-    )
-
-    linsys_map =
-        (x, dx, u, tstep) ->
-            RungeKutta4Linearized(nominal.f, DF_sys, x, dx, u, tstep, num_substeps)
-    error_map =
-        (r, u, tstep) ->
-            BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep) * (r^2) +
-            BoundPerturbation(bound_DF(u), w∞, tstep)
-    return ContinuousTimeLinearized(nominal, linsys_map, error_map)
 end

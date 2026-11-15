@@ -7,7 +7,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
-const OP = DI.Optim
 
 using JuMP
 using LinearAlgebra
@@ -15,22 +14,21 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using FillArrays, MathematicalSystems, HybridSystems, JuMP
+using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets
 import Polyhedra
-import LazySets
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
 """
-    Optimizer{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    Optimizer{T} <: MOI.AbstractOptimizer
 
 Bemporad Morari solver: Optimal control of hybrid systems via a predictive control scheme using mixed integer quadratic programming (MIQP) online optimization procedures.
 """
-mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
+mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver::Any
     mixed_integer_solver::Any
     indicator::Bool
-    print_level::Int
+    log_level::Int
     modes::Union{Nothing, Vector{Vector{Int}}}
     problem::Union{Nothing, PR.OptimalControlProblem}
     discrete_presolve_status::DiscretePresolveStatus
@@ -73,7 +71,10 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             throw(MOI.UnsupportedAttribute(param, err))
         end
     end
-    return OP.set_field_attribute!(model, param, value)
+    return setproperty!(model, Symbol(param.name), value)
+end
+function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
+    return getproperty(model, Symbol(param.name))
 end
 
 function default_modes(system, q_T, N)
@@ -91,8 +92,6 @@ _name(::AbstractVector{<:HybridSystems.AbstractTransition}) = "trans"
 _base_name(iv::IndicatorVariables) = "δ_$(_name(iv.choices))_$(iv.time)"
 
 _Scalar = Union{JuMP.AbstractJuMPScalar, MOI.AbstractScalarFunction}
-const _ResolvedIndicators = AbstractVector{<:_Scalar}
-const _Indicators = Union{IndicatorVariables, _ResolvedIndicators}
 
 indicator_variables(model, δ::AbstractVector{<:_Scalar}, ::Type) = δ
 _sum(g, T) = reduce(+, g; init = zero(MOI.ScalarAffineFunction{T}))
@@ -149,21 +148,6 @@ add_constraint(model::JuMP.Model, func, set) =
 indicator_constraint(model::JuMP.Model, δ, func, set) =
     @constraint(model, δ => {func in set})
 
-function hybrid_constraints(
-    model,
-    sets::Fill{<:LazySets.AbstractHyperrectangle},
-    x,
-    algo::Optimizer{T},
-    δ,
-) where {T}
-    set = first(sets)
-    for i in eachindex(x)
-        add_constraint(model, one(T) * x[i], MOI.GreaterThan(T(LazySets.low(set, i))))
-        add_constraint(model, one(T) * x[i], MOI.LessThan(T(LazySets.high(set, i))))
-    end
-    return δ
-end
-
 function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimizer, δ)
     set = first(sets)
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(Polyhedra.hrep(set)))
@@ -195,8 +179,7 @@ function hybrid_constraints(
     return δs
 end
 
-struct NoConstraint end
-hybrid_constraints(model, ::AbstractVector{NoConstraint}, x, algo::Optimizer, δ) = δ
+hybrid_constraints(model, ::AbstractVector{FullSpace}, x, algo::Optimizer, δ) = δ
 
 function hybrid_constraints(
     model,
@@ -209,68 +192,6 @@ function hybrid_constraints(
 ) where {T}
     system = first(systems)
     add_constraint.(model, x - system.A * x_prev - system.B * u, MOI.EqualTo(zero(T)))
-    return δ
-end
-
-"""
-    julia_function_to_moi(f, args::AbstractVector...)
-
-Convert a Julia function `f` into a vector of MOI scalar functions by
-exploiting JuMP's operator overloading.
-
-Each element of `args` is a vector that may contain `MOI.VariableIndex`
-(decision variables) or concrete values (e.g., `Float64` for fixed
-parameters). The function works as follows:
-
- 1. A lightweight JuMP model is created.
- 2. Every `MOI.VariableIndex` in `args` is wrapped into a
-    `JuMP.VariableRef`; concrete values are left unchanged.
- 3. `f` is called with the wrapped arguments.  Thanks to Julia's
-    operator overloading the arithmetic inside `f` builds JuMP
-    expression trees (e.g. `NonlinearExpr`, `AffExpr`, …).
- 4. Each element of the result is converted back to an MOI function
-    with `JuMP.moi_function`, yielding `MOI.ScalarNonlinearFunction`,
-    `MOI.ScalarAffineFunction`, etc.
-
-# Example
-
-```julia
-f(x, u) = [x[1]^3 + u[1], x[2] + u[2]]
-x = [MOI.VariableIndex(1), MOI.VariableIndex(2)]
-u = [MOI.VariableIndex(3), MOI.VariableIndex(4)]
-moi_exprs = julia_function_to_moi(f, x, u)
-# moi_exprs is a Vector of MOI.ScalarNonlinearFunction / ScalarAffineFunction
-```
-"""
-function julia_function_to_moi(f, args::AbstractVector...)
-    jump_model = JuMP.Model()
-    _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
-    _to_jump(v) = v
-    jump_args = map(a -> _to_jump.(a), args)
-    return JuMP.moi_function.(f(jump_args...))
-end
-
-function hybrid_constraints(
-    model,
-    systems::Fill{<:BlackBoxControlDiscreteSystem},
-    x_prev,
-    x,
-    u,
-    algo::Optimizer{T},
-    δ,
-) where {T}
-    system = first(systems)
-    moi_exprs = julia_function_to_moi(system.f, x_prev, u)
-    for i in eachindex(moi_exprs)
-        add_constraint(
-            model,
-            MOI.ScalarNonlinearFunction(
-                :-,
-                Any[MOI.VariableIndex(x[i].value), moi_exprs[i]],
-            ),
-            MOI.EqualTo(zero(T)),
-        )
-    end
     return δ
 end
 
@@ -345,7 +266,7 @@ function hybrid_cost(
 end
 function hybrid_cost(
     model,
-    costs::Fill{<:UT.QuadraticFunction},
+    costs::Fill{<:UT.QuadraticControlFunction},
     x,
     u,
     δ,
@@ -353,21 +274,6 @@ function hybrid_cost(
 ) where {T}
     cost = first(costs)
     return u' * cost.Q * u, δ
-end
-# Joint state-input quadratic `x'Qx + u'Ru + 2(x'Nu + x'q + u'r) + v`; the one
-# cost type portable across the abstraction (callable), SDP (`_cost_matrix`) and
-# MIQP (here) solver families.
-function hybrid_cost(
-    model,
-    costs::Fill{<:UT.QuadraticStateControlFunction},
-    x,
-    u,
-    δ,
-    ::Type{T},
-) where {T}
-    c = first(costs)
-    expr = x' * c.Q * x + u' * c.R * u + 2 * (x' * c.N * u + x' * c.q + u' * c.r) + c.v
-    return expr, δ
 end
 function hybrid_cost(
     model,
@@ -381,7 +287,7 @@ function hybrid_cost(
     θ = add_variable(model)
     add_constraint(model, θ, MOI.GreaterThan(cost.lower_bound))
     for piece in cost.pieces
-        add_constraint(model, θ - piece(x), MOI.GreaterThan(zero(T)))
+        add_constraint(model, θ - UT.function_value(piece, x), MOI.GreaterThan(zero(T)))
     end
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(cost.domain))
     return θ, δ
@@ -395,7 +301,7 @@ function transitions_constraints(
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans::_Indicators,
+    δ_trans::IndicatorVariables,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -406,9 +312,9 @@ function transitions_constraints(
     modes_from,
     δ_from::IndicatorVariables,
     modes_to,
-    δ_to::_ResolvedIndicators,
+    δ_to::AbstractVector{<:_Scalar},
     trans,
-    δ_trans::_Indicators,
+    δ_trans::IndicatorVariables,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -417,11 +323,11 @@ function transitions_constraints(
     model,
     system,
     modes_from,
-    δ_from::_ResolvedIndicators,
+    δ_from::AbstractVector{<:_Scalar},
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans::_Indicators,
+    δ_trans::IndicatorVariables,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -430,11 +336,11 @@ function transitions_constraints(
     model,
     system,
     modes_from,
-    δ_from::_ResolvedIndicators,
+    δ_from::AbstractVector{<:_Scalar},
     modes_to,
-    δ_to::_ResolvedIndicators,
+    δ_to::AbstractVector{<:_Scalar},
     trans,
-    δ_trans::_Indicators,
+    δ_trans::IndicatorVariables,
     T::Type,
 )
     for (mode_from, from) in zip(modes_from, δ_from)
@@ -470,7 +376,6 @@ end
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     t_ref = time()
     prob = optimizer.problem
-    PR.check_safe_set_supported(prob, "BemporadMorari")
     if optimizer.modes === nothing
         optimizer.modes = default_modes(prob.system, prob.target_set, prob.time)
     end
@@ -493,7 +398,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     end
     # TODO remove modes that are impossible
     if any(isempty, modes)
-        optimizer.print_level >= 1 && @warn("`modes` is empty for some time step.")
+        optimizer.log_level >= 1 && @warn("`modes` is empty for some time step.")
         optimizer.discrete_presolve_status = NO_MODE
         return
     end
@@ -524,7 +429,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         ) for t in 1:(prob.time)
     ]
     if any(isempty, transs)
-        optimizer.print_level >= 1 && @warn("`transs` is empty for some time step.")
+        optimizer.log_level >= 1 && @warn("`transs` is empty for some time step.")
         optimizer.discrete_presolve_status = NO_TRANSITION
         return
     end
@@ -606,13 +511,13 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     MOIU.reset_optimizer(model, _optimizer)
     MOIU.attach_optimizer(model)
 
-    if optimizer.print_level >= 2
+    if optimizer.log_level >= 2
         print(model)
     end
     MOI.optimize!(model)
 
     if !(MOI.get(model, MOI.TerminationStatus()) in [MOI.OPTIMAL, MOI.INFEASIBLE])
-        if optimizer.print_level >= 1
+        if optimizer.log_level >= 1
             @warn(
                 "BemporadMorari: Termination status: $(MOI.get(model, MOI.TerminationStatus())), raw status: $(MOI.get(model, MOI.RawStatusString()))"
             )
@@ -624,6 +529,14 @@ end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
 function MOI.get(optimizer::Optimizer, ::ST.ContinuousTrajectoryAttribute)
+    #if optimizer.log_level >= 1
+    #    if δ_modes !== nothing
+    #        @show (x -> value.(x)).(δ_modes)
+    #    end
+    #    if δ_transs !== nothing
+    #        @show (x -> value.(x)).(δ_transs)
+    #    end
+    #end
     if optimizer.discrete_presolve_status == TRIVIAL
         return ST.ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
     else
@@ -632,6 +545,10 @@ function MOI.get(optimizer::Optimizer, ::ST.ContinuousTrajectoryAttribute)
             _rows(_value.(optimizer.inner, optimizer.u)),
         )
     end
+end
+
+function MOI.get(optimizer::Optimizer, ::MOI.SolveTimeSec)
+    return optimizer.solve_time_sec
 end
 
 function MOI.get(optimizer::Optimizer, attr::MOI.ObjectiveValue)

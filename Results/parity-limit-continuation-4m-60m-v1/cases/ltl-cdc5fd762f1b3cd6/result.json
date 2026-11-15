@@ -1,0 +1,28 @@
+{
+  "class_id": "ltl-cdc5fd762f1b3cd6",
+  "formula": "FG(blue U green)",
+  "issued": false,
+  "outcome": "plant_unrealizable",
+  "native_execution": {
+    "exit_code": 0,
+    "guard": null,
+    "seconds": 26.60644737491384,
+    "peak_rss_kib": 1250608
+  },
+  "artifact_base_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-cdc5fd762f1b3cd6",
+  "native_statistics": {
+    "winning": false,
+    "verified": false,
+    "game_nodes": 2025784,
+    "game_edges": 24215951,
+    "automaton_states": 6,
+    "priorities": 3,
+    "reachable_product_states": 48604,
+    "winning_product_states": 0,
+    "candidate_initial_state_count": 44643,
+    "winning_initial_state_count": 0
+  },
+  "subreason": "empty_admissible_initial_winning_region",
+  "x_win_size": 0,
+  "elapsed_seconds": 26.607033582869917
+}

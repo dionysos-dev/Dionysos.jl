@@ -1,0 +1,11 @@
+{
+  "selections": {
+    "1/20": "infinity",
+    "1/10": "infinity",
+    "3/20": 3,
+    "1/5": 2,
+    "1/4": 1
+  },
+  "selection_data": "calibration_only",
+  "frozen_config_sha256": "3fccccb6ac66c3e9e722934aa7b16814e39703d1b0e4e0b300dffd825529d214"
+}

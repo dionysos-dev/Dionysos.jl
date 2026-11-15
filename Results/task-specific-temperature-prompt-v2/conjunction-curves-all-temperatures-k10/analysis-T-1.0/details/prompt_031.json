@@ -1,0 +1,130 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 1,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "bcf9ab3daf8bb1ba0e56146dc96621d1fd1228c45ad3cb401659832801ee1d7d",
+    "prompt_index": 31,
+    "record_id": 1299,
+    "input_field": "paraphrase_gemini-2.5-flash_gpt54mini_rewritten",
+    "reference_ltl": "(!((F(green) | ((brown & (purple U (F((blue | yellow)) & green))) U purple))) & X(blue))",
+    "samples": 10,
+    "valid_samples": 9,
+    "satisfiable_samples": 9,
+    "excluded_candidates": [
+        {
+            "repetition": 9,
+            "reason": "invalid_ltl",
+            "candidate_formula": "((!(green)) & (X(blue)) & (!((brown) U ((purple) & ((purple) U ((green) & (F((blue) | (yellow))))))))))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 103"
+        }
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "((!(green) & X(blue)) & !((brown & (purple U (green & (F(blue) | F(yellow))))) U (purple)))",
+            "frequency": 3,
+            "sample_indices": [
+                1,
+                4,
+                6
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 2,
+            "representative": "G(!(green)) & X(blue) & !((brown) U ((purple) & ((purple) U ((green) & (F(blue | yellow))))))",
+            "frequency": 3,
+            "sample_indices": [
+                2,
+                3,
+                10
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 3,
+            "representative": "G(!(green)) & X(blue) & !((brown & (purple U (green & (F(blue) | F(yellow))))) U (purple))",
+            "frequency": 3,
+            "sample_indices": [
+                5,
+                7,
+                8
+            ],
+            "rank": 3,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": true
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(((!(green) & X(blue)) & !((brown & (purple U (green & (F(blue) | F(yellow))))) U (purple))))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 2,
+            "phi_k": "(((!(green) & X(blue)) & !((brown & (purple U (green & (F(blue) | F(yellow))))) U (purple)))) & (G(!(green)) & X(blue) & !((brown) U ((purple) & ((purple) U ((green) & (F(blue | yellow)))))))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": true,
+            "semantic_rescue_top_not_sufficient": true,
+            "semantic_rescue_no_individual_equivalent": true
+        },
+        {
+            "k": 3,
+            "phi_k": "(((!(green) & X(blue)) & !((brown & (purple U (green & (F(blue) | F(yellow))))) U (purple)))) & (G(!(green)) & X(blue) & !((brown) U ((purple) & ((purple) U ((green) & (F(blue | yellow))))))) & (G(!(green)) & X(blue) & !((brown & (purple U (green & (F(blue) | F(yellow))))) U (purple)))",
+            "cluster_ranks": [
+                1,
+                2,
+                3
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": true,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

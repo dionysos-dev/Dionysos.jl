@@ -1,0 +1,14 @@
+{
+  "pid": 60712,
+  "command": [
+    "python3",
+    "CalibrationTable/resume_with_cooldown.py",
+    "--root",
+    ".",
+    "--cooldown",
+    "30"
+  ],
+  "working_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1",
+  "output_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-r10-crc-alpha-grid-cal300-current-v1",
+  "resume_marker": "RESUME 2026-11-12T01:27:05.439422+00:00"
+}

@@ -1,0 +1,19 @@
+{
+    "repetition": 10,
+    "response": {
+        "finish_reason": "stop",
+        "formula": "blue & X((brown & !green) | (!brown & green)) & ((X((brown & !green) | (!brown & green))) U ((yellow -> false) & X((brown & !green) | (!brown & green))))",
+        "raw_output": "blue & X((brown & !green) | (!brown & green)) & ((X((brown & !green) | (!brown & green))) U ((yellow -> false) & X((brown & !green) | (!brown & green))))",
+        "usage": {
+            "prompt_tokens": 657,
+            "completion_tokens": 56,
+            "total_tokens": 713,
+            "prompt_tokens_details": {
+                "cached_tokens": 640
+            },
+            "prompt_cache_hit_tokens": 640,
+            "prompt_cache_miss_tokens": 17
+        },
+        "returned_model": "deepseek-v4-pro"
+    }
+}

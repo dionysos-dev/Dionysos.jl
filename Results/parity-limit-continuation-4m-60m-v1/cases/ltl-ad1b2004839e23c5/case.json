@@ -1,0 +1,14 @@
+{
+  "class_id": "ltl-ad1b2004839e23c5",
+  "formula": "((green | G!blue) U X((green & !purple) | G(!green & Xbrown))) U blue",
+  "source_job_id": "b1143449c7d1763cab201a7fa9cd976afffd1fef00adc7fc2fe07125fe6f2fed",
+  "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b1143449c7d1763cab201a7fa9cd976afffd1fef00adc7fc2fe07125fe6f2fed/specification.hoa",
+  "hoa_sha256": "48d39a943932d84696b20077e4591ae71ba600361031e94039e6ce9a186b3ac1",
+  "automaton_states": 15,
+  "record_ids": [
+    1424
+  ],
+  "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+  "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+  "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+}

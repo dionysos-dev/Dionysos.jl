@@ -1,0 +1,102 @@
+{
+  "workspace": [
+    [
+      0,
+      0
+    ],
+    [
+      10,
+      10
+    ]
+  ],
+  "heading_range": [
+    -3.541592653589793,
+    3.541592653589793
+  ],
+  "obstacles": [
+    [
+      0.5,
+      5.0,
+      2.5,
+      5.5
+    ],
+    [
+      0.5,
+      6.5,
+      2.5,
+      9.0
+    ],
+    [
+      3.5,
+      1.0,
+      4.0,
+      3.0
+    ],
+    [
+      3.5,
+      4.0,
+      4.0,
+      6.0
+    ],
+    [
+      4.0,
+      4.0,
+      6.0,
+      4.5
+    ],
+    [
+      5.5,
+      4.5,
+      6.0,
+      6.0
+    ]
+  ],
+  "proposition_regions": {
+    "blue": [
+      6.0,
+      7.5,
+      9.0,
+      9.5
+    ],
+    "green": [
+      5.0,
+      1.0,
+      7.5,
+      2.5
+    ],
+    "purple": [
+      7.0,
+      3.5,
+      8.5,
+      6.5
+    ],
+    "brown": [
+      4.0,
+      7.0,
+      7.5,
+      8.0
+    ],
+    "yellow": [
+      0.5,
+      1.0,
+      2.5,
+      3.5
+    ]
+  },
+  "obstacle_margin": 0.12,
+  "projection": "planar x_1,x_2 projection of the three-dimensional vehicle state",
+  "source_sha256": {
+    "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/System_helper.jl": "bd5faf3f3e95ebc1836779c1ce8f8fbad0bdca9ff5f39d3e0b0089c4f021dbee",
+    "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/DevelopmentABCD/worker.jl": "0a9991ad5460435262eddcbeca0fe2a83aa3ab767c295b4c1c5b9aaf9d875bdc",
+    "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/frozen-development.json": "a5c0d3e3f18cfdd471e7e2222a7f04af14e5cdf96d935ebb11287dcea9fe539f"
+  },
+  "figure_style": {
+    "width_inches": 3.7,
+    "height_inches": 4.05,
+    "png_dpi": 1200,
+    "font_family": "Times New Roman",
+    "font_file": "/System/Library/Fonts/Supplemental/Times New Roman.ttf"
+  },
+  "script_sha256": "ef66983aa7a9b72836880b5af72ef2d8ba4c68bd19d0ece4bc979a3d75830aad",
+  "matplotlib_version": "3.11.2"
+}

@@ -1,36 +1,27 @@
-"""
-    NodeT{S, A}
-
-A node of a [`Tree`](@ref): a `state` of type `S`, the `action` of type `A` that reached it
-from its parent (`nothing` for the root), and the cost bookkeeping used by RRT/RRT\\*.
-
-`A` defaults to `Any` (the action type is generally only known lazily while the tree grows);
-instantiate `Tree{S, A}` with a concrete `A` when the action type is known up front.
-"""
-mutable struct NodeT{S, A}
+"
+cost: cost to reach its parent
+"
+mutable struct NodeT{S}
     state::S
-    parent::Union{Nothing, NodeT{S, A}}
-    action::A
+    parent::Union{Nothing, NodeT{S}}
+    action::Any
     cost::Float64
     path_cost::Float64
     depth::Int
-    children::Vector{NodeT{S, A}}
+    children::Vector{NodeT{S}}
 end
 
-function NodeT{S, A}(
-    state;
+function NodeT(
+    state::S;
     parent = nothing,
     action = nothing,
     cost = 0.0,
     path_cost = 0.0,
-    children = NodeT{S, A}[],
-) where {S, A}
+    children = NodeT{S}[],
+) where {S}
     depth = parent !== nothing ? parent.depth + 1 : 0
-    return NodeT{S, A}(state, parent, action, cost, path_cost, depth, children)
+    return NodeT(state, parent, action, cost, path_cost, depth, children)
 end
-
-# Convenience constructor: infer the state type, default the action type to `Any`.
-NodeT(state::S; kwargs...) where {S} = NodeT{S, Any}(state; kwargs...)
 
 get_state(node::NodeT) = node.state
 get_parent(node::NodeT) = node.parent
@@ -38,37 +29,37 @@ get_action(node::NodeT) = node.action
 get_cost(node::NodeT) = node.cost
 get_path_cost(node::NodeT) = node.path_cost
 
-"""
-    Tree{S, A}
-
-A rooted tree of [`NodeT`](@ref)`{S, A}` nodes, tracking its leaves and node count. Built
-incrementally by [`add_node!`](@ref); the search backbone of the RRT-based abstractions.
-"""
-mutable struct Tree{S, A}
-    root::NodeT{S, A}
-    leaves::Vector{NodeT{S, A}}
-    n_nodes::Int
+"
+Tree structure with
+- cost for transitions (the cost function a non-negative function);
+- an underlying metric between the states that are encapsulated in the nodes of the tree
+"
+mutable struct Tree
+    root::NodeT
+    leaves::Vector{NodeT}
+    nNodes::Int
 end
 
-function Tree(state::S) where {S}
-    root = NodeT{S, Any}(state)
-    return Tree{S, Any}(root, NodeT{S, Any}[root], 1)
+function Tree(state)
+    root = NodeT(state)
+    leaves = [root]
+    return Tree(root, leaves, 1)
 end
 
-function get_n_leaves(tree::Tree)
+function get_nLeaves(tree::Tree)
     return length(tree.leaves)
 end
 
-function get_n_nodes(tree::Tree)
-    return tree.n_nodes
+function get_nNodes(tree::Tree)
+    return tree.nNodes
 end
 
-function is_leaf(node::NodeT)
+function is_leave(node::NodeT)
     return length(node.children) == 0
 end
 
 function add_child!(tree::Tree, parent::NodeT, child::NodeT)
-    if is_leaf(parent)
+    if is_leave(parent)
         setdiff!(tree.leaves, [parent])
     end
     return push!(parent.children, child)
@@ -76,38 +67,30 @@ end
 
 function delete_child!(tree::Tree, parent::NodeT, child::NodeT)
     setdiff!(parent.children, [child])
-    if is_leaf(parent)
+    if is_leave(parent)
         push!(tree.leaves, parent)
     end
 end
 
-"""
-    add_node!(tree, state, parent, action, cost; path_cost = parent.path_cost + cost)
-
-Create a node for `state`, attach it to `parent` with the `action` and edge `cost` that
-reached it, and register it as a leaf of `tree`. Returns the new node.
-"""
+"add a node as a leave"
 function add_node!(
-    tree::Tree{S, A},
+    tree::Tree,
     state,
     parent,
     action,
     cost;
     path_cost = parent.path_cost + cost,
-) where {S, A}
-    new_node = NodeT{S, A}(
-        state;
-        parent = parent,
-        action = action,
-        cost = cost,
-        path_cost = path_cost,
-    )
-    add_child!(tree, parent, new_node)
-    push!(tree.leaves, new_node)
-    tree.n_nodes = tree.n_nodes + 1
-    return new_node
+)
+    newNode =
+        NodeT(state; parent = parent, action = action, cost = cost, path_cost = path_cost)
+    add_child!(tree, parent, newNode)
+    push!(tree.leaves, newNode)
+    tree.nNodes = tree.nNodes + 1
+    return newNode
 end
 
+"assuming that the path_cost of a node has changed (and its depth), 
+we should propagate the new cost to its children"
 function propagate_cost_to_leaves(node::NodeT)
     for child in node.children
         child.path_cost = node.path_cost + child.cost
@@ -116,36 +99,37 @@ function propagate_cost_to_leaves(node::NodeT)
     end
 end
 
-# change the parent of the node to new_parent
-function rewire(tree::Tree, node::NodeT, new_parent::NodeT, action, cost::Float64)
+# change the parent of the node to newParent
+function rewire(tree::Tree, node::NodeT, newParent::NodeT, action, cost::Float64)
     delete_child!(tree, node.parent, node)
-    add_child!(tree, new_parent, node)
-    node.parent = new_parent
+    add_child!(tree, newParent, node)
+    node.parent = newParent
     node.action = action
     node.cost = cost
-    node.path_cost = cost + new_parent.path_cost
-    node.depth = new_parent.depth + 1
+    node.path_cost = cost + newParent.path_cost
+    node.depth = newParent.depth + 1
     return propagate_cost_to_leaves(node)
 end
 
-function collect_children!(node::NodeT, node_accumulator)
+function collect_children!(node::NodeT, nodeAccumulator)
     for child in node.children
-        push!(node_accumulator, child)
-        collect_children!(child, node_accumulator)
+        push!(nodeAccumulator, child)
+        collect_children!(child, nodeAccumulator)
     end
 end
 
-function collect_children(node::NodeT{S, A}) where {S, A}
-    all_nodes = NodeT{S, A}[]
-    collect_children!(node, all_nodes)
-    return all_nodes
+"Return a list with all the children of node"
+function collect_children(node::NodeT)
+    allNodes = []
+    collect_children!(node, allNodes)
+    return allNodes
 end
 
 # Return a list with node and all its children
-function collect_nodes(node::NodeT{S, A}) where {S, A}
-    all_nodes = collect_children(node)
-    push!(all_nodes, node)
-    return all_nodes
+function collect_nodes(node::NodeT)
+    allNodes = collect_children(node)
+    push!(allNodes, node)
+    return allNodes
 end
 
 # Return a list with all the children of node
@@ -153,27 +137,28 @@ function collect_nodes(tree::Tree)
     return collect_nodes(tree.root)
 end
 
-function get_nodes(tree::Tree{S, A}, state, compare) where {S, A}
-    function explore!(node, node_accumulator)
+function get_nodes(tree::Tree, state, compare)
+    function explore!(node, nodeAccumulator)
         if node !== nothing && compare(node.state, state)
-            push!(node_accumulator, node)
+            push!(nodeAccumulator, node)
         end
         for child in node.children
-            explore!(child, node_accumulator)
+            explore!(child, nodeAccumulator)
         end
     end
-    nodes = NodeT{S, A}[]
+    nodes = []
     explore!(tree.root, nodes)
     return nodes
 end
 
 function collect_states(tree::Tree)
-    all_nodes = collect_nodes(tree)
-    return [node.state for node in all_nodes]
+    allNodes = collect_nodes(tree)
+    return [node.state for node in allNodes]
 end
 
-function path(node::NodeT{S, A}) where {S, A}
-    x, result = node, NodeT{S, A}[node]
+"Create a list of nodes from the root to this node."
+function path(node::NodeT)
+    x, result = node, [node]
     while x.parent !== nothing
         push!(result, x.parent)
         x = x.parent
@@ -181,6 +166,7 @@ function path(node::NodeT{S, A}) where {S, A}
     return reverse!(result)
 end
 
+"return the path from node to the root of the tree"
 function get_path(node::NodeT)
     return reverse!(path(node))
 end
@@ -190,125 +176,118 @@ function compare(node::NodeT)
 end
 
 # assuming a positive cost function
-function get_max_node(tree::Tree)
-    sorted_leaves = sort(tree.leaves; by = compare, rev = true)
-    return sorted_leaves[1]
+function get_max_Node(tree::Tree)
+    sortedLeaves = sort(tree.leaves; by = compare, rev = true)
+    return sortedLeaves[1]
 end
 
 function get_max_path_cost(tree::Tree)
-    return get_max_node(tree).path_cost
+    return get_max_Node(tree).path_cost
 end
 
-function get_min_node(tree::Tree)
+function get_min_Node(tree::Tree)
     return tree.root
 end
 
 function get_min_path_cost(tree::Tree)
-    return get_min_node(tree).path_cost
+    return get_min_Node(tree).path_cost
 end
 
 ####### tree with underlying distance between states #######
 
-function find_k_min(tab, N)
+function findkmin(tab, N)
     idx = sortperm(tab)
     Nidx = idx[1:min(N, length(tab))]
     return tab[Nidx], Nidx
 end
 
 # when you give a node, you return the k nearest neighbors, except those on the path from the node to the root
-function k_nearest_neighbors(tree::Tree, node::NodeT, distance; k = 1)
-    all_nodes = collect_nodes(tree)
-    node_path = get_path(node)
+function kNearestNeighbors(tree::Tree, node::NodeT, distance; k = 1)
+    allNodes = collect_nodes(tree)
+    path = get_path(node)
 
-    pertinent_nodes = filter(e -> !(e ∈ node_path), all_nodes)
-    dists = map(e -> e === nothing ? Inf : distance(e.state, node.state), pertinent_nodes)
+    pertinentNodes = filter(e -> !(e ∈ path), allNodes)
+    dists = map(e -> e === nothing ? Inf : distance(e.state, node.state), pertinentNodes)
 
-    d, idx = find_k_min(dists, k)
-    return pertinent_nodes[idx], d
+    d, idx = findkmin(dists, k)
+    return pertinentNodes[idx], d
 end
 
-function k_nearest_neighbors(tree::Tree, state, distance; k = 1)
-    all_nodes = collect_nodes(tree)
-    dists = map(e -> e === nothing ? Inf : distance(e.state, state), all_nodes)
-    d, idx = find_k_min(dists, k)
-    return all_nodes[idx], d
+function kNearestNeighbors(tree::Tree, state, distance; k = 1)
+    allNodes = collect_nodes(tree)
+    dists = map(e -> e === nothing ? Inf : distance(e.state, state), allNodes)
+    d, idx = findkmin(dists, k)
+    return allNodes[idx], d
 end
 
 # add a node in tree whose the parent'state is the closest to state
 function add_closest_node!(tree::Tree, state, distance, get_action)
-    closest_node, dists = k_nearest_neighbors(tree, state, distance)
-    parent = closest_node[1]
+    closestNode, dists = kNearestNeighbors(tree, state, distance)
+    parent = closestNode[1]
     action, cost = get_action(state, parent.state)
-    new_node = add_node!(tree, state, parent, action, cost)
-    return new_node
+    newNode = add_node!(tree, state, parent, action, cost)
+    return newNode
 end
 
 function Base.show(io::IO, tree::Tree)
-    println(io, "Number of nodes  : ", get_n_nodes(tree))
-    println(io, "Number of leaves : ", get_n_leaves(tree))
-    println(io, "Minimal value    : ", get_min_node(tree).path_cost)
-    return println(io, "Maximum value    : ", get_max_node(tree).path_cost)
-end
-
-function cost_color(val, vmin, vmax)
-    palette = [:lightblue, :deepskyblue, :dodgerblue, :blue, :darkblue]
-
-    if vmax <= vmin + 1e-8
-        return palette[cld(length(palette), 2)]
-    end
-
-    t = clamp((val - vmin) / (vmax - vmin), 0.0, 1.0)
-    idx = clamp(round(Int, 1 + t * (length(palette) - 1)), 1, length(palette))
-    return palette[idx]
+    println(io, "Number of nodes  : ", get_nNodes(tree))
+    println(io, "Number of leaves : ", get_nLeaves(tree))
+    println(io, "Minimal value    : ", get_min_Node(tree).path_cost)
+    return println(io, "Maximum value    : ", get_max_Node(tree).path_cost)
 end
 
 @recipe function f(node::NodeT; pathB = false, cost = true)
     path = get_path(node)
-
+    # create a Colormap
     vmin = path[end].path_cost
     vmax = path[1].path_cost
-
+    colorMap = Colormap([vmin, vmax], Colors.colormap("Blues"))
     pathB ? path = sort(path; by = compare, rev = true) : path = [node]
     sortedPath = sort(path; by = compare, rev = true)
-
     for node in sortedPath
         @series begin
-            color := cost ? cost_color(node.path_cost, vmin, vmax) : :yellow
-            node.state
+            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
+            return node.state
         end
     end
-
+    if cost
+        @series begin
+            colorMap
+        end
+    end
     for i in 1:(length(path) - 1)
         @series begin
-            DrawArrow(LazySets.center(path[i].state), LazySets.center(path[i + 1].state))
+            DrawArrow(path[i].state.c, path[i + 1].state.c)
         end
     end
 end
 
-@recipe function f(tree::Tree; with_arrows = true, cost = true)
+@recipe function f(tree::Tree; arrowsB = true, cost = true)
+    # create a Colormap
     vmin = get_min_path_cost(tree)
     vmax = get_max_path_cost(tree)
-
-    all_nodes = collect_nodes(tree)
-    sort!(all_nodes; by = compare, rev = true)
-
-    for node in all_nodes
+    colorMap = Colormap([vmin, vmax], Colors.colormap("Blues"))
+    # plot the nodes of the tree
+    allNodes = collect_nodes(tree)
+    sort!(allNodes; by = compare, rev = true)
+    for node in allNodes
         @series begin
-            color := cost ? cost_color(node.path_cost, vmin, vmax) : :yellow
-            node.state
+            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
+            return node.state
         end
     end
-
-    if with_arrows
+    if cost
+        @series begin
+            colorMap
+        end
+    end
+    if arrowsB
         leaves = copy(tree.leaves)
         while !isempty(leaves)
             for leave in leaves
                 if leave.parent !== nothing
                     @series begin
-                        DrawArrow(
-                            LazySets.center(leave.state),
-                            LazySets.center(leave.parent.state),
-                        )
+                        return DrawArrow(leave.state.c, leave.parent.state.c)
                     end
                 end
             end

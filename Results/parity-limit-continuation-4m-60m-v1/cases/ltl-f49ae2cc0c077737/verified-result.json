@@ -1,0 +1,20 @@
+{
+    "issued": true,
+    "region_file": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-f49ae2cc0c077737/region.json",
+    "certificate": {
+        "reachable_product_states": 2805,
+        "acceptance": "parity max odd",
+        "satisfied": true,
+        "verification": "universal infinite horizon",
+        "rejecting_cycle": false
+    },
+    "controller_file": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-f49ae2cc0c077737/controller.jls",
+    "region_sha256": "c910c9c666f42832b81902cf00b9817ccd86aa7b0063d905787db3bc5b9ec865",
+    "region_known": true,
+    "controller_sha256": "bc90855f2155da3efd219f0b094b72539b1eb4e90b02bc5fd118ac55799fab81",
+    "x_win_size": 2805,
+    "outcome": "controller_issued",
+    "simulation_steps": 1200,
+    "verification_horizon": "infinite",
+    "simulation_status": "horizon_reached"
+}

@@ -1,0 +1,93 @@
+{
+  "complete": true,
+  "new_api_calls": 0,
+  "sample_selection": "query_index == 1, no replacement",
+  "risk_unit": "uniform semantic class then uniform test prompt within class",
+  "invalid_policy": "abstain; do not substitute a later query",
+  "statistics": {
+    "n_classes": 826,
+    "n_prompts": 3480,
+    "pending_prompts": 0,
+    "equivalence_risk": {
+      "lower": 0.34523809523809523,
+      "upper": 0.34523809523809523,
+      "lower_exact": "29/84",
+      "upper_exact": "29/84"
+    },
+    "inclusion_risk": {
+      "lower": 0.22679580306698952,
+      "upper": 0.22679580306698952,
+      "lower_exact": "281/1239",
+      "upper_exact": "281/1239"
+    },
+    "issuance": {
+      "lower": 0.8854418886198547,
+      "upper": 0.8854418886198547,
+      "lower_exact": "5851/6608",
+      "upper_exact": "5851/6608"
+    }
+  },
+  "inventory": {
+    "test_prompts": 3480,
+    "test_classes": 826,
+    "reuse_counts": {
+      "normalized_formula": 3090,
+      "baseline_checkpoint": 87,
+      "reference_equivalence": 12,
+      "spot_r3_equivalence": 90
+    },
+    "invalid_or_unsatisfiable": 54,
+    "pending_prompts": 147,
+    "missing_distinct_formulas": 147
+  },
+  "table": [
+    {
+      "method": "Single LLM query (equivalence)",
+      "guarantee": "No",
+      "alpha": "--",
+      "k": "--",
+      "risk": 34.523809523809526,
+      "issuance": 88.54418886198548
+    },
+    {
+      "method": "Single LLM query (language inclusion)",
+      "guarantee": "No",
+      "alpha": "--",
+      "k": "--",
+      "risk": 22.679580306698952,
+      "issuance": 88.54418886198548
+    },
+    {
+      "method": "NL2RCtrl",
+      "guarantee": "Yes",
+      "alpha": "0.10",
+      "k": "infinity",
+      "risk": 0,
+      "issuance": 0
+    },
+    {
+      "method": "NL2RCtrl",
+      "guarantee": "Yes",
+      "alpha": "0.15",
+      "k": 3,
+      "risk": 13.493744955609364,
+      "issuance": 84.54903147699758
+    },
+    {
+      "method": "NL2RCtrl",
+      "guarantee": "Yes",
+      "alpha": "0.20",
+      "k": 2,
+      "risk": 16.399313962873286,
+      "issuance": 86.33474576271186
+    },
+    {
+      "method": "NL2RCtrl",
+      "guarantee": "Yes",
+      "alpha": "0.25",
+      "k": 1,
+      "risk": 22.891444713478613,
+      "issuance": 89.54297820823246
+    }
+  ]
+}

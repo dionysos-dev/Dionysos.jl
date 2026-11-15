@@ -1,0 +1,4 @@
+temperature,completed_prompts,planned_prompts,samples,planned_samples,valid_ltl_rate,mean_distinct_semantic_clusters,per_sample_translation_accuracy,accuracy_among_valid,modal_cluster_accuracy,modal_tie_rate,modal_accuracy_tie_lower,modal_accuracy_tie_upper,correct_formula_appears_rate,sufficient_formula_appears_rate,mean_output_tokens,total_output_tokens,samples_with_token_usage,api_error_count
+0.3,40,40,400,400,0.985,1.725,0.4725,0.4796954314720812,0.45,0.075,0.45,0.475,0.525,0.7,31.5375,12615,400,0
+0.7,40,40,400,400,0.985,2.275,0.46,0.467005076142132,0.475,0.075,0.475,0.475,0.55,0.8,31.79,12716,400,0
+1.0,40,40,400,400,0.965,2.525,0.4475,0.4637305699481865,0.475,0.1,0.475,0.5,0.575,0.75,32.2875,12915,400,0

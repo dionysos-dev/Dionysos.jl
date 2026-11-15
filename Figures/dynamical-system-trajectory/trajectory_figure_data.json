@@ -1,0 +1,59 @@
+{
+  "formula": "G(!obs) & (!brown U blue) & F(blue & F(purple & F(green)))",
+  "start": [
+    4.800000000000001,
+    5.0,
+    1.5707963267948966
+  ],
+  "end": [
+    6.289326706384956,
+    2.4811266916369266,
+    -1.9320236674311533
+  ],
+  "visits": {
+    "purple": {
+      "point_index": 741,
+      "position": [
+        7.35809385291245,
+        6.495519901016854,
+        -0.38643690382304385
+      ]
+    },
+    "blue": {
+      "point_index": 546,
+      "position": [
+        8.070183960639778,
+        7.508232710620887,
+        0.8343060639469576
+      ]
+    },
+    "green": {
+      "point_index": 1229,
+      "position": [
+        6.2956883137584905,
+        2.497965039288196,
+        -1.9320236674311533
+      ]
+    }
+  },
+  "controller_certificate": {
+    "reachable_product_states": 49981,
+    "satisfied": true,
+    "has_reachable_nonaccepting_cycle": false,
+    "nonaccepting_product_states": 7876,
+    "transition_violation_count": 0
+  },
+  "infinite_word_accepted_by_spot": true,
+  "trajectory_source": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/paper-requirement-trajectory/trajectory.json",
+  "trajectory_sha256": "57fb0677abd65a0acee98d333536da2138a1c31aa47e6d672b2e917f154e92c7",
+  "figure_style": {
+    "obstacle_display": "physical bounds",
+    "grid_display": "uniform background grid",
+    "font": "Times New Roman",
+    "font_file": "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+    "png_dpi": 1200,
+    "width_inches": 3.9,
+    "height_inches": 4.15
+  },
+  "script_sha256": "83a0728f9400b403de3ec6d08dabedae367ec959fd56e8986152be38ad49128a"
+}

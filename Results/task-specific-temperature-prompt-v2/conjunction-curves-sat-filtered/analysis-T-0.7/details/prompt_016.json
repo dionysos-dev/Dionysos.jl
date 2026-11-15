@@ -1,0 +1,218 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 0.7,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/CoCo-NL-to-LTL/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 5
+    },
+    "source_sha256": "1344b63fefb72b95aa56f425f5995df6f896ad9ed47699acc6803ab08ab96b9e",
+    "prompt_index": 16,
+    "record_id": 1351,
+    "input_field": "paraphrase_deepseek_gpt54mini_rewritten",
+    "reference_ltl": "X(((F(brown) U (X((X(X(F((purple -> brown)))) U blue)) U (purple & (brown | yellow)))) U blue))",
+    "samples": 10,
+    "valid_samples": 6,
+    "satisfiable_samples": 6,
+    "excluded_candidates": [
+        {
+            "repetition": 4,
+            "reason": "invalid_ltl",
+            "candidate_formula": "X(F(blue) & (F((purple & (brown | yellow)) & (X(F(blue) & ((X(X(F((!purple) | brown)))) U (blue)))))) U (brown)))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 113"
+        },
+        {
+            "repetition": 6,
+            "reason": "invalid_ltl",
+            "candidate_formula": "X(F(blue) & (F((purple & (brown | yellow)) & (X(F(blue) & ((X(X(F((!purple) | brown)))) U (blue)))))) U (blue)))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 112"
+        },
+        {
+            "repetition": 7,
+            "reason": "invalid_ltl",
+            "candidate_formula": "X((!blue) U ((!blue) & F((purple & (brown | yellow)) & (!(purple & (brown | yellow)) U (F(blue) & G((blue U (F(!purple | brown))))))))))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 136"
+        },
+        {
+            "repetition": 10,
+            "reason": "invalid_ltl",
+            "candidate_formula": "G(X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (XX(F((!purple) | brown))))))) U (blue)))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 117"
+        }
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))",
+            "frequency": 1,
+            "sample_indices": [
+                1
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 2,
+            "representative": "X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue))",
+            "frequency": 1,
+            "sample_indices": [
+                2
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 3,
+            "representative": "X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (X(X(F(!purple | brown)))))))) U (blue)",
+            "frequency": 1,
+            "sample_indices": [
+                3
+            ],
+            "rank": 3,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 4,
+            "representative": "G(X(F(blue))) & (G((!blue) -> (F((purple & (brown | yellow)) & (G((!(purple & (brown | yellow))) -> (X(F(blue)) & G((!blue) -> (X(X(F((!purple) | brown))))))))))))",
+            "frequency": 1,
+            "sample_indices": [
+                5
+            ],
+            "rank": 4,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 5,
+            "representative": "G(X(F(blue)) & (F((purple & (brown | yellow)) & X(F(blue) & ((!purple | brown) U (blue)))) U (blue)))",
+            "frequency": 1,
+            "sample_indices": [
+                8
+            ],
+            "rank": 5,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 6,
+            "representative": "G(X(F(blue)) & (F((purple & (brown | yellow)) & (G((!purple | brown) -> X(F(blue) U (blue & F(brown))))))))",
+            "frequency": 1,
+            "sample_indices": [
+                9
+            ],
+            "rank": 6,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown))))))))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 2,
+            "phi_k": "(G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))) & (X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue)))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": true,
+            "semantic_rescue_no_individual_equivalent": true
+        },
+        {
+            "k": 3,
+            "phi_k": "(G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))) & (X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue))) & (X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (X(X(F(!purple | brown)))))))) U (blue))",
+            "cluster_ranks": [
+                1,
+                2,
+                3
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": true,
+            "semantic_rescue_no_individual_equivalent": true
+        },
+        {
+            "k": 4,
+            "phi_k": "(G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))) & (X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue))) & (X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (X(X(F(!purple | brown)))))))) U (blue)) & (G(X(F(blue))) & (G((!blue) -> (F((purple & (brown | yellow)) & (G((!(purple & (brown | yellow))) -> (X(F(blue)) & G((!blue) -> (X(X(F((!purple) | brown)))))))))))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": true,
+            "semantic_rescue_no_individual_equivalent": true
+        },
+        {
+            "k": 5,
+            "phi_k": "(G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))) & (X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue))) & (X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (X(X(F(!purple | brown)))))))) U (blue)) & (G(X(F(blue))) & (G((!blue) -> (F((purple & (brown | yellow)) & (G((!(purple & (brown | yellow))) -> (X(F(blue)) & G((!blue) -> (X(X(F((!purple) | brown))))))))))))) & (G(X(F(blue)) & (F((purple & (brown | yellow)) & X(F(blue) & ((!purple | brown) U (blue)))) U (blue))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4,
+                5
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": true,
+            "semantic_rescue_no_individual_equivalent": true
+        }
+    ]
+}

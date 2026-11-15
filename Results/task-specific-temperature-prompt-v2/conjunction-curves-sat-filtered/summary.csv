@@ -1,0 +1,6 @@
+temperature,k,total_prompts,eligible_prompts,available_candidates,available_semantic_clusters,included_representatives,prompts_with_at_least_k_clusters,logical_good,not_guaranteed,abstain,unsatisfiable,top1_rescue,semantic_rescue,logical_good_count,not_guaranteed_count,abstain_count,unsatisfiable_count,top1_rescue_count,semantic_rescue_count
+0.7,1,40,40,393,91,40,40,0.625,0.375,0.0,0.0,0.0,0.15,25,15,0,0,0,6
+0.7,2,40,40,393,91,59,19,0.75,0.25,0.0,0.0,0.125,0.2,30,10,0,0,5,8
+0.7,3,40,40,393,91,72,13,0.775,0.225,0.0,0.0,0.15,0.225,31,9,0,0,6,9
+0.7,4,40,40,393,91,79,7,0.775,0.225,0.0,0.0,0.15,0.225,31,9,0,0,6,9
+0.7,5,40,40,393,91,83,4,0.8,0.2,0.0,0.0,0.175,0.25,32,8,0,0,7,10
