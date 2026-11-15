@@ -1,0 +1,2355 @@
+{
+  "source_reference_sha256": "2fa91822b7d4c83bc408a54e64d2ed2728630713ea6ef6718ef2548c12439a9e",
+  "pilot_sha256": "c20693eac315d8f99d8de3d36b41f8f70342c753a030e9a30c9204f9b84cd7d6",
+  "production_solver": {
+    "policy": "deterministic_buchi_first_then_verified_global_spot_parity",
+    "initial_domain": "all_admissible_plant_states",
+    "semantics": "robust",
+    "projection": "(x,delta(q_init,label(x))) in product winning set",
+    "timeout_seconds": 600.0,
+    "max_steps": 1200,
+    "simulation_is_proof": false,
+    "verification_horizon": "infinite",
+    "normalization": "Spot ltlfilt -r1; semantics-preserving basic normalization",
+    "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57",
+    "code_sha256": {
+      "src/Dionysos.jl": "18555912c5c16c1df9dbd4c8c5393adedafcc6ed8c54f52c42b1d08f01e7570a",
+      "src/LTL/LTL2Automata.jl": "2f9d871f1b18308d47776ce5143e285cb86309fdc9c4987d69a45be9bef1af04",
+      "src/MOI_wrapper.jl": "d0d2f7e9c0fe24f169b13f4e7b646dc65f444a3e6d45c3c11761a91a30519763",
+      "src/domain/continuous_domain.jl": "263010ce85b26688a32bdf525421590eace24e720eb6ff1312b29bb71be117a0",
+      "src/domain/custom_domain.jl": "9d7a7e8ead71c3c4007284f408ae472f942baf1ed0ddd88f3882dfa829818143",
+      "src/domain/domain.jl": "d16e765e2b3fd601d655ecfa9614fe73699883862c997867cf84ef0b4505fe51",
+      "src/domain/grid_domain/domain_list.jl": "66ab456189a335000b6246e3df5510a684adbe85df1a5312e7e177c2360d8e90",
+      "src/domain/grid_domain/grid.jl": "b40fa55251b8f517cf69507fd19c563b535993fa4ce8b7a92445b3393d7755b3",
+      "src/domain/grid_domain/grid_domain.jl": "ec17ce13db5345b59918d72a026f8edd143392f53f13c89ed853b00fc4caf717",
+      "src/domain/grid_domain/nested_domain.jl": "e46796b2986b042d27fb993e35f9465f61c588ee6506c0bfe11b84103121107c",
+      "src/domain/grid_domain/periodic_domain.jl": "b25237f4fbec7159f37aafa048250ed47872f52c9aaf038a62e6abdd7385dac1",
+      "src/mapping/mapping.jl": "50c6aab2fba6b1fa370398df4cd5d61d46b8c90cbf2c882505792ec226cd3c52",
+      "src/mapping/mapping_continuous.jl": "f0b8df8b99df78234bb2d6a8dc22e4370f13d58fcba3b2d6148446e1934f3519",
+      "src/optim/abstraction/UniformGridAbstraction/cosafe_LTL_problem.jl": "58581dbaea3cb4868fb2259f138871b1a1e6bb186210d091f2d635b9f0ce46ff",
+      "src/optim/abstraction/UniformGridAbstraction/empty_problem.jl": "6c11357f91a23574d965031c9c5b297cf51f9fc3465a603ee135af45c6d9359b",
+      "src/optim/abstraction/UniformGridAbstraction/optimal_control_problem.jl": "e7b908012cdcd4556c70f754636efefba513116d45c78389dc5f9f148cc053b2",
+      "src/optim/abstraction/UniformGridAbstraction/safety_problem.jl": "ab5cd246fb74bd34e16ad6b5918b147fe6ca388f07a7899a1f0a9ed3e4ea4b54",
+      "src/optim/abstraction/UniformGridAbstraction/uniform_grid_abstraction.jl": "991081c949bc0f5803310d0e14aef857190dc24384ef6674bf7f70fcce04c303",
+      "src/optim/abstraction/abstraction.jl": "837e77c2b3b79e8d99fcb21ce3737f82070ea8a7eea399089e1025f5602f9278",
+      "src/optim/abstraction/ellipsoids_abstraction.jl": "90757675a0af1ca203de00f73df5c066d85610b05a7b402a9e5730fac7aa1ddd",
+      "src/optim/abstraction/hierarchical_abstraction.jl": "429e7afa195c6e0f956757b3f867e88c4d7d7283d0277685098e2926c359476a",
+      "src/optim/abstraction/lazy_abstraction.jl": "9c4e172a08d436df7ae20abe66414eca7bc99b598ea86d0580bee8877463b17f",
+      "src/optim/abstraction/lazy_ellipsoids_abstraction.jl": "3b18875487e609b8f227c2c2a18d1a296d79751f2df4bad65f4d1838b32c7f5e",
+      "src/optim/abstraction/timed_hybrid_abstraction.jl": "92aceb44cb1778bfbfdb8bda014926c37d131359bb5236e44c505e896e62ed6e",
+      "src/optim/bemporad_morari.jl": "b77a76eb294bf72d9296ab0f5d6c908b2524625dbcb16f81ab66644fb9ca00e4",
+      "src/optim/branch_and_bound.jl": "2035a68a76f0654784d9ea9ce7e24cf01c74f984ef305d933d679082c12879f9",
+      "src/optim/optim.jl": "1c2abac0543482733708bfbe547c6f242f94afede41bb76208f53dd8f8e9cc96",
+      "src/optim/q_learning.jl": "f00710b6ffeb4a3f4808ebf4107b2d949cb0b6224b1aa653cb137f1d51ba1e3d",
+      "src/problem/problem.jl": "b30fe0d28309342a65b580b976c51b5237106bd135a347527d6258dcf3a5e18c",
+      "src/problem/problems.jl": "4ab86f754225e093facfd74ba1cd5836711fbd17e1ed68961a662df2eacf1b66",
+      "src/symbolic/alternating_simulation.jl": "6d56d412b290d41e504c10b376ff1d434190cdb927a3e77adf19b1daa2a06a89",
+      "src/symbolic/automaton/automaton.jl": "19336ee312e70ab73edad0b7151debaea2e770cd083252d5e6c10ad35adfd753",
+      "src/symbolic/automaton/indexed_automaton_list.jl": "057ab843ea4ded59bb3163ae39bbb4fdd3a84f714f0758c370cd6a7a6ba7fdaf",
+      "src/symbolic/automaton/sorted_automaton_list.jl": "d5fadddfb030e6ebd16d7c915f469fcaf09090d7b4a440eb5232f4ddc1c7cd67",
+      "src/symbolic/ellipsoidal_transitions.jl": "1c7a55a0083372c17fc6dae4d1336c977f42b8d57d1cab2429637f88ab964beb",
+      "src/symbolic/grid_based_symbolic_model/grid_based_symbolic_model.jl": "62552c483f176b13e7b382d92e898c0e39949652202b57d5acbbc5e065cb70b4",
+      "src/symbolic/grid_based_symbolic_model/hierarchical_symbolic.jl": "f10cc2b66f1715ff1685a58dbb664152754576007bca09b48542483fb168beca",
+      "src/symbolic/grid_based_symbolic_model/lazy_symbolic_model_list.jl": "fd1724e39c52916607d441c9dd8c1b2f632311db8550b1e6f0e2ccf3a5bcc714",
+      "src/symbolic/grid_based_symbolic_model/symbolic_model_list.jl": "b13101e0f56212e65499c7c40a89bc19afcaf0ee36875c97d31bb9694ab35a72",
+      "src/symbolic/proba_automaton.jl": "1d0877528410a20abad519fcd83fa214b69eccc7977b4f1d3eb1cb9875814004",
+      "src/symbolic/symbolic.jl": "31abfb7e918371aa1d987d70bacff9e65f7a2a88afe40fd18448dfda7ac923aa",
+      "src/symbolic/timed_hybrid_automaton/symbolic_timed_hybrid_systems.jl": "be72b9d2c649bbd3fc0d9634ba85e83f77249d64bb9bbdd1f6f11ac004ea3862",
+      "src/symbolic/timed_hybrid_automaton/time_symbolic_model.jl": "a473f0ebeaba0b2d59d7b9c47342c5251467eb7c5d80dee868c5cf65c28183d0",
+      "src/symbolic/timed_hybrid_automaton/vector_continuous_system.jl": "9b5226da9dfb3dee84810a8691abf690f91c278d35563f3c1c1c2c335dd9744d",
+      "src/system/approximation/approximation.jl": "04a6157b07d15f3030d042330540f49d423f66a7efd7adb87df785d002ddeee7",
+      "src/system/approximation/growth.jl": "78b5f3d1cf4093f0c952b7223874aba8fb8cb592734c9b2fed8cfff1ef501ee6",
+      "src/system/approximation/linearized.jl": "f41e7a39ec0d2bf50d4b388950b345932fcd592b96020808ed15046a9d5e7347",
+      "src/system/approximation/simulation.jl": "0a1737162bb04f79dc09f36925c93930957f57a8227177ed3161dd0b7faaa143",
+      "src/system/controlsystem.jl": "76447a2f82fec1ed3f3863379e9cda570c989335a721f020457a1051a9ce933d",
+      "src/system/system.jl": "2bf0effa7057eeb6d839a4eeaab55a95d6a5bbf29fb4e9afcb2e75fc868cde8f",
+      "src/system/trajectory.jl": "73328aae4b34987c184ebe9f42080a6d445034030f101116c5d2b092fbbf15e9",
+      "src/utils/box.jl": "023caf67b35afa792ea7f6d63fdde565105e4006983154ecd7c61bda2a308421",
+      "src/utils/data_structures/digraph.jl": "32952c5202671af7010f11cf56a8eb659f0c59d04d9296f8bfe34d16508deadb",
+      "src/utils/data_structures/queue.jl": "9a6da46db3b6bdcca3f844893f62eaf436b2d389da83eb0c71bd7cdc3c58d50d",
+      "src/utils/data_structures/sorted_vector_set.jl": "2a75d4da7179491b376ba9f9d7a4678fce5c75d0a639e70093173012e01f0dff",
+      "src/utils/data_structures/tree.jl": "53baf929b92d6a75a5db2607a8ca1460d415cbe4667332a52fc2f98f0a918f4a",
+      "src/utils/degenerate_ellipsoid.jl": "b7c1a95a092777f6cf590fb1a16928e23ee2afec514e5d29919dac87bd081cf8",
+      "src/utils/ellipsoid.jl": "4945ac931eede54c38cfdab4b20efe702b2df329a08dac7ac4a258e3fd5b16aa",
+      "src/utils/ellipsoid_inclusion.jl": "342654a56f818a71b41f5662b0bb8db610c51fd7df86649e5d172c8f91739250",
+      "src/utils/ellipsoid_intersection.jl": "19d8cd652f9b5a8967f7639c5ade80926f02e102bb484aa60d25acae3941ab66",
+      "src/utils/files/files_management.jl": "014d12a5fd03933825f35285f5f12c1d75694e120ee831a6e57d002673834e30",
+      "src/utils/intersection_set.jl": "4d02700be6c5d95f2a332d6f9663531be34f3d9a6e3cfaf35c7ddcf5a5682090",
+      "src/utils/lazy_set_operations.jl": "b948039debf39802796fb67b5fbe75b25252ff40b7f8e3ce7149f189e5fb983a",
+      "src/utils/optim/bisection.jl": "7b04fa7ca4e9ffb77470abfd442d4ccc116b10f377c5bab1b349acbbd62e6464",
+      "src/utils/optim/branch_and_bound.jl": "0a5079ffff42c605379442e64b89c0be3f8717397120a3e32aa6c418531751c9",
+      "src/utils/optim/newton_method.jl": "e3e2ed31c5cc7bfd07f5ee695a4750c904cce0eda2b56b2a31065460c1d495fe",
+      "src/utils/plotting/colorbar.jl": "f08341191c1a2695f16286ed8946bb97a033f527e11b22a01f5cbdf18203ff38",
+      "src/utils/plotting/simple_plots.jl": "d9e90a47692341288ad84c587cffeac950efc70dd54f28872cecd3ad48595411",
+      "src/utils/polyhedron.jl": "5b2d145496d92ee0e767e4a86e91a0fa6ec04b27140a0d0a14483400937c66b4",
+      "src/utils/rectangle.jl": "0261de854ce3a62c26e462dbf4d0384746478abb0eb951f0e8bf68a5510c421d",
+      "src/utils/scalar_functions.jl": "e7c24846bf769cde2bc73a18d4f046bd3755578e1c4674877a6d4442baf12ba3",
+      "src/utils/search/RRT.jl": "f55493bd35fd95a8022a67c7d0fad639113e4d1d9d44d8fc580f36086e0a2cff",
+      "src/utils/search/generic_search.jl": "de0dc287cc853e8b82bdb5360ede883ff0171204f2350dd38b6c0ea719827e4c",
+      "src/utils/utils.jl": "89aec4405418049d27f789df922e2bc16d82164099cb5a00edf69628f4702ac9",
+      "InitialRegionABCD/worker.jl": "7bf71634006777df4c708e1971aff19abccd8e17ad204d164fc3c843c07be69b",
+      "InitialRegionABCD/ParityBackend.jl": "9590a440b3a13cdf5d7ce723545d4af84d794d2d451fcbf00bb3c5a07232f97a",
+      "InitialRegionABCD/spot_parity_bridge.cpp": "ed8695fa88bcd49319347326557b836d0d3c6f5e73d8919e5cf4c9152fda1736",
+      "InitialRegionABCD/build/spot_parity_bridge": "7649d8d841d681fdb32a3d29075517adbd32ed7daecedb9b71c412850b875d54",
+      "InitialRegionABCD/run.py": "c5777355f0b12763487a89ad88700b970338db20e5578d2d20832de711b0bf73",
+      "DevelopmentABCD/worker.jl": "0a9991ad5460435262eddcbeca0fe2a83aa3ab767c295b4c1c5b9aaf9d875bdc",
+      "evaluate_claude_buchi_synthesis.jl": "baf8f0b6d919eedbbbf4af85a914579f8323f0fd33aadcb9d1790ddd294db79f",
+      "System_helper.jl": "bd5faf3f3e95ebc1836779c1ce8f8fbad0bdca9ff5f39d3e0b0089c4f021dbee",
+      "Project.toml": "43d1e4dc0d28f969fe4380ff5df6c31c39b780d92f943fbbd6f1444e14fc633a",
+      "Manifest.toml": "d4fafbb07746f779f2298704afcd688384e71f412e9e06f652296df8a8766d54"
+    },
+    "spot_version": "ltl2tgba (spot) 2.14.5"
+  },
+  "runner_sha256": "3274ca8c698ab8be7e93fbcdb771073c5f9ced68aba1a3e5f45f8b7eb1e4e327",
+  "helper_sha256": "7daf4471ade5439044945072458290f4ba107e945703c0e381efbfddecc76b0a",
+  "verifier_sha256": "6ff7bde1568cc48dcc533f121badcaa34cf7e3a2ec6d3cb8305a31ca71a2b495",
+  "native_plant_hashes": {
+    "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin": "6a14e88eee199e5dd91c20e8006b92c7eca4cd2592ca2cd1fccdc454a4a89533",
+    "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin": "6a14e88eee199e5dd91c20e8006b92c7eca4cd2592ca2cd1fccdc454a4a89533"
+  },
+  "cases": [
+    {
+      "class_id": "ltl-d05ddaf76cc3fe0c",
+      "formula": "!blue | FG!green",
+      "source_job_id": "a16dcb63d1db87dae4ff0ba7ffeb157746b1ab738f30d7cbcc333c7cbb3dfbaa",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/a16dcb63d1db87dae4ff0ba7ffeb157746b1ab738f30d7cbcc333c7cbb3dfbaa/specification.hoa",
+      "hoa_sha256": "fad257e105e049da8102d41d5f3b402409be4c84d28c4e3bbc0ec7578f1bd9ec",
+      "automaton_states": 4,
+      "record_ids": [
+        617,
+        148
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-11426adadef51759",
+      "formula": "!green | FG!blue",
+      "source_job_id": "d85e0d184b3162429eb10eec56fee5c05251f51d45bba4cc9ae12c84908c4eb3",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/d85e0d184b3162429eb10eec56fee5c05251f51d45bba4cc9ae12c84908c4eb3/specification.hoa",
+      "hoa_sha256": "db4033f66212b242c1e7e873838c92689bb92345d9edc08e616f65c86c13f96b",
+      "automaton_states": 4,
+      "record_ids": [
+        147
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-091275cb634c1c8b",
+      "formula": "!brown | FG!green",
+      "source_job_id": "29f8fd333d62d9b5fec70b2c79a28b223a9950369e0351363141a2b737162e7f",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/29f8fd333d62d9b5fec70b2c79a28b223a9950369e0351363141a2b737162e7f/specification.hoa",
+      "hoa_sha256": "362bdf85c0dbcd18c42c17b31101d718a85c3bccf90ffc08ff9d63d694af142a",
+      "automaton_states": 4,
+      "record_ids": [
+        618
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ee812b92ff137623",
+      "formula": "(brown | green) & FGblue",
+      "source_job_id": "10457e3f7e03c6f9074d9c6af7e8fb02bd40ebbfab93a10a3096eb36b5522f44",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/10457e3f7e03c6f9074d9c6af7e8fb02bd40ebbfab93a10a3096eb36b5522f44/specification.hoa",
+      "hoa_sha256": "1813530aedb9e249957eb89727a4021aba11329c2556a6c1344b34c30024c00b",
+      "automaton_states": 4,
+      "record_ids": [
+        275
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-cbb2b4cc6cee82e3",
+      "formula": "purple U (blue & Gbrown)",
+      "source_job_id": "1652d50319dbc0a1bab8a9e97c6b01fe42e6911151498387c0ad6df9f5d6d5ac",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/1652d50319dbc0a1bab8a9e97c6b01fe42e6911151498387c0ad6df9f5d6d5ac/specification.hoa",
+      "hoa_sha256": "82e47c352b2cd34326fc377b7bab299d87e20e79911efa1a05c88ab8a3eacd70",
+      "automaton_states": 4,
+      "record_ids": [
+        430
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-52563b8b42391022",
+      "formula": "(!blue U purple) & FGblue",
+      "source_job_id": "fd07883c658138c3a64d762b201100786c15b9e2b3544c36ba5b95fdb6128409",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/fd07883c658138c3a64d762b201100786c15b9e2b3544c36ba5b95fdb6128409/specification.hoa",
+      "hoa_sha256": "8a4acb74076313c220fee0c0df8273d74cc0351b431b707f31b4753d159b2b04",
+      "automaton_states": 4,
+      "record_ids": [
+        1271
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b5a61a329c0e0134",
+      "formula": "(blue | brown) & FGyellow",
+      "source_job_id": "c8ddd845078a257ab1e4782d9f3ca5a01da22e6988dfd0f062919448adadb2d0",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/c8ddd845078a257ab1e4782d9f3ca5a01da22e6988dfd0f062919448adadb2d0/specification.hoa",
+      "hoa_sha256": "7a35fc8fadebb736c7b85fd46fcc58b952237c34332269825b3a4eb1de97fbd0",
+      "automaton_states": 4,
+      "record_ids": [
+        276
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ae51683acbb2cbd0",
+      "formula": "(green | yellow) & FGgreen",
+      "source_job_id": "8b567777a36e5020dba0be95f89b275b556948ea8147c012edf847ea3eca04c4",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/8b567777a36e5020dba0be95f89b275b556948ea8147c012edf847ea3eca04c4/specification.hoa",
+      "hoa_sha256": "082189156d73b457b52eae401f5d38afa24ba3c5bfaabaaaae96390654aa22e7",
+      "automaton_states": 4,
+      "record_ids": [
+        476
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-6bbec7c3f61f76f4",
+      "formula": "FGbrown & (!brown U green)",
+      "source_job_id": "aa45ea7e981b8defb8466525bc4caa58e12369af8eda2cbadadb1fbef7e8d303",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/aa45ea7e981b8defb8466525bc4caa58e12369af8eda2cbadadb1fbef7e8d303/specification.hoa",
+      "hoa_sha256": "1d0078589320618ecf76ec38c9507adb89b9c90934bdf3447ac0c060cd7fdb2a",
+      "automaton_states": 4,
+      "record_ids": [
+        1272
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-23b1ae4e731ded1e",
+      "formula": "(brown | purple) & FGpurple",
+      "source_job_id": "dd17e3600fe29d471ab45e70107e9999a62683060267eee9d3f24c2df81d55c8",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/dd17e3600fe29d471ab45e70107e9999a62683060267eee9d3f24c2df81d55c8/specification.hoa",
+      "hoa_sha256": "766c91dfe0ecf6203ce6d81bc64585568ae8edf0e529e234e179b32f9b12b0ca",
+      "automaton_states": 4,
+      "record_ids": [
+        475
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-70e0314e5cc9f9a5",
+      "formula": "green | F(!purple R !brown)",
+      "source_job_id": "286f1d741489ba7c0aa42aaf7d05c7fcf6c3f126a99392fb5f162b04e9982340",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/286f1d741489ba7c0aa42aaf7d05c7fcf6c3f126a99392fb5f162b04e9982340/specification.hoa",
+      "hoa_sha256": "9b26c646d60e26f9f720a380823f46f0a3a1d187da250d104414509c21d2423e",
+      "automaton_states": 4,
+      "record_ids": [
+        929
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-2a4a2bab28d56128",
+      "formula": "yellow | F(!blue R !purple)",
+      "source_job_id": "bc5eadd2ea95f58afb4d9e821c36def3684160ad28ec83b98779dd177c08c6ca",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/bc5eadd2ea95f58afb4d9e821c36def3684160ad28ec83b98779dd177c08c6ca/specification.hoa",
+      "hoa_sha256": "05774c24bcf33879998ad594f1bf5ea1992dc895ff9c4af00c60644328a0a0af",
+      "automaton_states": 4,
+      "record_ids": [
+        930
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-a540e82d22e31c94",
+      "formula": "F(blue & F(yellow & FGgreen))",
+      "source_job_id": "85b7a945b0f0b3772dadb7c4e194d832b02941721979449bf1a89b34ac73e4c4",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/85b7a945b0f0b3772dadb7c4e194d832b02941721979449bf1a89b34ac73e4c4/specification.hoa",
+      "hoa_sha256": "332d60648f30172517b178dfec52ba4e041f0ef1abfbd46c424793e7e44c3473",
+      "automaton_states": 4,
+      "record_ids": [
+        1269
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b2f6b324c5471b3d",
+      "formula": "F(yellow & F(purple & FGgreen))",
+      "source_job_id": "2373812c30200db5fa4c290bf9208d3fbd2a645ab952f37ef774d0c21e1c8243",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/2373812c30200db5fa4c290bf9208d3fbd2a645ab952f37ef774d0c21e1c8243/specification.hoa",
+      "hoa_sha256": "3a1945255e36e55c7e4035cc936389b9205c9231ebb4d4c6855619ed800921db",
+      "automaton_states": 4,
+      "record_ids": [
+        1270
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-aab55d5daf7b9e77",
+      "formula": "F((brown & Fgreen) | (!brown & G!green))",
+      "source_job_id": "01a5d053ba8387ffccba987a4329f1ad7422e5d3d34b94207246fb8c801820b6",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/01a5d053ba8387ffccba987a4329f1ad7422e5d3d34b94207246fb8c801820b6/specification.hoa",
+      "hoa_sha256": "59f79c6f4651c75d25f15fb180c6a1004a8d1af4dc7674dcf4bd770e6ce2cd74",
+      "automaton_states": 4,
+      "record_ids": [
+        345
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-a424723dc015fa7d",
+      "formula": "F((yellow & Fblue) | (!yellow & G!blue))",
+      "source_job_id": "81ea3ce0f19c5955ee34a8ab6f705792f457daa6ff45d97cc3cdf5fdfa12cc8c",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/81ea3ce0f19c5955ee34a8ab6f705792f457daa6ff45d97cc3cdf5fdfa12cc8c/specification.hoa",
+      "hoa_sha256": "e451076ff7c4c8d7d71100efc593c6a57d49373f322908b0f459190e9d00976d",
+      "automaton_states": 4,
+      "record_ids": [
+        837
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c07021078b29dbfc",
+      "formula": "F((yellow & Fbrown) | (!yellow & G!brown))",
+      "source_job_id": "3097f488206eac5c4c6c8426d7ccb3f43e2936ec01cfd3e15d600fe232bcd65e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/3097f488206eac5c4c6c8426d7ccb3f43e2936ec01cfd3e15d600fe232bcd65e/specification.hoa",
+      "hoa_sha256": "390dc8ab6fe6c17c64a3f90df4fd16699e4fe2729971eb4377b34ea88ee8169a",
+      "automaton_states": 4,
+      "record_ids": [
+        346
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f962356ec7ba67f9",
+      "formula": "F((yellow & Fpurple) | (!yellow & G!purple))",
+      "source_job_id": "6e3e86ddf3cb2c37c31930b119a1c6cf19888412c795e0cef573b657976251a8",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/6e3e86ddf3cb2c37c31930b119a1c6cf19888412c795e0cef573b657976251a8/specification.hoa",
+      "hoa_sha256": "52d19d49f3c452450e0510af0cf619c3be883f5533cbef22404bff2962c51caf",
+      "automaton_states": 4,
+      "record_ids": [
+        838
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-86fea500b4c2e055",
+      "formula": "F(((green | !yellow) & Fbrown) | (!green & yellow & G!brown))",
+      "source_job_id": "6562a6353d4369f68970d640f242e915ed77f7499a1c106f8e509dec2569cbef",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/6562a6353d4369f68970d640f242e915ed77f7499a1c106f8e509dec2569cbef/specification.hoa",
+      "hoa_sha256": "df05975d514943ca494bf76df0a5e1eea09f23076d68ef555b1e1f9530baa505",
+      "automaton_states": 4,
+      "record_ids": [
+        1108
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0ba3b5069716ae1c",
+      "formula": "F(((!purple | yellow) & Fbrown) | (purple & !yellow & G!brown))",
+      "source_job_id": "b7fc95d71e39c20d81954b8d3f604a24942f40296445c77465e4ee0b7c469410",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b7fc95d71e39c20d81954b8d3f604a24942f40296445c77465e4ee0b7c469410/specification.hoa",
+      "hoa_sha256": "d3ca7f9a6ec632145737c8a0a545e8d4971644b0d6c10c9a32f66256cd4f5c33",
+      "automaton_states": 4,
+      "record_ids": [
+        1107
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-87f342448d978543",
+      "formula": "(blue | (!blue & green & yellow)) U G((blue & green & yellow) | (!green & (!blue | !yellow)))",
+      "source_job_id": "21852efe418ede375bd9410c6b1cf79ad956c43b6d389ac87e809a60bc63d167",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/21852efe418ede375bd9410c6b1cf79ad956c43b6d389ac87e809a60bc63d167/specification.hoa",
+      "hoa_sha256": "aae08f690b16e1fc7a1c96e05cd5e58df57b2084826b27dac36a0cd22c1329aa",
+      "automaton_states": 4,
+      "record_ids": [
+        895
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-bd7fb38b4e26b8dc",
+      "formula": "((blue & !brown & green) | (brown & (!blue | brown | !green))) U G((blue & brown & green) | (!green & (!blue | !brown)))",
+      "source_job_id": "46aa8a12c36d0f94429f64e0f874069485b85bf071ddea3eaafa2b76821b22e4",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/46aa8a12c36d0f94429f64e0f874069485b85bf071ddea3eaafa2b76821b22e4/specification.hoa",
+      "hoa_sha256": "953ed5fa5420eabf370f21e505f8caeceaa498ef7b0dd33d4347139bf0d04601",
+      "automaton_states": 4,
+      "record_ids": [
+        364
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-e87e1e850c992123",
+      "formula": "((!brown & green & yellow) | (brown & (brown | !green | !yellow))) U G((brown & green & yellow) | (!yellow & (!brown | !green)))",
+      "source_job_id": "a8cee33ee61cc15555703e3495c52417aea71522d9aeab3a9b7b58c69b0d28b1",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/a8cee33ee61cc15555703e3495c52417aea71522d9aeab3a9b7b58c69b0d28b1/specification.hoa",
+      "hoa_sha256": "7c70fec3c44a069a8c5dce8f9ad82a33d58f8cd01b8a5b3719e71a372b043b57",
+      "automaton_states": 4,
+      "record_ids": [
+        363
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-e8e562e99f0212cf",
+      "formula": "green U (!blue R !brown)",
+      "source_job_id": "260fe998ffe7c365759d6e2066fc3b82e989d94e1e1dc109da5d01ec098b078b",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/260fe998ffe7c365759d6e2066fc3b82e989d94e1e1dc109da5d01ec098b078b/specification.hoa",
+      "hoa_sha256": "5b1fc56df740cad101227be8bd888f9e93acedccee3d7e9e9a210d0caef6495d",
+      "automaton_states": 5,
+      "record_ids": [
+        315
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ba8ce325c15dc9e1",
+      "formula": "purple U (blue | Ggreen)",
+      "source_job_id": "197a340937646a4ced995abae5242138fe46353003ec48754e9079c5773aee59",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/197a340937646a4ced995abae5242138fe46353003ec48754e9079c5773aee59/specification.hoa",
+      "hoa_sha256": "65da8463e02abcb2022512e71fc8461e8c34636bb9f1948625040bcaac3cc54f",
+      "automaton_states": 5,
+      "record_ids": [
+        244
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ca9827bdd82b9fa7",
+      "formula": "blue U (!green R !yellow)",
+      "source_job_id": "7c256fa52d5637543a36ef33c7551fefe2bc71c3101cb8274becccc443d899a0",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/7c256fa52d5637543a36ef33c7551fefe2bc71c3101cb8274becccc443d899a0/specification.hoa",
+      "hoa_sha256": "739235fee0da007d258ffb3753d59f293bf42fac7293ef9204991d7e49c9af05",
+      "automaton_states": 5,
+      "record_ids": [
+        771
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-8b4d6ca9e4faed12",
+      "formula": "purple U (!green R !blue)",
+      "source_job_id": "123b6f8d3e25de5505193af817e87fbe47ba8020ce2344b3116646fd08978bac",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/123b6f8d3e25de5505193af817e87fbe47ba8020ce2344b3116646fd08978bac/specification.hoa",
+      "hoa_sha256": "1ce52b1b98b0bea072f82d9e9ec3a4f4d88c73b14d3fcb0ece939683df007207",
+      "automaton_states": 5,
+      "record_ids": [
+        316
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-211ada120ca8b54e",
+      "formula": "purple U (blue | Gyellow)",
+      "source_job_id": "fe84e2f8d567182f3467fb7a618a29ba39661c30d22e6655d79c7382d174cb2a",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/fe84e2f8d567182f3467fb7a618a29ba39661c30d22e6655d79c7382d174cb2a/specification.hoa",
+      "hoa_sha256": "334df858b4d7b6fe69e0755bd7e80f5e4d318ca963220d2a926d15d4dac7809b",
+      "automaton_states": 5,
+      "record_ids": [
+        243
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-487a4d9bea1d6d87",
+      "formula": "yellow U (!green R !purple)",
+      "source_job_id": "ed4546251fa6e05b364469d249488b48da0fafdc1b2e6562aeaec18b9ec726a7",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ed4546251fa6e05b364469d249488b48da0fafdc1b2e6562aeaec18b9ec726a7/specification.hoa",
+      "hoa_sha256": "c9d076889f104122dfdccb6038c3946db8e5158a028161cf92ca810b205e038f",
+      "automaton_states": 5,
+      "record_ids": [
+        772
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9084f681bbfc0813",
+      "formula": "G(X(brown U green) U Gpurple)",
+      "source_job_id": "d2f662dd3634ddd60a8073f1a63e99517433d60ad5e2042d883cb2020515879e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/d2f662dd3634ddd60a8073f1a63e99517433d60ad5e2042d883cb2020515879e/specification.hoa",
+      "hoa_sha256": "4a8f806e32a6c0d7bac48fb6b221424e2a9d0c0d8c97ae5cb09f239514abd7ed",
+      "automaton_states": 5,
+      "record_ids": [
+        257
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9f9dc0d58a069fa4",
+      "formula": "G(X(brown U purple) U Ggreen)",
+      "source_job_id": "148141e048197d1220fda42ce4fd38efe18b97fe7309a5689b4e92ab7cf6df8e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/148141e048197d1220fda42ce4fd38efe18b97fe7309a5689b4e92ab7cf6df8e/specification.hoa",
+      "hoa_sha256": "861fa0656d9a4d0b8cc482bffe0c039de5340d9482cde7c123108fd535cf6ac9",
+      "automaton_states": 5,
+      "record_ids": [
+        258
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f355aa1aa052c1f3",
+      "formula": "XF((blue & Fgreen) | (!blue & G!green))",
+      "source_job_id": "dd726e8017a006da75abf30405d95bdc2787a2ef7b772bd6d844dc3dd815ed6c",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/dd726e8017a006da75abf30405d95bdc2787a2ef7b772bd6d844dc3dd815ed6c/specification.hoa",
+      "hoa_sha256": "423d337f29f488f345b3031c29ee1ad75ad2ecb837d43851197be797e8a8e5f4",
+      "automaton_states": 5,
+      "record_ids": [
+        376
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-cdb418305465cce6",
+      "formula": "XF((blue & Fyellow) | (!blue & G!yellow))",
+      "source_job_id": "877bad52b2b1d676aa611eff8ff3ab67e7bd5e8e8d9015e7e6aebeac6b839529",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/877bad52b2b1d676aa611eff8ff3ab67e7bd5e8e8d9015e7e6aebeac6b839529/specification.hoa",
+      "hoa_sha256": "ec33c49e9d5e54c4dc4b763bd25248241a6268369af59f492d700c0e23c2e163",
+      "automaton_states": 5,
+      "record_ids": [
+        938
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-080f66e69e7983b6",
+      "formula": "F(brown | GF!green | (F!yellow & F!green))",
+      "source_job_id": "bae8df9ef9d94a468fa8952e2cc2efec1fce49dc4ae0f010a161b59423c83967",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/bae8df9ef9d94a468fa8952e2cc2efec1fce49dc4ae0f010a161b59423c83967/specification.hoa",
+      "hoa_sha256": "9144ccb5a712b0ad491a789005b59bd8b097f30005703bee5dcf5a2fe8be339d",
+      "automaton_states": 5,
+      "record_ids": [
+        868
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-4ecebd876bcbe7d0",
+      "formula": "XF((brown & Fyellow) | (!brown & G!yellow))",
+      "source_job_id": "ef58260b2959d0525f40fda683d0483e8f57bee421f612bf87d2966ec126bf61",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ef58260b2959d0525f40fda683d0483e8f57bee421f612bf87d2966ec126bf61/specification.hoa",
+      "hoa_sha256": "fcf73d722ce899a8d0db597d10921aafc2555e1e462564a15af70cc73d7b17d2",
+      "automaton_states": 5,
+      "record_ids": [
+        375
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-12a7c0151e1c03c6",
+      "formula": "XF((green & Fyellow) | (!green & G!yellow))",
+      "source_job_id": "39d5cbcd0c0ff3b51e304c81cc15bd6fd80167840d6147ea3a753bff40b21b14",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/39d5cbcd0c0ff3b51e304c81cc15bd6fd80167840d6147ea3a753bff40b21b14/specification.hoa",
+      "hoa_sha256": "29b823bf308286afbf9f2c2b5ea5b3f3da7b6bb2cd149c8ce0ca84bffe92bad7",
+      "automaton_states": 5,
+      "record_ids": [
+        937
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-d3fc897c0fda4383",
+      "formula": "F(brown | GF!purple | (F!yellow & F!purple))",
+      "source_job_id": "821ba2dc71c14a2af23b4936c424a7282a9c915f68ff6a9ec6ec33ab7cc79e7d",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/821ba2dc71c14a2af23b4936c424a7282a9c915f68ff6a9ec6ec33ab7cc79e7d/specification.hoa",
+      "hoa_sha256": "41ab590293c7e6c66ff797cb66ca2099079fddb1b702a10ce4f96917ec279176",
+      "automaton_states": 5,
+      "record_ids": [
+        867
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-3835ec9dc75eff95",
+      "formula": "G(purple | F((brown & ((blue & Xyellow) | (!blue & X!yellow))) | (!brown & ((!blue & Xyellow) | (blue & X!yellow)))))",
+      "source_job_id": "799210446cc22af2a69db1650ca64a9c8498e201be4862ddeef3228788a69b72",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/799210446cc22af2a69db1650ca64a9c8498e201be4862ddeef3228788a69b72/specification.hoa",
+      "hoa_sha256": "004388011f3b2674688d827c4d5b34dcb54f0efd873e8cd076badd1ec678f87a",
+      "automaton_states": 5,
+      "record_ids": [
+        945
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-496db2aacf80774d",
+      "formula": "G(blue | F((yellow & ((purple & Xbrown) | (!purple & X!brown))) | (!yellow & ((purple & X!brown) | (!purple & Xbrown)))))",
+      "source_job_id": "e59259ae56281d4d28c8c051526b8d07b1fec64acd67d08ad83efcc81dc4c7d1",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/e59259ae56281d4d28c8c051526b8d07b1fec64acd67d08ad83efcc81dc4c7d1/specification.hoa",
+      "hoa_sha256": "0b9177e20438b8b62749a5e706cb6ecdd5730d8cb775714c5570a17e801cf138",
+      "automaton_states": 5,
+      "record_ids": [
+        946
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-1b09e5502a5e13cc",
+      "formula": "F((((blue & yellow) | (!blue & !yellow)) & X(brown U green)) | (((blue & !yellow) | (!blue & yellow)) & X(!brown R !green)))",
+      "source_job_id": "56e1e412ae94591ad5f4f9236cc960af59133ffddeeff7db6a0391acc1dea0d7",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/56e1e412ae94591ad5f4f9236cc960af59133ffddeeff7db6a0391acc1dea0d7/specification.hoa",
+      "hoa_sha256": "371fa1118482ce476ed68cb74d746547817f76c7e8cb3b0fc4a1542998b36170",
+      "automaton_states": 5,
+      "record_ids": [
+        971
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ddb42f2aa565ef15",
+      "formula": "F((((green & purple) | (!green & !purple)) & X(blue U yellow)) | (((green & !purple) | (!green & purple)) & X(!blue R !yellow)))",
+      "source_job_id": "e32f3b3b7a585490cbb7109789ba445113359d6ea948b5657eedadf10ee6577e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/e32f3b3b7a585490cbb7109789ba445113359d6ea948b5657eedadf10ee6577e/specification.hoa",
+      "hoa_sha256": "b3a4e46b9ef9230ef82ea37bd1d6a7a22468f4d6a7f941e80e44e48fe14c9b93",
+      "automaton_states": 5,
+      "record_ids": [
+        972
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-cdc5fd762f1b3cd6",
+      "formula": "FG(blue U green)",
+      "source_job_id": "ad2aa8d99fb505046b12d13a56f1fd2a912ab4cd569ca94c3e252052b93a4293",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ad2aa8d99fb505046b12d13a56f1fd2a912ab4cd569ca94c3e252052b93a4293/specification.hoa",
+      "hoa_sha256": "af7a2fcc657a1503c680b6f36f306944847945d06dd61dd254cec4822da70004",
+      "automaton_states": 6,
+      "record_ids": [
+        424
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0d7161dfa634497c",
+      "formula": "FG(blue U yellow)",
+      "source_job_id": "dcc85e61503e319c3ad847fb5caa53738a4b8d6804fdf4ad22c3305654713aa5",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/dcc85e61503e319c3ad847fb5caa53738a4b8d6804fdf4ad22c3305654713aa5/specification.hoa",
+      "hoa_sha256": "e8132aa25c1c7d64976d53c1bdcf74c61bd02ee6ebed1654c53432cffcf6d07b",
+      "automaton_states": 6,
+      "record_ids": [
+        423
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9a8da29cc3becaab",
+      "formula": "yellow & (FGyellow U blue)",
+      "source_job_id": "b494ba928b977c22bb9bd62d93e6a88e4685aa48659b571500bf72b9603ccaa6",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b494ba928b977c22bb9bd62d93e6a88e4685aa48659b571500bf72b9603ccaa6/specification.hoa",
+      "hoa_sha256": "614230813816c02acdc44b108d6831f0995715ec69903abe882313aa7a8b4854",
+      "automaton_states": 6,
+      "record_ids": [
+        459
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-246ef40564ecd53d",
+      "formula": "purple & (FGpurple U green)",
+      "source_job_id": "c4095ea12c4d376b526a6dfef3817acdacde70ad3250e9aa2f74c93af60b04eb",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/c4095ea12c4d376b526a6dfef3817acdacde70ad3250e9aa2f74c93af60b04eb/specification.hoa",
+      "hoa_sha256": "217ce1fb850ca3b2f3b27a987595b9d9f96bb2bfdbaaf8dc3f6d87f22b832be6",
+      "automaton_states": 6,
+      "record_ids": [
+        460
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-4d0d6d3b808e3be5",
+      "formula": "F(GFblue | (yellow & G!brown))",
+      "source_job_id": "c2a3c4daf34ab0229c9fc77ec551d6ab7ff4f506fc210b01977995e822b8a4c6",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/c2a3c4daf34ab0229c9fc77ec551d6ab7ff4f506fc210b01977995e822b8a4c6/specification.hoa",
+      "hoa_sha256": "381793cdd1bb98aef0484a13706b498094f15c620b8d01c71ee6f25e1516e506",
+      "automaton_states": 6,
+      "record_ids": [
+        1201
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f9461a0819699234",
+      "formula": "F(GFbrown | (blue & G!yellow))",
+      "source_job_id": "51a0b78a288c58b70c915c3de6bd67f0a4beae3a54eb1b4563525e1997651183",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/51a0b78a288c58b70c915c3de6bd67f0a4beae3a54eb1b4563525e1997651183/specification.hoa",
+      "hoa_sha256": "40ab68a441ca2c99934194490d25f0dbcdf9cc876a0a072fd3d102137fc3130f",
+      "automaton_states": 6,
+      "record_ids": [
+        491
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0b7ed6b43e7f09fb",
+      "formula": "F(GFyellow | (blue & G!brown))",
+      "source_job_id": "e7bbe173eddf04f3da62add7d1a5cd37fab6bd5d39c3c9a60772efaf6fb79e26",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/e7bbe173eddf04f3da62add7d1a5cd37fab6bd5d39c3c9a60772efaf6fb79e26/specification.hoa",
+      "hoa_sha256": "338625446a1ba5ee6a6b5287fe1e95c8ddb0f3ccd2c4afd00b1126a29d199475",
+      "automaton_states": 6,
+      "record_ids": [
+        492
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ffe7acafcd897b73",
+      "formula": "F(GFpurple | (blue & G!yellow))",
+      "source_job_id": "6fe2d9e4b6b863986889a07c5df8a654f81cb390185ce8fb42d152629305a76e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/6fe2d9e4b6b863986889a07c5df8a654f81cb390185ce8fb42d152629305a76e/specification.hoa",
+      "hoa_sha256": "884277b01b520f193bfe93dbfaf14eac11206452a75fb3d9ab0f2d6126714dcc",
+      "automaton_states": 6,
+      "record_ids": [
+        1202
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-da8c2e728aded299",
+      "formula": "Xgreen | (yellow & XF!blue) | (!brown R F(blue | green | !purple))",
+      "source_job_id": "b16a32d0fd874c7d14828ff7afb455cddb23f6b2c924027570f66d97159f190e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/b16a32d0fd874c7d14828ff7afb455cddb23f6b2c924027570f66d97159f190e/specification.hoa",
+      "hoa_sha256": "a620e246da375600a8ef54b40815a5547fad4286ea223cfb8458f63008f07f95",
+      "automaton_states": 6,
+      "record_ids": [
+        1331
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c6b30b0b28e2c7ce",
+      "formula": "Xbrown | (green & XF!purple) | (!yellow R F(!blue | brown | purple))",
+      "source_job_id": "06944e0129891196533963ebd00b4d950b2b3c915ba67d2f030ec7b8565a76a7",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/06944e0129891196533963ebd00b4d950b2b3c915ba67d2f030ec7b8565a76a7/specification.hoa",
+      "hoa_sha256": "efc19f41df729569e953e6defaeb8fede42d380f99563fec55221a71ab59ccc7",
+      "automaton_states": 6,
+      "record_ids": [
+        1406
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f529a6fb65fe92be",
+      "formula": "Xgreen | (yellow & XF!purple) | (!blue R F(!brown | green | purple))",
+      "source_job_id": "da0e1d92bb9cf80fafb50000826db01248ed41a8a64fc01cb1c554ac25422456",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/da0e1d92bb9cf80fafb50000826db01248ed41a8a64fc01cb1c554ac25422456/specification.hoa",
+      "hoa_sha256": "01152f8f3e20e699d5d96a6eb16edc165da873d0455d8cbb04d0f79361303a17",
+      "automaton_states": 6,
+      "record_ids": [
+        1405
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-d1532a60c0800986",
+      "formula": "Xyellow | (brown & XF!green) | (!blue R F(green | !purple | yellow))",
+      "source_job_id": "45b06535b2ecc0b3f9726a2171bd443d59f27f6250014f7515a161d0e2565c1e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/45b06535b2ecc0b3f9726a2171bd443d59f27f6250014f7515a161d0e2565c1e/specification.hoa",
+      "hoa_sha256": "2bc32c05ba46cc402ac273c32fec0b59571dd2739b51e4fb098e58da13552c0a",
+      "automaton_states": 6,
+      "record_ids": [
+        1332
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-dd11af9e82929953",
+      "formula": "(blue & GFpurple) | (!blue & FG!purple)",
+      "source_job_id": "583160f5541869e41e1b5e9502c5d98e694c4681e263ab81532e6d1f40b057c8",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/583160f5541869e41e1b5e9502c5d98e694c4681e263ab81532e6d1f40b057c8/specification.hoa",
+      "hoa_sha256": "72d0eeaf330199710a7319f5c9fbbf848e98a4904901e9684eddab98dc963005",
+      "automaton_states": 7,
+      "record_ids": [
+        860
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b10f67b8f411cd77",
+      "formula": "(blue & GFyellow) | (!blue & FG!yellow)",
+      "source_job_id": "d4300da5c4f2a847276524a5c4ab562d55f189ac08bb579bd980d9bb687ba632",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/d4300da5c4f2a847276524a5c4ab562d55f189ac08bb579bd980d9bb687ba632/specification.hoa",
+      "hoa_sha256": "27335b04beff2e805500eed4ade814ccd9053f6b7a94568dbaa030e330dafb77",
+      "automaton_states": 7,
+      "record_ids": [
+        859
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9c07435c1d196563",
+      "formula": "(green & GFyellow) | (!green & FG!yellow)",
+      "source_job_id": "b3d1ee75b7146197295d07a0ef8dc10ff72056b69594ec0619fcde5841de2738",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/b3d1ee75b7146197295d07a0ef8dc10ff72056b69594ec0619fcde5841de2738/specification.hoa",
+      "hoa_sha256": "57842316c1daae8118e3eda293fa8a6a8d7790f233906e0720c4f3543d3e67ed",
+      "automaton_states": 7,
+      "record_ids": [
+        354
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-cfedd849ebff0c89",
+      "formula": "(yellow & GFbrown) | (!yellow & FG!brown)",
+      "source_job_id": "6ae71fffab15dfc36d138d2998855ba238e68293b51f27d0fce36bb5378ddfd9",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/6ae71fffab15dfc36d138d2998855ba238e68293b51f27d0fce36bb5378ddfd9/specification.hoa",
+      "hoa_sha256": "0cace09a772aebe523a61175289ebab130f8518e6f2a5689d21d4501656623f6",
+      "automaton_states": 7,
+      "record_ids": [
+        353
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-6757c8cecf91ac07",
+      "formula": "(purple & FG(blue & green)) | (!purple & GF(!blue | !green))",
+      "source_job_id": "b33c9ad0b99ca4860f17907eb53cca99626c32e7cb1a203eddb62b661c96ad3a",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b33c9ad0b99ca4860f17907eb53cca99626c32e7cb1a203eddb62b661c96ad3a/specification.hoa",
+      "hoa_sha256": "391c34795c3cc38e8717f144e2098f0e04124d7f473811b2c7c0921655f4076f",
+      "automaton_states": 7,
+      "record_ids": [
+        623
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-98b6371d3461c3ab",
+      "formula": "(brown & FG(green & yellow)) | (!brown & GF(!green | !yellow))",
+      "source_job_id": "ea4b593af967860f387bdfe5494c4f24d7598917bdccd58ab0960c79f1aa8bc9",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ea4b593af967860f387bdfe5494c4f24d7598917bdccd58ab0960c79f1aa8bc9/specification.hoa",
+      "hoa_sha256": "69a36bc22f0022896de58ded9e0f8b333ffdb9741b74f280ba2e59dba0a6c7ef",
+      "automaton_states": 7,
+      "record_ids": [
+        624
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-769acde8f8c7107e",
+      "formula": "X(!blue & F(green & (!purple | F(blue | yellow | (!green R !brown)))))",
+      "source_job_id": "c7b6dc41afefcc5bf480f75c9a7b39a7546bf506499616f51f51a8e89ed5aeeb",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/c7b6dc41afefcc5bf480f75c9a7b39a7546bf506499616f51f51a8e89ed5aeeb/specification.hoa",
+      "hoa_sha256": "01088430ad7517000d9d5d4e5a2922679578cc38b0b3a5b5ee5709c5c2d3cf79",
+      "automaton_states": 7,
+      "record_ids": [
+        1319
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-af7edfe661dc1fb0",
+      "formula": "X(!purple & F(blue & (!green | F(purple | yellow | (!blue R !brown)))))",
+      "source_job_id": "05aefe7b2d263556d9a0bc691c8c38e6b30bf94035753cd027556da02e4d7d4e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/05aefe7b2d263556d9a0bc691c8c38e6b30bf94035753cd027556da02e4d7d4e/specification.hoa",
+      "hoa_sha256": "6f81152988277027e93bd32fd3e487dc1a4dc277521dc2f073857b92b4d51680",
+      "automaton_states": 7,
+      "record_ids": [
+        1386
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-e8fbc77768a37e90",
+      "formula": "X(!brown & F(yellow & (!purple | F(brown | green | (!yellow R !blue)))))",
+      "source_job_id": "fda2b4623bca8a59d7d82cf21c187e47e5a7f21bd68439020ef45fb80cf84325",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/fda2b4623bca8a59d7d82cf21c187e47e5a7f21bd68439020ef45fb80cf84325/specification.hoa",
+      "hoa_sha256": "7f3a40e060fa56b29b65283340763dde64d2a54dd3d8d74ca2337b8a067b24b4",
+      "automaton_states": 7,
+      "record_ids": [
+        1320
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-08c5201041674518",
+      "formula": "X(!purple & F(yellow & (!green | F(blue | purple | (!yellow R !brown)))))",
+      "source_job_id": "d22c3e988e4d43ee0c412e1fee0ffd9a4a867b355726cfba72186d5fc55c45cd",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/d22c3e988e4d43ee0c412e1fee0ffd9a4a867b355726cfba72186d5fc55c45cd/specification.hoa",
+      "hoa_sha256": "4abce1e187d7928b67ce43b43891e777094115a25eec07db08060bac7317948e",
+      "automaton_states": 7,
+      "record_ids": [
+        1385
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c3af464a3f15074e",
+      "formula": "(green | purple) U ((!blue & (brown U green)) | (blue & (!brown R !green)))",
+      "source_job_id": "f1842a7e674e20c4f3d6d530597bac109199220889ba828771d473e9fd1bee70",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/f1842a7e674e20c4f3d6d530597bac109199220889ba828771d473e9fd1bee70/specification.hoa",
+      "hoa_sha256": "ee1f7b9fa35111682e0ce6b270e2415ce3075dedff0b2e1509eba704314e35a5",
+      "automaton_states": 7,
+      "record_ids": [
+        1010
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ffe9920e5d66067f",
+      "formula": "(blue | yellow) U ((!brown & (green U yellow)) | (brown & (!green R !yellow)))",
+      "source_job_id": "8c32a5fccfc5cebd9ef697ce6052f19ebf3f09956cde4510794a44ea84a78c08",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/8c32a5fccfc5cebd9ef697ce6052f19ebf3f09956cde4510794a44ea84a78c08/specification.hoa",
+      "hoa_sha256": "685cfd9d1f889b5e8521199dea2ebb8d87e368609d2c50745c88e31b6c60f4c7",
+      "automaton_states": 7,
+      "record_ids": [
+        1009
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-57cd9ca2c12baca8",
+      "formula": "purple U ((blue & ((!green & F!brown) | (green & Gbrown))) | (!blue & ((green & F!brown) | (!green & Gbrown))))",
+      "source_job_id": "3b2db3fdf96e167809af1ef1ac6b789fef05c4f024b9ee367ed30cbcd7a84f2c",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/3b2db3fdf96e167809af1ef1ac6b789fef05c4f024b9ee367ed30cbcd7a84f2c/specification.hoa",
+      "hoa_sha256": "bf29d0af7fda15a5b5267f9450d88cae09442339c09560a6aac9bf3ded62c40c",
+      "automaton_states": 7,
+      "record_ids": [
+        301
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b84406ac4a2593f4",
+      "formula": "yellow U ((purple & ((green & Gblue) | (!green & F!blue))) | (!purple & ((green & F!blue) | (!green & Gblue))))",
+      "source_job_id": "ddc476671581a85ed43cbc033c7f6183e93da16fe4b955af0b3b1c413a94fe49",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/ddc476671581a85ed43cbc033c7f6183e93da16fe4b955af0b3b1c413a94fe49/specification.hoa",
+      "hoa_sha256": "68aa036a4d8a8df47b7a4a8051446e7c9be404b271d27e1f44973a294c5f94ee",
+      "automaton_states": 7,
+      "record_ids": [
+        750
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-1ea649558161a3c8",
+      "formula": "yellow U ((brown & ((purple & Gblue) | (!purple & F!blue))) | (!brown & ((purple & F!blue) | (!purple & Gblue))))",
+      "source_job_id": "ae5331eaf459005f1a5b0f6d82f839d61cd663f3169cde15d08f8d3295f9aa4b",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/ae5331eaf459005f1a5b0f6d82f839d61cd663f3169cde15d08f8d3295f9aa4b/specification.hoa",
+      "hoa_sha256": "cadb181583427888cfc84b69b805d66022584ce76b90acf068d4cca36b3ff3c9",
+      "automaton_states": 7,
+      "record_ids": [
+        749
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f106685ca3f6bc42",
+      "formula": "brown U ((purple & ((!yellow & F!green) | (yellow & Ggreen))) | (!purple & ((yellow & F!green) | (!yellow & Ggreen))))",
+      "source_job_id": "4e859383ff19d8734b78696c9f679ff1877606f0c76709fad39a70ce09cc47ac",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/4e859383ff19d8734b78696c9f679ff1877606f0c76709fad39a70ce09cc47ac/specification.hoa",
+      "hoa_sha256": "fbaa10519621f1677a40c9d2d315f124cf896ae747090e4c83e2b84fcba603c1",
+      "automaton_states": 7,
+      "record_ids": [
+        302
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ca4785cc0747df9e",
+      "formula": "blue | ((Fblue U green) U Gpurple)",
+      "source_job_id": "9fd2725fc4d96d61cc375025e6c857fa1b008baae8affc6bea2d5795f3b97dd0",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/9fd2725fc4d96d61cc375025e6c857fa1b008baae8affc6bea2d5795f3b97dd0/specification.hoa",
+      "hoa_sha256": "cf8397cb6eed182631d76ec6b6834d4d9e52be035a072772d12bcaf4c45c4afd",
+      "automaton_states": 8,
+      "record_ids": [
+        1419
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f337cb7be56d03cf",
+      "formula": "green | ((Fgreen U purple) U Gbrown)",
+      "source_job_id": "24bdb9f17fe9b2ce51f71b07dc7b8081200e5425b4e8d1c8c891a8083078d84f",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/24bdb9f17fe9b2ce51f71b07dc7b8081200e5425b4e8d1c8c891a8083078d84f/specification.hoa",
+      "hoa_sha256": "69f793d5b85bdae2190b7a631c108b303e80dbf2c07dd89050dc65e9d0296428",
+      "automaton_states": 8,
+      "record_ids": [
+        1420
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b6beac4328f15c51",
+      "formula": "G(blue | green | yellow | XF(blue | purple | Xbrown))",
+      "source_job_id": "92cc28bc2ecb7d1b17e7feec99f7c323ec68125393d777c386e42575aa26a4b4",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/92cc28bc2ecb7d1b17e7feec99f7c323ec68125393d777c386e42575aa26a4b4/specification.hoa",
+      "hoa_sha256": "54e6b3bfc0ab9d67932298a404b779755528a0d3f9c6a3a2d386f38b263802d2",
+      "automaton_states": 8,
+      "record_ids": [
+        1302
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ee94f0dafcc3112f",
+      "formula": "G(brown | green | purple | XF(purple | yellow | Xblue))",
+      "source_job_id": "8e6ab04e335ceab3da3603ff94b2fc3519ae84f33f070c82b4cc1989a34c7a2b",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/8e6ab04e335ceab3da3603ff94b2fc3519ae84f33f070c82b4cc1989a34c7a2b/specification.hoa",
+      "hoa_sha256": "61430c61136b52fdb3911d1b94ee4a9f7d952b28b609dc7faa9989565f8df7f6",
+      "automaton_states": 8,
+      "record_ids": [
+        1301
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-7480ea3c196f325c",
+      "formula": "blue | !purple | Xbrown | (!brown & (blue R (!green & Fyellow)))",
+      "source_job_id": "fd79f7ee8a06d1d9a161eb16e9fe9282d3584af01dcfedaa146bbb5eb8110656",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/fd79f7ee8a06d1d9a161eb16e9fe9282d3584af01dcfedaa146bbb5eb8110656/specification.hoa",
+      "hoa_sha256": "63dfacea5ff7121e8c80fd4719b9a9f564ad5cdef7fa360bf664e91ed58e26d5",
+      "automaton_states": 8,
+      "record_ids": [
+        1322
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-481bd484af511d6d",
+      "formula": "brown | !green | Xblue | (!blue & (brown R (!yellow & Fpurple)))",
+      "source_job_id": "e2bba1e3b7b94f8d32bf7cfe6954505b2295f4301b54384f0b9cdba3e9243a0a",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/e2bba1e3b7b94f8d32bf7cfe6954505b2295f4301b54384f0b9cdba3e9243a0a/specification.hoa",
+      "hoa_sha256": "0822e2a91ca35c78f90e4dfb05dee1a160506d29ec170807459e640dcca3d24b",
+      "automaton_states": 8,
+      "record_ids": [
+        1387
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-2fb953e5b875d7fd",
+      "formula": "!purple | yellow | Xblue | (!blue & (yellow R (!green & Fbrown)))",
+      "source_job_id": "422cfbb97e15c79a45ad95c36569f56c45caab345b05988872882ab3e5c25f3c",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/422cfbb97e15c79a45ad95c36569f56c45caab345b05988872882ab3e5c25f3c/specification.hoa",
+      "hoa_sha256": "a6d3329e0bc878ade03f02ba7dec6a02da10ed6996d6b11e75d271f409ff20a8",
+      "automaton_states": 8,
+      "record_ids": [
+        1388
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ee2700e6efb9e112",
+      "formula": "!purple | yellow | Xbrown | (!brown & (yellow R (!green & Fblue)))",
+      "source_job_id": "cb4328638c22a38af8ebc2d240fc920bc64ed9a0b67f066764b5c801ef540f29",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/cb4328638c22a38af8ebc2d240fc920bc64ed9a0b67f066764b5c801ef540f29/specification.hoa",
+      "hoa_sha256": "e7b2f30616e7d7f03c4e6ed0f4c4215a4921a062ecdb9ba7af2997788791a2dd",
+      "automaton_states": 8,
+      "record_ids": [
+        1321
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-59de4a6279ecbdf8",
+      "formula": "(brown | purple | !yellow | X(brown M (purple | G!blue))) U Gpurple",
+      "source_job_id": "a4aaff24671d6cac2ebb4f74e1d9592c434100d6f712f38c7d3b0a69fb48b025",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/a4aaff24671d6cac2ebb4f74e1d9592c434100d6f712f38c7d3b0a69fb48b025/specification.hoa",
+      "hoa_sha256": "3246419bb0474a5acf0ef03dded2c97cbe4074721cbf59b17f1219c03227d01e",
+      "automaton_states": 8,
+      "record_ids": [
+        1375
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-30dfac7e9833f535",
+      "formula": "(brown | !purple | yellow | X(brown M (yellow | G!green))) U Gyellow",
+      "source_job_id": "9584cdd0b9916eb404948f76a1049bf0afeacc07142c95127e0d059524316280",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/9584cdd0b9916eb404948f76a1049bf0afeacc07142c95127e0d059524316280/specification.hoa",
+      "hoa_sha256": "14cb37672bfca3264037b9166efe3ecabff71ef5875e99c1f3419d6df1c87e42",
+      "automaton_states": 8,
+      "record_ids": [
+        1376
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-8834f7fc514f8832",
+      "formula": "(!brown & G(blue U green)) | (brown & F(!blue R !green))",
+      "source_job_id": "26b30363d721a7a67e020ba47154d925a5d1eff7b7a3c63af3746981444d58c8",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/26b30363d721a7a67e020ba47154d925a5d1eff7b7a3c63af3746981444d58c8/specification.hoa",
+      "hoa_sha256": "da9ceb1514925dc81973d77aa96167321454cfa96276764fd7b4985d8fbd012a",
+      "automaton_states": 9,
+      "record_ids": [
+        682
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c22d15790f47e704",
+      "formula": "FGpurple U (green | yellow | (!blue R (!green R !brown)))",
+      "source_job_id": "e6f4ca4a83a3827adee2718a99fd86da0de5c6f40f1e22c8407e09090b0306ea",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/e6f4ca4a83a3827adee2718a99fd86da0de5c6f40f1e22c8407e09090b0306ea/specification.hoa",
+      "hoa_sha256": "42ca75bd01bf811f00cbf195f516e225f6fc7cd76b0dc4218f35052f8cf53d0e",
+      "automaton_states": 9,
+      "record_ids": [
+        1429
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-bba27b211b541c7d",
+      "formula": "(!blue & G(green U purple)) | (blue & F(!green R !purple))",
+      "source_job_id": "0608929e2953acb049f3e5e31f1d4c26eb6d6bf8a718e0ede2a9d5d6c35a9fe9",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/0608929e2953acb049f3e5e31f1d4c26eb6d6bf8a718e0ede2a9d5d6c35a9fe9/specification.hoa",
+      "hoa_sha256": "cd5ac378f4ec919d08fdc5d8286e2e15c8e79a6bd5e559c04fb6ba86035cc59c",
+      "automaton_states": 9,
+      "record_ids": [
+        681
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-367da42ace1b805b",
+      "formula": "FGbrown U (blue | yellow | (!purple R (!yellow R !green)))",
+      "source_job_id": "f9b3b51522488a824bf2b77546e0c4d381c40cb23d711d859a132f2ad6634617",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/f9b3b51522488a824bf2b77546e0c4d381c40cb23d711d859a132f2ad6634617/specification.hoa",
+      "hoa_sha256": "ba29310025e8a6326100007d9d4ee017cec0c9ed709f737d22bf41f5e4bc5dfd",
+      "automaton_states": 9,
+      "record_ids": [
+        1430
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-bf92743b9d65f8a4",
+      "formula": "(blue & F(!purple R !yellow)) | (!blue & G(purple U yellow))",
+      "source_job_id": "6499680f37891481af5d5ac99200bb39f8eb0c58a869bf0690265bffda89ac44",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/6499680f37891481af5d5ac99200bb39f8eb0c58a869bf0690265bffda89ac44/specification.hoa",
+      "hoa_sha256": "be19dd6d3535add183c8f19642b7025be6a9277b828432aef46b31c24b4be2fb",
+      "automaton_states": 9,
+      "record_ids": [
+        236
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-666ec0ac041474ed",
+      "formula": "(purple & F(!blue R !yellow)) | (!purple & G(blue U yellow))",
+      "source_job_id": "8473c644e05e4846fb1bb8a31633456478e50688b54865eb7448e6f9ddf5a686",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/8473c644e05e4846fb1bb8a31633456478e50688b54865eb7448e6f9ddf5a686/specification.hoa",
+      "hoa_sha256": "c2db585bda9e1655016365045b4f7587461a9edbd06bddf1718a7b43585e5874",
+      "automaton_states": 9,
+      "record_ids": [
+        235
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-7737663fb8f048db",
+      "formula": "(!purple U ((yellow & ((blue & Ggreen) | (!blue & F!green))) | (!yellow & ((blue & F!green) | (!blue & Ggreen))))) U green",
+      "source_job_id": "4ab6f020f7b387a21a5dfb5073b248bc01d566fc970dd43ce8b2bac07c65ec21",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/4ab6f020f7b387a21a5dfb5073b248bc01d566fc970dd43ce8b2bac07c65ec21/specification.hoa",
+      "hoa_sha256": "5c83e0f44e34efe35fcc6fda8f2a106f546a298b1c3114017faa8e9a36ef5bea",
+      "automaton_states": 9,
+      "record_ids": [
+        941
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-45924d63bdc6ce8e",
+      "formula": "(!blue U ((brown & ((!purple & F!yellow) | (purple & Gyellow))) | (!brown & ((purple & F!yellow) | (!purple & Gyellow))))) U yellow",
+      "source_job_id": "ffffcab12568974c76adca740fdaf39e781a14b6df1f80ad0250a468980d792c",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ffffcab12568974c76adca740fdaf39e781a14b6df1f80ad0250a468980d792c/specification.hoa",
+      "hoa_sha256": "762ac6ec90cb2ba9deca30757558267c721fad27b1ad19fefff2f2611fa7c3be",
+      "automaton_states": 9,
+      "record_ids": [
+        942
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f49ae2cc0c077737",
+      "formula": "G(blue | (green U (yellow & Gbrown)))",
+      "source_job_id": "b7815be6b069b932a490709098041dd146c66f33a67fe51c6f42e47d8ebb70ea",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b7815be6b069b932a490709098041dd146c66f33a67fe51c6f42e47d8ebb70ea/specification.hoa",
+      "hoa_sha256": "50052306b5a8a6638e48d819ac49469482c8f9b4b9d38b84e1d9deb9bcf09ed9",
+      "automaton_states": 10,
+      "record_ids": [
+        1168
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0e2f1b9492a58903",
+      "formula": "G(purple | (green U (blue & Gbrown)))",
+      "source_job_id": "0e649982a684c6862c41fb9834ec39c6c4a2dc4c9b08184e954d1f3a9033d131",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/0e649982a684c6862c41fb9834ec39c6c4a2dc4c9b08184e954d1f3a9033d131/specification.hoa",
+      "hoa_sha256": "a9fa25f265193523e17c6e069ea5e65f6ccbf478251d5a7ea09efdd2fd7a0d43",
+      "automaton_states": 10,
+      "record_ids": [
+        1167
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0b70e82c61bd2918",
+      "formula": "brown | ((F!brown R !green) R F!blue)",
+      "source_job_id": "151f78f4521a8915a97e813835d1d4caedc8678d1328ee877e71934494ac22ea",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/151f78f4521a8915a97e813835d1d4caedc8678d1328ee877e71934494ac22ea/specification.hoa",
+      "hoa_sha256": "5c7865d092316e259d4f2f594df115f674d1e8e0e08e8c61693b6808d1d6d7b8",
+      "automaton_states": 10,
+      "record_ids": [
+        451
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-15c1bdf5a25ca7e2",
+      "formula": "brown | ((F!brown R !yellow) R F!blue)",
+      "source_job_id": "e05b7d5327cdfcb5650a12537f01ba8dda376fe174a9f91b4050be6d90867ef6",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/e05b7d5327cdfcb5650a12537f01ba8dda376fe174a9f91b4050be6d90867ef6/specification.hoa",
+      "hoa_sha256": "debce23e4d2cd6143232ffb672339e9c29ad9876e6011d8fdf9a77f6c9c01611",
+      "automaton_states": 10,
+      "record_ids": [
+        452
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-af7ab1b8fcf145d3",
+      "formula": "green | ((F!green R !blue) R F!yellow)",
+      "source_job_id": "4d47a436c988c0fc2caaba1d8766d7e77c9f8e9f8d23d25f7f935a50aee42080",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/4d47a436c988c0fc2caaba1d8766d7e77c9f8e9f8d23d25f7f935a50aee42080/specification.hoa",
+      "hoa_sha256": "bcbf915633b8903f0eea65b83349327d7f70875ccf4fa06764b4a561ca7a5073",
+      "automaton_states": 10,
+      "record_ids": [
+        1160
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-dc9a6988f9b71acc",
+      "formula": "green | ((F!green R !purple) R F!blue)",
+      "source_job_id": "78a738f1ed2f95ae75464b28632426f0e4f4c3ac80c0661c1123d65161f0cba9",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/78a738f1ed2f95ae75464b28632426f0e4f4c3ac80c0661c1123d65161f0cba9/specification.hoa",
+      "hoa_sha256": "49d74c550bcaf2466d5748906aa113135ae25890a300d1937536db34fac25950",
+      "automaton_states": 10,
+      "record_ids": [
+        1159
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b659de2ed166273f",
+      "formula": "blue | (purple & G(green | (F(!brown R !blue) R !yellow)))",
+      "source_job_id": "c8417fcb52078359372423a864686e3f664fd1e52e82958809e7e6eb17cbf622",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/c8417fcb52078359372423a864686e3f664fd1e52e82958809e7e6eb17cbf622/specification.hoa",
+      "hoa_sha256": "d3f2e572e56056a084d9c5d89e9681f4bb2af8d6ada8fea9573f3aa162f9d2b1",
+      "automaton_states": 10,
+      "record_ids": [
+        1327
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-7c7fe8c6c8956f11",
+      "formula": "blue | (purple & G(yellow | (F(!green R !blue) R !brown)))",
+      "source_job_id": "75356afc161b44b3a166b134251b4fcd4b15f8e5dc2897aaa81c75bc6947737e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/75356afc161b44b3a166b134251b4fcd4b15f8e5dc2897aaa81c75bc6947737e/specification.hoa",
+      "hoa_sha256": "66fe3433f7cf7377dd35bf3a8772155e8b2b41a6f16a8f7881effeb90b3f56be",
+      "automaton_states": 10,
+      "record_ids": [
+        1328
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-e69df55867f8277f",
+      "formula": "green | (blue & G(purple | (F(!brown R !green) R !yellow)))",
+      "source_job_id": "a9b56a9b91266e8bceb92e440e7cbad5e0528eb7c13c48c29d992113e33f9341",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/a9b56a9b91266e8bceb92e440e7cbad5e0528eb7c13c48c29d992113e33f9341/specification.hoa",
+      "hoa_sha256": "8cf67bd710939e322d7f691ae64c420e60e1797a2e0c98620f72b4ffeaf4ac82",
+      "automaton_states": 10,
+      "record_ids": [
+        1394
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-6c141183cbcd6279",
+      "formula": "purple | (blue & G(brown | (F(!green R !purple) R !yellow)))",
+      "source_job_id": "f67fca130d11b281a2853e2595e30d349dfaec5b8f1d3e8546f8d17b82971446",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/f67fca130d11b281a2853e2595e30d349dfaec5b8f1d3e8546f8d17b82971446/specification.hoa",
+      "hoa_sha256": "222eed71d9e36d131f4d7a9a73cd028f81f03796a2322d552da1b2e368f430ee",
+      "automaton_states": 10,
+      "record_ids": [
+        1393
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0ff8d0a7f9be105a",
+      "formula": "(Fblue & X(blue | FGpurple)) | (G!blue & X(!blue & GF!purple))",
+      "source_job_id": "bce8cc2e54e63a583302e405ff7fbc7b3d89acd198c2cc542048167460b47dd1",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/bce8cc2e54e63a583302e405ff7fbc7b3d89acd198c2cc542048167460b47dd1/specification.hoa",
+      "hoa_sha256": "f48c880639ec8989a6e293ff703faa1c4418f6b9099fc3c547cec3f21a91acf0",
+      "automaton_states": 10,
+      "record_ids": [
+        390
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0a9be4be94ac342d",
+      "formula": "(Fbrown & X(brown | FGyellow)) | (G!brown & X(!brown & GF!yellow))",
+      "source_job_id": "3edb6702942ccce86d65efc44829fae9dc32d4a34dd3b2107f3d7351a5ee865d",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/3edb6702942ccce86d65efc44829fae9dc32d4a34dd3b2107f3d7351a5ee865d/specification.hoa",
+      "hoa_sha256": "302d03a0920c524f77695a98bb1c8cdf28a532e0b08e2c92e7f77b8c539e63bd",
+      "automaton_states": 10,
+      "record_ids": [
+        389
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b06a44768cdac82e",
+      "formula": "(Fgreen & X(green | FGpurple)) | (G!green & X(!green & GF!purple))",
+      "source_job_id": "f86a45e6369da4192ed8904260bfc017a98cbe9a85d2562bb2c5c39cfd0be2c5",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/f86a45e6369da4192ed8904260bfc017a98cbe9a85d2562bb2c5c39cfd0be2c5/specification.hoa",
+      "hoa_sha256": "818f4bf6175707058ef6ec1ec62807c7109ebd5fade6f5a470f661cf24fe79ea",
+      "automaton_states": 10,
+      "record_ids": [
+        985
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-2f6ab800cd2a4b3e",
+      "formula": "(Fyellow & X(yellow | FGgreen)) | (G!yellow & X(!yellow & GF!green))",
+      "source_job_id": "711a0c2b3cbf3169f29ce8056a0059aad5372112699d5f8616d721972bf7374f",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/711a0c2b3cbf3169f29ce8056a0059aad5372112699d5f8616d721972bf7374f/specification.hoa",
+      "hoa_sha256": "4b8f64a874270afffbe52793ed02e754479290c9e262340ed6877f4cf56a1516",
+      "automaton_states": 10,
+      "record_ids": [
+        986
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-e712649bc52d46b3",
+      "formula": "((!brown | green | FG(blue | !yellow)) U (!blue & !purple)) U (blue | Xblue)",
+      "source_job_id": "602524d9a2a88d9dd706ec71362042d539aba12adbbf6f1ab95698204f582e1a",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/602524d9a2a88d9dd706ec71362042d539aba12adbbf6f1ab95698204f582e1a/specification.hoa",
+      "hoa_sha256": "1862bf58cffaeff619f4d56265537337f89348f449e1d1be39118c428ed73172",
+      "automaton_states": 12,
+      "record_ids": [
+        1428
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0dc3866b26be8a95",
+      "formula": "((!green | yellow | FG(brown | !purple)) U (!blue & !brown)) U (brown | Xbrown)",
+      "source_job_id": "702fa6bc9c9c479c2d7aa14738f0f61fa034ef775b374db7ba7645fe525fb0e4",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/702fa6bc9c9c479c2d7aa14738f0f61fa034ef775b374db7ba7645fe525fb0e4/specification.hoa",
+      "hoa_sha256": "dec3d91991413953230c6cca59123af54808f1198f68625e79673c6f91a92c46",
+      "automaton_states": 12,
+      "record_ids": [
+        1427
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f96c0a2d739d6287",
+      "formula": "((blue | !yellow | FG(green | !purple)) U (!brown & !green)) U (green | Xgreen)",
+      "source_job_id": "343978fa5c579478ee0caf396806305ac591663c78e199301ba6612659c3bc69",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/343978fa5c579478ee0caf396806305ac591663c78e199301ba6612659c3bc69/specification.hoa",
+      "hoa_sha256": "b70f20d87bb555b7b200d407513391abe4ac53572f9cb87453ce4ecc5d3bb8c9",
+      "automaton_states": 12,
+      "record_ids": [
+        1357
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-cc19ccce25e0f032",
+      "formula": "((green | !yellow | FG(!brown | purple)) U (!blue & !purple)) U (purple | Xpurple)",
+      "source_job_id": "7a1ec87e74bf92a80c1282436b7bfaf650327ff2a9a2db635db62d6b1f4e0862",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/7a1ec87e74bf92a80c1282436b7bfaf650327ff2a9a2db635db62d6b1f4e0862/specification.hoa",
+      "hoa_sha256": "7e2ed6ca781e7f81f7ee67704b612faa7aa12a1d8cb64c982a3f991619370805",
+      "automaton_states": 12,
+      "record_ids": [
+        1358
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-be78c6b4c26ef3de",
+      "formula": "(purple & F((yellow & (blue U green)) | (!yellow & (!blue R !green)))) | (!purple & G((!yellow & (blue U green)) | (yellow & (!blue R !green))))",
+      "source_job_id": "a5fb90bb9e9901a10b5476ba17ca0e1860954d79396ab8234c4057c82876ff6a",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/a5fb90bb9e9901a10b5476ba17ca0e1860954d79396ab8234c4057c82876ff6a/specification.hoa",
+      "hoa_sha256": "f1b160f8fd44f5da70eef0c7f25fc7fd4555a267d0adbe40cc37236add786a8e",
+      "automaton_states": 12,
+      "record_ids": [
+        996
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-010d040e65ee8429",
+      "formula": "(blue & F((green & (purple U yellow)) | (!green & (!purple R !yellow)))) | (!blue & G((!green & (purple U yellow)) | (green & (!purple R !yellow))))",
+      "source_job_id": "6e4728a0fda6849e60e9992d56fbba89b95e1c4c5462325e8b883c2794090939",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/6e4728a0fda6849e60e9992d56fbba89b95e1c4c5462325e8b883c2794090939/specification.hoa",
+      "hoa_sha256": "2d1b14d3aee70d50258ff7186e0d484fc16dee7eb2b7eee6fce12d68c83c4041",
+      "automaton_states": 12,
+      "record_ids": [
+        995
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ea9b562dfaf97015",
+      "formula": "(X(blue | ((brown & (!brown | !yellow)) U green)) | G(!blue & F!purple)) U purple",
+      "source_job_id": "b3b6ae17c5a7991af00479a28bfb6484d6896e1c8849271c1c61de3b6625cb10",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b3b6ae17c5a7991af00479a28bfb6484d6896e1c8849271c1c61de3b6625cb10/specification.hoa",
+      "hoa_sha256": "5ea31a38e853011835fa0778bcf8f026c5115144595be52932c994d27838cefa",
+      "automaton_states": 13,
+      "record_ids": [
+        1359
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-94ae6f190c136211",
+      "formula": "(X(blue | ((purple & (!purple | !yellow)) U green)) | G(!blue & F!brown)) U brown",
+      "source_job_id": "79ea9a8b639c7f78c3b4ff566964702706a69a5886bc5111a3743daefe728705",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/79ea9a8b639c7f78c3b4ff566964702706a69a5886bc5111a3743daefe728705/specification.hoa",
+      "hoa_sha256": "bdbdddfb905bb86346ca9b879e25efdd007d5a0f3da4873114952e2f6735c26f",
+      "automaton_states": 13,
+      "record_ids": [
+        1360
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-798f403d59b5d98c",
+      "formula": "(X(purple | ((blue & (!blue | !yellow)) U brown)) | G(!purple & F!green)) U green",
+      "source_job_id": "3ed33e73f574087f3ff8c898cb9a528db22885dc490cd6283aab37fc9ca87c27",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/3ed33e73f574087f3ff8c898cb9a528db22885dc490cd6283aab37fc9ca87c27/specification.hoa",
+      "hoa_sha256": "add0b339a21cf43a3b7cc2a843d448817812f0a031ca247fd1c34517a42e02c2",
+      "automaton_states": 13,
+      "record_ids": [
+        1431
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-40767437706889c5",
+      "formula": "(X(brown | ((purple & (!blue | !purple)) U green)) | G(!brown & F!yellow)) U yellow",
+      "source_job_id": "1ccd51a2ab9a997732416aaf31f1488c8b14bb19b75a09cf9fdd95c394f8610d",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/1ccd51a2ab9a997732416aaf31f1488c8b14bb19b75a09cf9fdd95c394f8610d/specification.hoa",
+      "hoa_sha256": "25e25666721031e83b3002d5c090987dc9651ba638c22e1d07dbf7be45b0855d",
+      "automaton_states": 13,
+      "record_ids": [
+        1432
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-cce82b40537195c9",
+      "formula": "!brown | G((blue | green | F(purple & F!green)) U !yellow)",
+      "source_job_id": "683e057682505f12e13e4882fbf7a530572842594d49a991c319f1582b5be58d",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/683e057682505f12e13e4882fbf7a530572842594d49a991c319f1582b5be58d/specification.hoa",
+      "hoa_sha256": "18ab20c3b21669bcf2c3bc925c0cb00095a9df710f19afbae8cb7ca4813ab3c7",
+      "automaton_states": 15,
+      "record_ids": [
+        1336
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9c65fec32246c8e8",
+      "formula": "!green | G((blue | brown | F(yellow & F!brown)) U !purple)",
+      "source_job_id": "ccb8daefb4e034bf9538422e0db31f20574fdc76e29e3aa1d5ee6efb2eb86126",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ccb8daefb4e034bf9538422e0db31f20574fdc76e29e3aa1d5ee6efb2eb86126/specification.hoa",
+      "hoa_sha256": "cd05fbabe661cb227dded7047d380f80fe75e9c84fd34566328873dfb365afd4",
+      "automaton_states": 15,
+      "record_ids": [
+        1410
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-3ab4639e4fc6db45",
+      "formula": "!purple | G((brown | green | F(yellow & F!brown)) U !blue)",
+      "source_job_id": "300188f800fd8233c8624859fd31bf657d9a19f293b5eb56ba89bb0fdcb0f397",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/300188f800fd8233c8624859fd31bf657d9a19f293b5eb56ba89bb0fdcb0f397/specification.hoa",
+      "hoa_sha256": "cc7560798c39e145fe4eb90f40eea506ab0206b3bf131845ad914dcbdb1a0dff",
+      "automaton_states": 15,
+      "record_ids": [
+        1409
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f60c7bcb91fd89ec",
+      "formula": "blue | X(yellow & G((!purple R !green) U X(brown U blue)))",
+      "source_job_id": "448ebd37ca00eed7fd588f24faf16196fc608bb1d937b20794d5c7fb5c74cc20",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/448ebd37ca00eed7fd588f24faf16196fc608bb1d937b20794d5c7fb5c74cc20/specification.hoa",
+      "hoa_sha256": "f998ee872d74e0a53188f327b5f13ce6265729f370aff6e1532d490221ee7853",
+      "automaton_states": 15,
+      "record_ids": [
+        1312
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-5f6bcc2d0089e644",
+      "formula": "!yellow | G((blue | purple | F(brown & F!purple)) U !green)",
+      "source_job_id": "4b672cd8ba111e833c95200e2f1392de11b42809a1902a94d77707079ac3d808",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/4b672cd8ba111e833c95200e2f1392de11b42809a1902a94d77707079ac3d808/specification.hoa",
+      "hoa_sha256": "243a1db8a8a6f7eefeecaf252e0a186d0c5e7df0f522c92b6b4d368fc9853c71",
+      "automaton_states": 15,
+      "record_ids": [
+        1335
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c68c4efd3e909285",
+      "formula": "brown | X(green & G((!yellow R !blue) U X(purple U brown)))",
+      "source_job_id": "2eff936fc46473f021927d19bd2ec6d443c05e003b0a31e47291a4edd044d4e7",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/2eff936fc46473f021927d19bd2ec6d443c05e003b0a31e47291a4edd044d4e7/specification.hoa",
+      "hoa_sha256": "497a6fad24cede6cdbeb22b0472068ffd8bb5e5cd4810172f908ada22cc84a02",
+      "automaton_states": 15,
+      "record_ids": [
+        1311
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-a8e972094f33ab39",
+      "formula": "purple | X(brown & G((!green R !blue) U X(yellow U purple)))",
+      "source_job_id": "dfaa08e3aba5e2988e6df4c6ce2ec91258c8f522f0cb5032d64c4b77587f270e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/dfaa08e3aba5e2988e6df4c6ce2ec91258c8f522f0cb5032d64c4b77587f270e/specification.hoa",
+      "hoa_sha256": "003a4ca725663d2e599be5c0a11b3aabae62973151997a7651bfbff664635741",
+      "automaton_states": 15,
+      "record_ids": [
+        1371
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-2085675ff1577c43",
+      "formula": "purple | X(green & G((!yellow R !blue) U X(brown U purple)))",
+      "source_job_id": "30c0742aecabb5276f9b0c10a4f7570d5f66f828e34970004a4cb5b235b2d779",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/30c0742aecabb5276f9b0c10a4f7570d5f66f828e34970004a4cb5b235b2d779/specification.hoa",
+      "hoa_sha256": "a7e33c98dcf2747e623ecc0fa2690400dd2f9b9fd0b3bf053969ec58c91fd93e",
+      "automaton_states": 15,
+      "record_ids": [
+        1372
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-ad1b2004839e23c5",
+      "formula": "((green | G!blue) U X((green & !purple) | G(!green & Xbrown))) U blue",
+      "source_job_id": "b1143449c7d1763cab201a7fa9cd976afffd1fef00adc7fc2fe07125fe6f2fed",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b1143449c7d1763cab201a7fa9cd976afffd1fef00adc7fc2fe07125fe6f2fed/specification.hoa",
+      "hoa_sha256": "48d39a943932d84696b20077e4591ae71ba600361031e94039e6ce9a186b3ac1",
+      "automaton_states": 15,
+      "record_ids": [
+        1424
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f0bb528340bca42a",
+      "formula": "((purple & G!brown) | (X!yellow & (!brown R !blue))) R F(blue | !green)",
+      "source_job_id": "43b51d24b0ec747a82659fb7aa1aaf2a8649d3592386d0b19acfaf88334ca80e",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/43b51d24b0ec747a82659fb7aa1aaf2a8649d3592386d0b19acfaf88334ca80e/specification.hoa",
+      "hoa_sha256": "67a8365c166cca4a64e10dfbfa985152959fa62e3dc180e850040d047e486861",
+      "automaton_states": 15,
+      "record_ids": [
+        1400
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-90c7015b82617a6a",
+      "formula": "((green | G!yellow) U X((!blue & green) | G(!green & Xpurple))) U yellow",
+      "source_job_id": "aabf872dabdd3fd54c9addf1773310d56f82ec71ddcaf155dc2fa6676d8c4c89",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/aabf872dabdd3fd54c9addf1773310d56f82ec71ddcaf155dc2fa6676d8c4c89/specification.hoa",
+      "hoa_sha256": "93db5b722c245b8b676716a8e29529220453c3339dfc9b4b56dc80f7f5a1dcdb",
+      "automaton_states": 15,
+      "record_ids": [
+        1354
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-09cdf5be22c5da50",
+      "formula": "((purple | G!blue) U X((purple & !yellow) | G(!purple & Xbrown))) U blue",
+      "source_job_id": "c4a447db0887fb6869c2f529aa8a8f2dd6b5c5e6bd7bec2b5b84d1ada151ebad",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/c4a447db0887fb6869c2f529aa8a8f2dd6b5c5e6bd7bec2b5b84d1ada151ebad/specification.hoa",
+      "hoa_sha256": "7d4071bf31195d11d67cfaf35faf7c6a7809cce86f9758fad4d5ad20a429c100",
+      "automaton_states": 15,
+      "record_ids": [
+        1423
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b37f710ffadbdb7d",
+      "formula": "((X!blue & (!yellow R !brown)) | (purple & G!yellow)) R F(brown | !green)",
+      "source_job_id": "0968971be6fd6ef2fd44f8d05b6a636aaa2ba0be30674612ca46d8cca1e1ce29",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/0968971be6fd6ef2fd44f8d05b6a636aaa2ba0be30674612ca46d8cca1e1ce29/specification.hoa",
+      "hoa_sha256": "cf05f08b97d59df4a5892cb5b300caebceed412c8dc9fac15e9125f0565eee05",
+      "automaton_states": 15,
+      "record_ids": [
+        1399
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-37b3155a083507cf",
+      "formula": "((brown | G!purple) U X((brown & !green) | G(!brown & Xyellow))) U purple",
+      "source_job_id": "0adaf1b1d36143ec2c5020fa1696d99e310b10af505d05b6122d6d5aedf1dffc",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/0adaf1b1d36143ec2c5020fa1696d99e310b10af505d05b6122d6d5aedf1dffc/specification.hoa",
+      "hoa_sha256": "632bc1399c06017a310d2d8667461625434ae00cafa22bde8950e2f84a9b3feb",
+      "automaton_states": 15,
+      "record_ids": [
+        1353
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-a1debbe871fe72e7",
+      "formula": "G(Fgreen U (blue | X!brown))",
+      "source_job_id": "78273ec5a15442e0971301db13b983f462eeda2dcfaabd8b647f155f12f07787",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/78273ec5a15442e0971301db13b983f462eeda2dcfaabd8b647f155f12f07787/specification.hoa",
+      "hoa_sha256": "8ee0d0513a28b7d3fde338ce49a9236ea249effc5433faf9b8c715a99df9d8b7",
+      "automaton_states": 18,
+      "record_ids": [
+        611
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-7326309a1b162128",
+      "formula": "G(Fblue U (brown | X!purple))",
+      "source_job_id": "7f26c4d6cc62af6ff595285bceedd80de72a590b2912710ece535e806d1692ac",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/7f26c4d6cc62af6ff595285bceedd80de72a590b2912710ece535e806d1692ac/specification.hoa",
+      "hoa_sha256": "6ceecc8510c0bd7e6e8588d5ad5a6e070ff2fd9abb11833c94eed60b04722a2e",
+      "automaton_states": 18,
+      "record_ids": [
+        142
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-6f8133e1eec2f8f7",
+      "formula": "G(Fyellow U (blue | X!brown))",
+      "source_job_id": "7f8f9400712deacf843252914495c6d20d13d649d0329455a5efe4502711af29",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/7f8f9400712deacf843252914495c6d20d13d649d0329455a5efe4502711af29/specification.hoa",
+      "hoa_sha256": "dd4ead85029a8a821364ce57c8714567a73aab9c0583649bf8755a5ade61f001",
+      "automaton_states": 18,
+      "record_ids": [
+        612
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f8925a30213d8bb9",
+      "formula": "G(Fbrown U (purple | X!yellow))",
+      "source_job_id": "5dc6f0e71d01b5774cdab8e7258de6afac846a9c4f0e3253ba8c79b8b9209b45",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/5dc6f0e71d01b5774cdab8e7258de6afac846a9c4f0e3253ba8c79b8b9209b45/specification.hoa",
+      "hoa_sha256": "eedc211eb7acb624fbe0f70d70ec27187449756b543ac18f8be7dc834bce4030",
+      "automaton_states": 18,
+      "record_ids": [
+        141
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-a82ad80bc539fb5f",
+      "formula": "XXblue | ((!green | FGpurple) & (green | ((!yellow R green) R (F!blue R !brown))))",
+      "source_job_id": "c670b185dcf2ed580336326bcf12e917ee718d35358fcf15ea4d05034df9f877",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/c670b185dcf2ed580336326bcf12e917ee718d35358fcf15ea4d05034df9f877/specification.hoa",
+      "hoa_sha256": "93d6ee59dc7acd860e63b73417201d742a7dec48b43e7bc58757ddd145c9609e",
+      "automaton_states": 19,
+      "record_ids": [
+        1401
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-290bc72389626c42",
+      "formula": "XXblue | ((!green | FGyellow) & (green | ((!purple R green) R (F!blue R !brown))))",
+      "source_job_id": "5470bd3efe44dcbd00f26f21d3b0f61afa52c80de68bdb375f3d55982d3c0052",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/5470bd3efe44dcbd00f26f21d3b0f61afa52c80de68bdb375f3d55982d3c0052/specification.hoa",
+      "hoa_sha256": "e3239754a111e43d1baedddedaaf9dfa08f2cfee7532372855fab18c0e10bec7",
+      "automaton_states": 19,
+      "record_ids": [
+        1330
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-f9ad727f87bb21cf",
+      "formula": "XXblue | ((!yellow | FGgreen) & (yellow | ((!brown R yellow) R (F!blue R !purple))))",
+      "source_job_id": "63efe133c6e847b0832d48cf4bad76ec5904c23f410bc59f37bc369d450d9f8d",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/63efe133c6e847b0832d48cf4bad76ec5904c23f410bc59f37bc369d450d9f8d/specification.hoa",
+      "hoa_sha256": "d7bad84adda84597f3d4f2f258eba3967a766606256665a0f3eb1ff5fa6963b3",
+      "automaton_states": 19,
+      "record_ids": [
+        1402
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9efea0dffdd6860d",
+      "formula": "XXpurple | ((!green | FGyellow) & (green | ((!brown R green) R (F!purple R !blue))))",
+      "source_job_id": "9d8b944804b6c391c2a6ba0934982e95be1f3cdbfc7f9335458ebf4b38b6d6fb",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/9d8b944804b6c391c2a6ba0934982e95be1f3cdbfc7f9335458ebf4b38b6d6fb/specification.hoa",
+      "hoa_sha256": "90d51ef13d7222bdc89b1537d52f655654fd48b5d36d9804e51742c8d8713f9a",
+      "automaton_states": 19,
+      "record_ids": [
+        1329
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-d505998aa04bbfeb",
+      "formula": "X(!purple & (((X(!green | Fblue) & (!brown | G!blue)) R (!green & XF!yellow)) U purple))",
+      "source_job_id": "0c643387088f55a219490bb5bfb815006a720ab3247e3a7ab83bce5485a7d370",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/0c643387088f55a219490bb5bfb815006a720ab3247e3a7ab83bce5485a7d370/specification.hoa",
+      "hoa_sha256": "a9fc85dfcf68ac45e716af43ff487bddbf8804efdb1a08c15432e0397c02c7e0",
+      "automaton_states": 26,
+      "record_ids": [
+        1434
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c9cc19350047c9e6",
+      "formula": "X(!brown & ((((!yellow | G!purple) & X(!green | Fpurple)) R (!green & XF!blue)) U brown))",
+      "source_job_id": "117f1d236610c4bf2c9b7c5f13e569f0937debae9bf996b25334fce3056d1f43",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/117f1d236610c4bf2c9b7c5f13e569f0937debae9bf996b25334fce3056d1f43/specification.hoa",
+      "hoa_sha256": "f52890e3ee96aaa4d0a50430ad1a3b1721abbddd847aa0e15236757f8cc84ae3",
+      "automaton_states": 26,
+      "record_ids": [
+        1433
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-326052942e4dd7b8",
+      "formula": "X(!blue & ((blue | (((!yellow | G!green) & X(!brown | Fgreen)) R (!brown & XF!purple))) U blue))",
+      "source_job_id": "b1e00b3b3e94a158fe0e3fe1984d902f5e8dc4e152aebdd5633db04aa10a3e85",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/b1e00b3b3e94a158fe0e3fe1984d902f5e8dc4e152aebdd5633db04aa10a3e85/specification.hoa",
+      "hoa_sha256": "bc616e2ee56e6705ad9dfccc776ac92ceb2987f2f66f2d7071dc3c822fe30f44",
+      "automaton_states": 26,
+      "record_ids": [
+        1361
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-38a8017747b733c6",
+      "formula": "X(!brown & ((brown | (((!yellow | G!purple) & X(!blue | Fpurple)) R (!blue & XF!green))) U brown))",
+      "source_job_id": "1024ae9b0f0c47a34ffbb9a00f6fced6da3d69b4d9602b401607fe77d0ae2408",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/1024ae9b0f0c47a34ffbb9a00f6fced6da3d69b4d9602b401607fe77d0ae2408/specification.hoa",
+      "hoa_sha256": "3e1bbc008654e9ad39c8a1ce6be16768935f625b9d4439d80e7769805fc576a7",
+      "automaton_states": 26,
+      "record_ids": [
+        1362
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-0c22f0aa828e8c45",
+      "formula": "G(Fpurple & XX(blue | green | F(blue & Fyellow)))",
+      "source_job_id": "548cd21ce7708c775e74704eacb85696078cb637b8d058d20477d83ae0ab16cd",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/548cd21ce7708c775e74704eacb85696078cb637b8d058d20477d83ae0ab16cd/specification.hoa",
+      "hoa_sha256": "3e52264e849a8d434efc6bfae7fa8aa694007551cb757462f759f50c38974e3d",
+      "automaton_states": 27,
+      "record_ids": [
+        1384
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-1665729b8d07d9e3",
+      "formula": "G(Fblue & XX(brown | purple | F(brown & Fyellow)))",
+      "source_job_id": "832976a5422957fa82142b047a15dded1d3581686921331d19d7f034560cf0ff",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/832976a5422957fa82142b047a15dded1d3581686921331d19d7f034560cf0ff/specification.hoa",
+      "hoa_sha256": "c23739abee7b0973f78cae1ab9d1d38a9f894f45f7d79824a608141d032090cb",
+      "automaton_states": 27,
+      "record_ids": [
+        1383
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-b1a2651c2725a93e",
+      "formula": "!brown | X(!blue & GFblue & F(!yellow | ((!green R !brown) R (!green | !purple))))",
+      "source_job_id": "43dd2a4c70fba3f7aeff2cbecc5cf3189b1f6963033e565856a5ab611d2c0ef0",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/43dd2a4c70fba3f7aeff2cbecc5cf3189b1f6963033e565856a5ab611d2c0ef0/specification.hoa",
+      "hoa_sha256": "2c2b02a7e3598df362da454a3382084b7d707ea9e79030e844ba4eddf69b14ea",
+      "automaton_states": 36,
+      "record_ids": [
+        1425
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-647fbd467b34050c",
+      "formula": "!yellow | X(!blue & GFblue & F(!green | ((!brown R !yellow) R (!brown | !purple))))",
+      "source_job_id": "b509dc3cb781dc6085922a16057c4358384e698515d49cdbc358007533cf09d3",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/b509dc3cb781dc6085922a16057c4358384e698515d49cdbc358007533cf09d3/specification.hoa",
+      "hoa_sha256": "4a7fbe008308406bd4ec09c0a2995c4f8aa8869ba9ca658acc07cb37b666ee78",
+      "automaton_states": 36,
+      "record_ids": [
+        1356
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-020e119309570c0e",
+      "formula": "!purple | X(!brown & GFbrown & F(!yellow | ((!green R !purple) R (!blue | !green))))",
+      "source_job_id": "f5f3198c0fba67fdb6773117069aad9b97ca573e02f681f4b6475b47d2002db2",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/f5f3198c0fba67fdb6773117069aad9b97ca573e02f681f4b6475b47d2002db2/specification.hoa",
+      "hoa_sha256": "ebf5d07faed95c8337db748bbea525a01af556458ff247aed9b54bd9fe17b7f4",
+      "automaton_states": 36,
+      "record_ids": [
+        1355
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-9436140545e9ef96",
+      "formula": "!purple | X(!yellow & GFyellow & F(!brown | ((!green R !purple) R (!blue | !green))))",
+      "source_job_id": "7b2ba85a0347f06cadb18eea35c81c0e84e76cd1d7e1c6118124b3be8f4824e4",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/7b2ba85a0347f06cadb18eea35c81c0e84e76cd1d7e1c6118124b3be8f4824e4/specification.hoa",
+      "hoa_sha256": "c0e958a434fb475b6697f6abd781d5146a48ccf586664c42a7678d12de543873",
+      "automaton_states": 36,
+      "record_ids": [
+        1426
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-73195d12c950af3b",
+      "formula": "((green & (!brown | purple)) | X((yellow & (blue | X(blue M Fgreen))) U Xyellow)) U Gblue",
+      "source_job_id": "ba7ccda87ae34437a2b6f1d787f7feeae5e5f540c753d7495669c9ce653de3e2",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/ba7ccda87ae34437a2b6f1d787f7feeae5e5f540c753d7495669c9ce653de3e2/specification.hoa",
+      "hoa_sha256": "509cc7a3a7842c6a17527d4fcad8c6e1945e36a66618944ddb0f364bd92eb438",
+      "automaton_states": 36,
+      "record_ids": [
+        1408
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-8b0cc188f8d61632",
+      "formula": "((blue & (!green | purple)) | X((yellow & (brown | X(brown M Fblue))) U Xyellow)) U Gbrown",
+      "source_job_id": "82ac8022271e8a4692876486146f1bd9a7397bd149f0cf8982b4c7dd1244cb81",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/82ac8022271e8a4692876486146f1bd9a7397bd149f0cf8982b4c7dd1244cb81/specification.hoa",
+      "hoa_sha256": "4445a86e650576f1023cc0ec45719f6445ae49e1c567be79f4fa33e33a003db8",
+      "automaton_states": 36,
+      "record_ids": [
+        1407
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-addf925704d45b0b",
+      "formula": "((purple & (green | !yellow)) | X((blue & (brown | X(brown M Fpurple))) U Xblue)) U Gbrown",
+      "source_job_id": "214301e7013e68f91f6d1aa0f8d61f3740807847cd9f35a8a50a4f6d9848c2c7",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/214301e7013e68f91f6d1aa0f8d61f3740807847cd9f35a8a50a4f6d9848c2c7/specification.hoa",
+      "hoa_sha256": "8d6a1278bb3eda5aa8f6bf023048a9d8d74bf7f82a9f6aa731a46d8b28381d76",
+      "automaton_states": 36,
+      "record_ids": [
+        1333
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-38885345830ebc70",
+      "formula": "((green & (blue | !purple)) | X((brown & (yellow | X(yellow M Fgreen))) U Xbrown)) U Gyellow",
+      "source_job_id": "ef6aaf2d56f3834f933453083c6031c2930a0ddee237389a82a34af017bda54c",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/ef6aaf2d56f3834f933453083c6031c2930a0ddee237389a82a34af017bda54c/specification.hoa",
+      "hoa_sha256": "b59962a64f093933b075a2c2d57ad94ed83e41e2f5ec1f2d56f1b2696c6adbf8",
+      "automaton_states": 36,
+      "record_ids": [
+        1334
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-fd8ae5c6dacc52c4",
+      "formula": "(blue | X!brown) U (yellow U G(GFpurple U green))",
+      "source_job_id": "e56411fbbae0d1ed778bb38b5a8d1b6fea806ac7dcd7ca331fe2345ee904cdb2",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/e56411fbbae0d1ed778bb38b5a8d1b6fea806ac7dcd7ca331fe2345ee904cdb2/specification.hoa",
+      "hoa_sha256": "b9dba3d5c74d1c80f274f00e6c5bf6e3bf39b47f732f8aa436a26ae8f02361a8",
+      "automaton_states": 40,
+      "record_ids": [
+        1414
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-33415826a36550a2",
+      "formula": "(brown | X!blue) U (green U G(GFpurple U yellow))",
+      "source_job_id": "d31d8f56cfb416eb2f4db74e11e7e48c86da7d88d15efe0184a54f1b2801db37",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/d31d8f56cfb416eb2f4db74e11e7e48c86da7d88d15efe0184a54f1b2801db37/specification.hoa",
+      "hoa_sha256": "593667f494bb9b98d4ab5f8c75a0d6bd816765f0415fb0423a47ba1f2f1a0d18",
+      "automaton_states": 40,
+      "record_ids": [
+        1413
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-4265fe2261ceccb4",
+      "formula": "G(!green | (yellow U blue) | XX(!purple R (!blue & !green))) U brown",
+      "source_job_id": "0dd857163d7eee5e16a5a1ffda601b9d844f5f0605ceab065945ab99dfb19b24",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/0dd857163d7eee5e16a5a1ffda601b9d844f5f0605ceab065945ab99dfb19b24/specification.hoa",
+      "hoa_sha256": "2234fd56be029068358ce7f84bffaacbae74f8a8bf6591fc612451eb2ee597ad",
+      "automaton_states": 43,
+      "record_ids": [
+        1391
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c695428545174667",
+      "formula": "G(!yellow | (brown U blue) | XX(!green R (!blue & !yellow))) U purple",
+      "source_job_id": "b748df7d7dfa39337597107028027090ac0f8558d71c83241cd0e8b7b6aed984",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/b748df7d7dfa39337597107028027090ac0f8558d71c83241cd0e8b7b6aed984/specification.hoa",
+      "hoa_sha256": "4ba617476aed450c936ca5c71ab7eb0fa99a7ce22a1f55958815b345c10ad44d",
+      "automaton_states": 43,
+      "record_ids": [
+        1325
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-a6dc2e01115637f5",
+      "formula": "G(!yellow | (purple U blue) | XX(!brown R (!blue & !yellow))) U green",
+      "source_job_id": "d447cc495caba093eda937f850ee01a69e035998c4d1993c088fad125db2ad62",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/d447cc495caba093eda937f850ee01a69e035998c4d1993c088fad125db2ad62/specification.hoa",
+      "hoa_sha256": "f7ef311a3c202b497677d2517c3b6add84dd9bb8edf4b0db1588458fe95e1053",
+      "automaton_states": 43,
+      "record_ids": [
+        1392
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-bf1b9a785d8e1fe8",
+      "formula": "G(!purple | (green U brown) | XX(!yellow R (!brown & !purple))) U blue",
+      "source_job_id": "0f8b288b4961ac8350766c1dbe91c70c70fca7a2099a87595d391c75cd5c36d0",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/0f8b288b4961ac8350766c1dbe91c70c70fca7a2099a87595d391c75cd5c36d0/specification.hoa",
+      "hoa_sha256": "2c45f423034f8bec1ea230e237f498e3bc9b5dbfaa9757db9d433da7297fc370",
+      "automaton_states": 43,
+      "record_ids": [
+        1326
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-738c6845a1d8cf3b",
+      "formula": "F(!blue R ((green & !purple) | (F!yellow & XFbrown)))",
+      "source_job_id": "0ef4d47f665bb76e4d140210145c73324240538e29e1f78881efe5c3b9dfebed",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/0ef4d47f665bb76e4d140210145c73324240538e29e1f78881efe5c3b9dfebed/specification.hoa",
+      "hoa_sha256": "f35d754d60a3793dec91a98fe8433c9c91c8cc4cae2ebf76a39f364209655f3f",
+      "automaton_states": 45,
+      "record_ids": [
+        1382
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-c545dcb972e8e8c4",
+      "formula": "F(!yellow R ((blue & !green) | (F!purple & XFbrown)))",
+      "source_job_id": "2ee1c848811a0ca6d5e6e22a3b382bc3890231ad86c4e7ea6becc2ff1884ca32",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/2ee1c848811a0ca6d5e6e22a3b382bc3890231ad86c4e7ea6becc2ff1884ca32/specification.hoa",
+      "hoa_sha256": "489c609138187489fe0e9f9193e03a0fe05b6ca263d83c71aa93fae6ac550193",
+      "automaton_states": 45,
+      "record_ids": [
+        1381
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-15c4ebbc005bafba",
+      "formula": "blue | (purple & G(Xbrown | G(Xgreen | (brown & (Fyellow U blue)))))",
+      "source_job_id": "7795b8f9d079a7b3a06e792a5e381ecd5402d5a1808e7414b7e2fede835f8acd",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/7795b8f9d079a7b3a06e792a5e381ecd5402d5a1808e7414b7e2fede835f8acd/specification.hoa",
+      "hoa_sha256": "f3b5a12a21e677ffa4adbb6f67788735df12384a608f7951f6448c1a388ca6dd",
+      "automaton_states": 85,
+      "record_ids": [
+        1348
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-e086d5b677cecf60",
+      "formula": "blue | (green & G(Xpurple | G(Xyellow | (purple & (Fbrown U blue)))))",
+      "source_job_id": "2ed602973ecc39f0d4e991d30b81d173450c53dae7c23ec7b071d4ccc6352f92",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/2ed602973ecc39f0d4e991d30b81d173450c53dae7c23ec7b071d4ccc6352f92/specification.hoa",
+      "hoa_sha256": "2dc911d0409734130ff9ef50141cb8fedd9365d44884daf420233699aca40e97",
+      "automaton_states": 85,
+      "record_ids": [
+        1347
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-bb645676d9647680",
+      "formula": "brown | G(blue | (Fpurple & (green U (blue & (F!yellow R !purple)))))",
+      "source_job_id": "4c628bd9252e8aacdb2d59a7a94e4df17b575fe55bcde415ce8c708f37ee13c2",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/parity-jobs/4c628bd9252e8aacdb2d59a7a94e4df17b575fe55bcde415ce8c708f37ee13c2/specification.hoa",
+      "hoa_sha256": "ea74cbd8d3e2e980eb9c2de10794bb15dfe6f6a8c74e061db45cfe64822b49e3",
+      "automaton_states": 131,
+      "record_ids": [
+        1412
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-00/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    },
+    {
+      "class_id": "ltl-76fa5763f565570d",
+      "formula": "yellow | G(purple | (Fgreen & (brown U (purple & (F!blue R !green)))))",
+      "source_job_id": "354ad0bde949a93f05df6355531949a8a3bc77043c28c9612912bc9479bc7fc5",
+      "hoa_path": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/parity-jobs/354ad0bde949a93f05df6355531949a8a3bc77043c28c9612912bc9479bc7fc5/specification.hoa",
+      "hoa_sha256": "fa29243c1a90de60ea59c7cf476edbde5a798df0d123e850362cd44cae26f655",
+      "automaton_states": 131,
+      "record_ids": [
+        1411
+      ],
+      "plant_binary": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/ground-truth-controller-audit-threadsafe-v1/workers/worker-01/plant.parity.bin",
+      "plant_cache": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-development-abcd-all-initial-v3/plant.jls",
+      "plant_sha256": "107780f9a24a6194d5942d0d69078b8ed2bf84933c0f7485e8305c6b082a6a57"
+    }
+  ],
+  "max_nodes": 4000000,
+  "max_edges": 60000000,
+  "timeout_seconds": 600,
+  "workers": 1,
+  "verification_threads": 1,
+  "process_group_rss_guard_gib": 3,
+  "system_memory_free_floor_percent": 15,
+  "simulation_steps": 1200,
+  "verification_horizon": "infinite",
+  "cooldown_seconds": 60,
+  "long_break_seconds": 300,
+  "long_break_after_processing_seconds": 1800,
+  "temperature_measured": false,
+  "algorithm_change": false,
+  "pilot_cases_reused": 6,
+  "new_cases": 159
+}

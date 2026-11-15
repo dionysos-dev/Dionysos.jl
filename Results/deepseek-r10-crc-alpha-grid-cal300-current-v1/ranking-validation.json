@@ -1,0 +1,6 @@
+{
+  "prompts_checked": 4736,
+  "ranking": "frequency_descending_then_earliest_query",
+  "conjunction": "top min(k,m) semantic-class representatives",
+  "repetitions": 10
+}

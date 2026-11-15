@@ -1,0 +1,57 @@
+{
+    "analysis_identity": {
+        "schema_version": 1,
+        "temperature": 0.7,
+        "source_directory": "/Users/abayat/Documents/PhD/Code/CoCo-NL-to-LTL/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "5093b9db368864d5a2e5df223143b2d1fcc3f93e2f63e7429701501c278a54b0",
+    "prompt_index": 21,
+    "record_id": 913,
+    "input_field": "natural_paraphrase_gpt54mini_rewritten",
+    "reference_ltl": "((yellow & ((green | ((brown | !(purple)) & X(brown))) | ((!(brown) & purple) & X(!(brown))))) | ((!(green) & !(yellow)) & (((brown | !(purple)) & X(!(brown))) | ((!(brown) & purple) & X(brown)))))",
+    "samples": 10,
+    "valid_samples": 10,
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "((yellow) & ((green) | (((brown) | !(purple)) & X(brown)) | ((!(brown) & (purple)) & X(!(brown))))) | ((!(green) & !(yellow)) & ((((brown) | !(purple)) & X(!(brown))) | ((!(brown) & (purple)) & X(brown))))",
+            "frequency": 10,
+            "sample_indices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": true
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(((yellow) & ((green) | (((brown) | !(purple)) & X(brown)) | ((!(brown) & (purple)) & X(!(brown))))) | ((!(green) & !(yellow)) & ((((brown) | !(purple)) & X(!(brown))) | ((!(brown) & (purple)) & X(brown)))))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

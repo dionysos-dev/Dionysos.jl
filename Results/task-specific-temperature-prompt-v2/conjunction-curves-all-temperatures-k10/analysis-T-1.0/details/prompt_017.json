@@ -1,0 +1,290 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 1,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "c7824844e0f99cac0be62ca4ccf59160813e4d8e360558fa3bb4d37cc2de410a",
+    "prompt_index": 17,
+    "record_id": 962,
+    "input_field": "natural_paraphrase_gpt54mini_rewritten",
+    "reference_ltl": "((blue & ((brown & X(!(green))) | (!(brown) & X(green)))) U (((!(yellow) & blue) & ((brown & X(!(green))) | (!(brown) & X(green)))) | G((blue & ((brown & X(!(green))) | (!(brown) & X(green)))))))",
+    "samples": 10,
+    "valid_samples": 9,
+    "satisfiable_samples": 9,
+    "excluded_candidates": [
+        {
+            "repetition": 4,
+            "reason": "invalid_ltl",
+            "candidate_formula": "((blue) & X((brown) & !(green))) U (((brown) & !(green)) & ((X(!(yellow)) & (blue) & X((brown) & !(green)))) | G(((blue) & X((brown) & !(green))) & ((brown) & !(green)))))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 171"
+        }
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))",
+            "frequency": 2,
+            "sample_indices": [
+                1,
+                2
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 2,
+            "representative": "blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))",
+            "frequency": 1,
+            "sample_indices": [
+                3
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 3,
+            "representative": "(blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green))))))",
+            "frequency": 1,
+            "sample_indices": [
+                5
+            ],
+            "rank": 3,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 4,
+            "representative": "((blue) & X((brown & !green) | (!brown & green))) U ((yellow -> (blue & X((brown & !green) | (!brown & green)))) & (!yellow -> (blue & X((brown & !green) | (!brown & green)))))",
+            "frequency": 1,
+            "sample_indices": [
+                6
+            ],
+            "rank": 4,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 5,
+            "representative": "(blue) & X((brown <-> !(green))) & ((X((brown <-> !(green)))) U ((yellow -> !(yellow)) | G(X((brown <-> !(green))))))",
+            "frequency": 1,
+            "sample_indices": [
+                7
+            ],
+            "rank": 5,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 6,
+            "representative": "blue & X(((brown & !green) | (!brown & green)) U ((yellow -> false) | G((brown & !green) | (!brown & green))))",
+            "frequency": 1,
+            "sample_indices": [
+                8
+            ],
+            "rank": 6,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 7,
+            "representative": "blue & X((brown & !(green)) | (!(brown) & green)) & (((brown & !(green)) | (!(brown) & green)) U ((yellow -> (yellow & (brown & !(green)) | (!(brown) & green))) | G((brown & !(green)) | (!(brown) & green))))",
+            "frequency": 1,
+            "sample_indices": [
+                9
+            ],
+            "rank": 7,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 8,
+            "representative": "blue & X(((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))",
+            "frequency": 1,
+            "sample_indices": [
+                10
+            ],
+            "rank": 8,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green)))))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 2,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))))))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 3,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))) & ((blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green)))))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 4,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))) & ((blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green))))))) & (((blue) & X((brown & !green) | (!brown & green))) U ((yellow -> (blue & X((brown & !green) | (!brown & green)))) & (!yellow -> (blue & X((brown & !green) | (!brown & green))))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 5,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))) & ((blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green))))))) & (((blue) & X((brown & !green) | (!brown & green))) U ((yellow -> (blue & X((brown & !green) | (!brown & green)))) & (!yellow -> (blue & X((brown & !green) | (!brown & green)))))) & ((blue) & X((brown <-> !(green))) & ((X((brown <-> !(green)))) U ((yellow -> !(yellow)) | G(X((brown <-> !(green)))))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4,
+                5
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 6,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))) & ((blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green))))))) & (((blue) & X((brown & !green) | (!brown & green))) U ((yellow -> (blue & X((brown & !green) | (!brown & green)))) & (!yellow -> (blue & X((brown & !green) | (!brown & green)))))) & ((blue) & X((brown <-> !(green))) & ((X((brown <-> !(green)))) U ((yellow -> !(yellow)) | G(X((brown <-> !(green))))))) & (blue & X(((brown & !green) | (!brown & green)) U ((yellow -> false) | G((brown & !green) | (!brown & green)))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 7,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))) & ((blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green))))))) & (((blue) & X((brown & !green) | (!brown & green))) U ((yellow -> (blue & X((brown & !green) | (!brown & green)))) & (!yellow -> (blue & X((brown & !green) | (!brown & green)))))) & ((blue) & X((brown <-> !(green))) & ((X((brown <-> !(green)))) U ((yellow -> !(yellow)) | G(X((brown <-> !(green))))))) & (blue & X(((brown & !green) | (!brown & green)) U ((yellow -> false) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !(green)) | (!(brown) & green)) & (((brown & !(green)) | (!(brown) & green)) U ((yellow -> (yellow & (brown & !(green)) | (!(brown) & green))) | G((brown & !(green)) | (!(brown) & green)))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 8,
+            "phi_k": "(blue & X((brown & !green) | (!brown & green)) & (((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !green) | (!brown & green)) & ((((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green)))) U ((!yellow) & (((brown & !green) | (!brown & green)) & (blue & X((brown & !green) | (!brown & green))))))) & ((blue) & X((brown <-> !(green)) & ((blue & (brown <-> !(green))) U ((!(yellow) & blue & (brown <-> !(green))) | G(blue & (brown <-> !(green))))))) & (((blue) & X((brown & !green) | (!brown & green))) U ((yellow -> (blue & X((brown & !green) | (!brown & green)))) & (!yellow -> (blue & X((brown & !green) | (!brown & green)))))) & ((blue) & X((brown <-> !(green))) & ((X((brown <-> !(green)))) U ((yellow -> !(yellow)) | G(X((brown <-> !(green))))))) & (blue & X(((brown & !green) | (!brown & green)) U ((yellow -> false) | G((brown & !green) | (!brown & green))))) & (blue & X((brown & !(green)) | (!(brown) & green)) & (((brown & !(green)) | (!(brown) & green)) U ((yellow -> (yellow & (brown & !(green)) | (!(brown) & green))) | G((brown & !(green)) | (!(brown) & green))))) & (blue & X(((brown & !green) | (!brown & green)) U ((!yellow & ((brown & !green) | (!brown & green))) | G((brown & !green) | (!brown & green)))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

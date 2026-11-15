@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\caption{Empirical test risk and controller issuance
+for the single LLM query baseline and the proposed
+NL2RCtrl framework at different risk tolerances $\alpha$.}
+\label{tab:crc_results}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccccc}
+\toprule
+Method & Statistical guarantee & $\alpha$ & $\widehat{k}$
+& Test risk (\%) & Issuance (\%) \\
+\midrule
+Single LLM query (equivalence) & No & -- & -- & 34.52 & 88.54 \\
+Single LLM query (language inclusion) & No & -- & -- & 22.68 & 88.54 \\
+\midrule
+NL2RCtrl & Yes & 0.10 & $\infty$ & 0.00 & 0.00 \\
+ &  & \textbf{0.15} & \textbf{3} & \textbf{13.49} & \textbf{84.55} \\
+ &  & 0.20 & 2 & 16.40 & 86.33 \\
+ &  & 0.25 & 1 & 22.89 & 89.54 \\
+\bottomrule
+\end{tabular}
+\end{table}

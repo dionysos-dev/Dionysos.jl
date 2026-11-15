@@ -1,0 +1,19 @@
+{
+    "repetition": 10,
+    "response": {
+        "finish_reason": "stop",
+        "formula": "((!blue) & (yellow U purple)) | ((blue) & ((!purple) U ((!yellow) & (!purple))))",
+        "raw_output": "((!blue) & (yellow U purple)) | ((blue) & ((!purple) U ((!yellow) & (!purple))))",
+        "usage": {
+            "prompt_tokens": 661,
+            "completion_tokens": 30,
+            "total_tokens": 691,
+            "prompt_tokens_details": {
+                "cached_tokens": 640
+            },
+            "prompt_cache_hit_tokens": 640,
+            "prompt_cache_miss_tokens": 21
+        },
+        "returned_model": "deepseek-v4-pro"
+    }
+}

@@ -1,0 +1,273 @@
+{
+    "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+    "prompt": {
+        "prompt_index": 16,
+        "record_id": 1351,
+        "template_id": 1221,
+        "input_field": "paraphrase_deepseek_gpt54mini_rewritten",
+        "source_text": "Starting at the next moment, eventually reach blue. At every moment before that visit, ensure the following: eventually reach a moment when the inner requirement below holds, and at each moment before that, ensure an eventual visit to brown. The inner requirement is: eventually be in purple and also in either brown or yellow. At every moment before that combined visit, ensure that, starting one step later, you eventually reach blue; at every moment from that one-step-later start until that blue visit, require that two steps later you will eventually be either outside purple or in brown.",
+        "ground_truth_ltl": "X(((F(brown) U (X((X(X(F((purple -> brown)))) U blue)) U (purple & (brown | yellow)))) U blue))",
+        "ast_size": 21,
+        "label": "new",
+        "task_specific_ap_mapping": {
+            "prop_1": "brown",
+            "prop_2": "purple",
+            "prop_3": "blue",
+            "prop_4": "yellow"
+        },
+        "translation_prompt": "You translate one natural-language requirement into a Linear Temporal Logic (LTL) formula.\n\nTask atomic propositions:\nAP = {blue, brown, green, purple, yellow}\nEach color proposition is true exactly when the robot is in that color's region at the current time.\nUse only these five color names as atomic propositions in the output.\n\nSemantics:\n\n- Use standard LTL over infinite traces, evaluated from the current time.\n- `U` is strong Until: `(a U b)` requires `b` to eventually hold, while `a` holds at every preceding time.\n- “Whenever,” “every time,” and “globally” introduce a recurring global requirement.\n- “From then on” means that the consequent must hold globally from the triggering time.\n- Do not add a global operator unless the requirement expresses a global or recurring condition.\n\nAllowed syntax:\n\n- Atomic propositions: `blue`, `brown`, `green`, `purple`, `yellow`.\n- Negation: `!`\n- Conjunction: `&`\n- Disjunction: `|`\n- Implication: `->`\n- Equivalence: `<->`\n- Next: `X`\n- Eventually: `F`\n- Globally: `G`\n- Until: `U`\n\nTranslation rules:\n\n- Preserve the complete logical and temporal meaning.\n- Use the exact lowercase color names listed in AP.\n- Do not introduce new propositions.\n- Do not introduce domain assumptions, such as mutual exclusion, reachability, or ordering, unless explicitly stated.\n- Do not use every available proposition unless the requirement needs it.\n- Use parentheses to make operator scope unambiguous.\n- Before answering, silently check temporal scope, ordering, eventuality, and whether each Until obligation is strong.\n\nOutput rules:\n\n- Output exactly one LTL formula.\n- Do not output explanations, labels, comments, or code fences.\n\nExamples:\n\nNatural-language requirement:\nWhenever the robot is in the blue region, it must remain in the yellow region from then on.\n\nLTL:\nG((blue) -> G(yellow))\n\nNatural-language requirement:\nWhenever the robot is in the blue region, it must stay in the green region until it reaches the yellow region.\n\nLTL:\nG((blue) -> ((green) U (yellow)))\n\nNatural-language requirement:\nEventually reach the blue region, and from that time eventually reach the yellow region.\n\nLTL:\nF((blue) & F(yellow))\n\nNatural-language requirement:\nThe robot must never enter the purple region.\n\nLTL:\nG(!(purple))\n\nNatural-language requirement:\nStay in the blue region until reaching the brown region.\n\nLTL:\n(blue) U (brown)\n\nNatural-language requirement:\nAt the next step, the robot must be in the green region.\n\nLTL:\nX(green)\n\nTarget input:\n\nAvailable atomic proposition set:\nAP = {blue, brown, green, purple, yellow}\n\nNatural-language requirement:\n<requirement>\nStarting at the next moment, eventually reach blue. At every moment before that visit, ensure the following: eventually reach a moment when the inner requirement below holds, and at each moment before that, ensure an eventual visit to brown. The inner requirement is: eventually be in purple and also in either brown or yellow. At every moment before that combined visit, ensure that, starting one step later, you eventually reach blue; at every moment from that one-step-later start until that blue visit, require that two steps later you will eventually be either outside purple or in brown.\n</requirement>\n\nLTL:"
+    },
+    "temperature": 0.7,
+    "samples": [
+        {
+            "raw_output": "G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))",
+            "candidate_formula": "G((X(F(blue))) & ((!blue) -> (F((F(purple & (brown | yellow))) & ((!(purple & (brown | yellow))) -> (F(brown)))))))",
+            "valid": true,
+            "validation_error": null,
+            "equivalent": false,
+            "satisfiable": true,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 46,
+                "total_tokens": 776,
+                "prompt_tokens_details": {
+                    "cached_tokens": 512
+                },
+                "prompt_cache_hit_tokens": 512,
+                "prompt_cache_miss_tokens": 218
+            },
+            "output_tokens": 46,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:03.102",
+            "repetition": 1,
+            "status": "ok"
+        },
+        {
+            "raw_output": "X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue))",
+            "candidate_formula": "X(F(blue) & (F((purple & (brown | yellow)) & F(brown)) U blue))",
+            "valid": true,
+            "validation_error": null,
+            "equivalent": false,
+            "satisfiable": true,
+            "semantically_sufficient": true,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 26,
+                "total_tokens": 756,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 26,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:04.404",
+            "repetition": 2,
+            "status": "ok"
+        },
+        {
+            "raw_output": "X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (X(X(F(!purple | brown)))))))) U (blue)",
+            "candidate_formula": "X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (X(X(F(!purple | brown)))))))) U (blue)",
+            "valid": true,
+            "validation_error": null,
+            "equivalent": false,
+            "satisfiable": true,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 48,
+                "total_tokens": 778,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 48,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:05.870",
+            "repetition": 3,
+            "status": "ok"
+        },
+        {
+            "raw_output": "X(F(blue) & (F((purple & (brown | yellow)) & (X(F(blue) & ((X(X(F((!purple) | brown)))) U (blue)))))) U (brown)))",
+            "candidate_formula": "X(F(blue) & (F((purple & (brown | yellow)) & (X(F(blue) & ((X(X(F((!purple) | brown)))) U (blue)))))) U (brown)))",
+            "valid": false,
+            "validation_error": "ArgumentError: Unexpected token ')' at character 113",
+            "equivalent": false,
+            "satisfiable": false,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 48,
+                "total_tokens": 778,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 48,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:07.413",
+            "repetition": 4,
+            "status": "ok"
+        },
+        {
+            "raw_output": "G(X(F(blue))) & (G((!blue) -> (F((purple & (brown | yellow)) & (G((!(purple & (brown | yellow))) -> (X(F(blue)) & G((!blue) -> (X(X(F((!purple) | brown))))))))))))",
+            "candidate_formula": "G(X(F(blue))) & (G((!blue) -> (F((purple & (brown | yellow)) & (G((!(purple & (brown | yellow))) -> (X(F(blue)) & G((!blue) -> (X(X(F((!purple) | brown))))))))))))",
+            "valid": true,
+            "validation_error": null,
+            "equivalent": false,
+            "satisfiable": true,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 68,
+                "total_tokens": 798,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 68,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:08.632",
+            "repetition": 5,
+            "status": "ok"
+        },
+        {
+            "raw_output": "X(F(blue) & (F((purple & (brown | yellow)) & (X(F(blue) & ((X(X(F((!purple) | brown)))) U (blue)))))) U (blue)))",
+            "candidate_formula": "X(F(blue) & (F((purple & (brown | yellow)) & (X(F(blue) & ((X(X(F((!purple) | brown)))) U (blue)))))) U (blue)))",
+            "valid": false,
+            "validation_error": "ArgumentError: Unexpected token ')' at character 112",
+            "equivalent": false,
+            "satisfiable": false,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 47,
+                "total_tokens": 777,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 47,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:10.097",
+            "repetition": 6,
+            "status": "ok"
+        },
+        {
+            "raw_output": "X((!blue) U ((!blue) & F((purple & (brown | yellow)) & (!(purple & (brown | yellow)) U (F(blue) & G((blue U (F(!purple | brown))))))))))",
+            "candidate_formula": "X((!blue) U ((!blue) & F((purple & (brown | yellow)) & (!(purple & (brown | yellow)) U (F(blue) & G((blue U (F(!purple | brown))))))))))",
+            "valid": false,
+            "validation_error": "ArgumentError: Unexpected token ')' at character 136",
+            "equivalent": false,
+            "satisfiable": false,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 55,
+                "total_tokens": 785,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 55,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:11.868",
+            "repetition": 7,
+            "status": "ok"
+        },
+        {
+            "raw_output": "G(X(F(blue)) & (F((purple & (brown | yellow)) & X(F(blue) & ((!purple | brown) U (blue)))) U (blue)))",
+            "candidate_formula": "G(X(F(blue)) & (F((purple & (brown | yellow)) & X(F(blue) & ((!purple | brown) U (blue)))) U (blue)))",
+            "valid": true,
+            "validation_error": null,
+            "equivalent": false,
+            "satisfiable": true,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 41,
+                "total_tokens": 771,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 41,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:13.049",
+            "repetition": 8,
+            "status": "ok"
+        },
+        {
+            "raw_output": "G(X(F(blue)) & (F((purple & (brown | yellow)) & (G((!purple | brown) -> X(F(blue) U (blue & F(brown))))))))",
+            "candidate_formula": "G(X(F(blue)) & (F((purple & (brown | yellow)) & (G((!purple | brown) -> X(F(blue) U (blue & F(brown))))))))",
+            "valid": true,
+            "validation_error": null,
+            "equivalent": false,
+            "satisfiable": true,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 44,
+                "total_tokens": 774,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 44,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:14.320",
+            "repetition": 9,
+            "status": "ok"
+        },
+        {
+            "raw_output": "G(X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (XX(F((!purple) | brown))))))) U (blue)))",
+            "candidate_formula": "G(X(F(blue)) & (F((purple & (brown | yellow)) & (X(F(blue)) & (X(F(blue)) U (XX(F((!purple) | brown))))))) U (blue)))",
+            "valid": false,
+            "validation_error": "ArgumentError: Unexpected token ')' at character 117",
+            "equivalent": false,
+            "satisfiable": false,
+            "semantically_sufficient": false,
+            "usage": {
+                "prompt_tokens": 730,
+                "completion_tokens": 50,
+                "total_tokens": 780,
+                "prompt_tokens_details": {
+                    "cached_tokens": 640
+                },
+                "prompt_cache_hit_tokens": 640,
+                "prompt_cache_miss_tokens": 90
+            },
+            "output_tokens": 50,
+            "returned_model": "deepseek-v4-pro",
+            "finish_reason": "stop",
+            "generated_at_utc": "2026-10-13T21:23:15.738",
+            "repetition": 10,
+            "status": "ok"
+        }
+    ]
+}

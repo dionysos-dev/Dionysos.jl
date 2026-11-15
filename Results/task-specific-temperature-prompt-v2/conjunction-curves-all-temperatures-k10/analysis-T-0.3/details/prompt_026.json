@@ -1,0 +1,96 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 0.3,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "8aacdd5a5f6f20c16dd23dcf35317bed63aab0446805c87ace9a7c0a66309e4c",
+    "prompt_index": 26,
+    "record_id": 886,
+    "input_field": "paraphrase_gpt5.4-mini_gpt54mini_rewritten",
+    "reference_ltl": "(purple & ((purple & (green U blue)) | (!purple & (!blue U ((!green & !blue) | G!blue))))) | (!purple & ((!purple & (green U blue)) | (purple & (!blue U ((!green & !blue) | G!blue)))))",
+    "samples": 10,
+    "valid_samples": 10,
+    "satisfiable_samples": 10,
+    "excluded_candidates": [
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 2,
+            "representative": "G((green) U (blue))",
+            "frequency": 7,
+            "sample_indices": [
+                2,
+                3,
+                4,
+                5,
+                6,
+                8,
+                9
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 1,
+            "representative": "(green) U (blue)",
+            "frequency": 3,
+            "sample_indices": [
+                1,
+                7,
+                10
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": true
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(G((green) U (blue)))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": true
+        },
+        {
+            "k": 2,
+            "phi_k": "(G((green) U (blue))) & ((green) U (blue))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

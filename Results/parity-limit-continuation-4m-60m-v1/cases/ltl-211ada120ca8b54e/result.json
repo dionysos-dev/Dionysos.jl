@@ -1,0 +1,50 @@
+{
+  "class_id": "ltl-211ada120ca8b54e",
+  "formula": "purple U (blue | Gyellow)",
+  "issued": true,
+  "outcome": "controller_issued",
+  "native_execution": {
+    "exit_code": 0,
+    "guard": null,
+    "seconds": 32.86067175026983,
+    "peak_rss_kib": 2849360
+  },
+  "artifact_base_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-211ada120ca8b54e",
+  "native_statistics": {
+    "winning": true,
+    "verified": true,
+    "game_nodes": 3918621,
+    "game_edges": 46777418,
+    "automaton_states": 5,
+    "priorities": 3,
+    "reachable_product_states": 94001,
+    "winning_product_states": 44624,
+    "candidate_initial_state_count": 44643,
+    "winning_initial_state_count": 4885,
+    "simulation_steps": 1200,
+    "simulation_status": "horizon_reached"
+  },
+  "verification_execution": {
+    "exit_code": 0,
+    "guard": null,
+    "seconds": 16.575147124938667,
+    "peak_rss_kib": 1841680
+  },
+  "region_file": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-211ada120ca8b54e/region.json",
+  "certificate": {
+    "reachable_product_states": 43812,
+    "acceptance": "parity max odd",
+    "satisfied": true,
+    "verification": "universal infinite horizon",
+    "rejecting_cycle": false
+  },
+  "controller_file": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/parity-limit-continuation-4m-60m-v1/cases/ltl-211ada120ca8b54e/controller.jls",
+  "region_sha256": "641c48e886c21982271796e1272840fe08423394d5d1ca312dacb6dca9bb8bba",
+  "region_known": true,
+  "controller_sha256": "6a234a817581264e5b88e92eab32ade3cdea098be770e495323cb018cbc45464",
+  "x_win_size": 4885,
+  "simulation_steps": 1200,
+  "verification_horizon": "infinite",
+  "simulation_status": "horizon_reached",
+  "elapsed_seconds": 49.43841545889154
+}

@@ -1,0 +1,160 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 0.3,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "47a9b2f09a7d6d8e292299fa1e2e695ac1167ee3113661d0e9b4c39f12c18095",
+    "prompt_index": 32,
+    "record_id": 1313,
+    "input_field": "paraphrase_deepseek_gpt54mini_rewritten",
+    "reference_ltl": "(((blue U (!((brown | !(((brown -> (yellow & purple)) U yellow)))) U yellow)) -> green) U brown)",
+    "samples": 10,
+    "valid_samples": 9,
+    "satisfiable_samples": 9,
+    "excluded_candidates": [
+        {
+            "repetition": 3,
+            "reason": "invalid_ltl",
+            "candidate_formula": "F(brown) & (G((!brown) -> (green <-> ((blue U ((!brown) U (yellow & F(yellow) & G(brown -> (yellow & purple))))))))))",
+            "validation_error": "ArgumentError: Unexpected token ')' at character 117"
+        }
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "F((brown))",
+            "frequency": 6,
+            "sample_indices": [
+                1,
+                5,
+                7,
+                8,
+                9,
+                10
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 2,
+            "representative": "(F(brown)) & ((!brown) U (brown & (green | (blue U ((!brown) U (yellow & (G(brown -> (yellow & purple)))))))))",
+            "frequency": 1,
+            "sample_indices": [
+                2
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 3,
+            "representative": "F((brown) | ((green) & ((blue) U ((!brown) U (yellow))) & F(yellow) & G((brown) -> (yellow & purple))))",
+            "frequency": 1,
+            "sample_indices": [
+                4
+            ],
+            "rank": 3,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        },
+        {
+            "cluster_id": 4,
+            "representative": "F((brown)) & ((!brown) U ((brown) & ((green) -> ((blue) U ((!brown) U (yellow)) & F(yellow) & G((brown) -> (yellow & purple))))))",
+            "frequency": 1,
+            "sample_indices": [
+                6
+            ],
+            "rank": 4,
+            "satisfiable": true,
+            "implies_reference": false,
+            "individually_sufficient": false,
+            "equivalent_to_reference": false
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(F((brown)))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 2,
+            "phi_k": "(F((brown))) & ((F(brown)) & ((!brown) U (brown & (green | (blue U ((!brown) U (yellow & (G(brown -> (yellow & purple))))))))))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 3,
+            "phi_k": "(F((brown))) & ((F(brown)) & ((!brown) U (brown & (green | (blue U ((!brown) U (yellow & (G(brown -> (yellow & purple)))))))))) & (F((brown) | ((green) & ((blue) U ((!brown) U (yellow))) & F(yellow) & G((brown) -> (yellow & purple)))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 4,
+            "phi_k": "(F((brown))) & ((F(brown)) & ((!brown) U (brown & (green | (blue U ((!brown) U (yellow & (G(brown -> (yellow & purple)))))))))) & (F((brown) | ((green) & ((blue) U ((!brown) U (yellow))) & F(yellow) & G((brown) -> (yellow & purple))))) & (F((brown)) & ((!brown) U ((brown) & ((green) -> ((blue) U ((!brown) U (yellow)) & F(yellow) & G((brown) -> (yellow & purple)))))))",
+            "cluster_ranks": [
+                1,
+                2,
+                3,
+                4
+            ],
+            "satisfiable": true,
+            "implies_reference": false,
+            "logical_good": false,
+            "not_guaranteed": true,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

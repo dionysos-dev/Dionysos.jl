@@ -1,0 +1,16 @@
+{
+  "pid": 55855,
+  "command": [
+    "python3",
+    "CalibrationTable/resume_baseline.py",
+    "--root",
+    ".",
+    "--cooldown",
+    "5",
+    "--long-rest",
+    "30"
+  ],
+  "working_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1",
+  "output_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/deepseek-single-query-baseline-cal300-v1",
+  "resume_marker": "RESUME 2026-11-12T11:09:36.879773+00:00"
+}

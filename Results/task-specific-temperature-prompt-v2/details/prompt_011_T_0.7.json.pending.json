@@ -1,0 +1,19 @@
+{
+    "repetition": 10,
+    "response": {
+        "finish_reason": "stop",
+        "formula": "G((yellow | brown)) & G(F(brown))",
+        "raw_output": "G((yellow | brown)) & G(F(brown))",
+        "usage": {
+            "prompt_tokens": 636,
+            "completion_tokens": 12,
+            "total_tokens": 648,
+            "prompt_tokens_details": {
+                "cached_tokens": 512
+            },
+            "prompt_cache_hit_tokens": 512,
+            "prompt_cache_miss_tokens": 124
+        },
+        "returned_model": "deepseek-v4-pro"
+    }
+}

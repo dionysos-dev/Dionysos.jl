@@ -1,0 +1,1 @@
+Planar workspace of the vehicle system. Colored rectangles define the atomic propositions blue, brown, green, purple and yellow over the full heading range. Dark regions are obstacles. The light gray buffer shows the 0.12 obstacle enlargement used in abstraction and labeling. The hatched overlap satisfies both blue and brown.

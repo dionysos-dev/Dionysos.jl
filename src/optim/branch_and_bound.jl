@@ -14,11 +14,11 @@ using JuMP
 using HybridSystems
 
 """
-    Optimizer{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    Optimizer{T} <: MOI.AbstractOptimizer
 
 Branch and bound solver: Optimal control of hybrid systems via a predictive control scheme combining a branch and bound algorithm that can refine Q-functions using Lagrangian duality.
 """
-mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
+mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver::Any
     mixed_integer_solver::Any
     Q_function_init::Any
@@ -26,15 +26,15 @@ mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
     lower_bound::Any
     horizon::Int
     indicator::Bool
-    print_level::Int
-    print_iter::AbstractVector{Int}
+    log_level::Int
+    log_iter::AbstractVector{Int}
     max_iter::Int
     max_time::Float64
     feasible_solution_callback::Union{Nothing, Function}
     problem::Union{Nothing, PR.OptimalControlProblem}
     status::MOI.TerminationStatusCode
     upper_bound::T
-    solve_time_sec::Float64
+    solve_time::Float64
     num_total::Int
     num_iter::Int
     num_done::Int
@@ -77,13 +77,16 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
         end
     end
-    return OP.set_field_attribute!(model, param, value)
+    return setproperty!(model, Symbol(param.name), value)
+end
+function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
+    return getproperty(model, Symbol(param.name))
 end
 
 struct Candidate{T, TT}
     lower_bound::T
     upper_bound::T
-    traj::ST.AutomatonPath{TT}
+    traj::ST.DiscreteTrajectory{TT}
 end
 
 function Base.isless(a::Candidate, b::Candidate)
@@ -117,7 +120,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         "continuous_solver" => algo.continuous_solver,
         "mixed_integer_solver" => algo.mixed_integer_solver,
         "indicator" => algo.indicator,
-        "print_level" => algo.print_level,
+        "log_level" => algo.log_level,
     )
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
@@ -148,10 +151,10 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     start_cost = MOI.get(start_optimizer, MOI.ObjectiveValue())
     start_sol = MOI.get(start_optimizer, ST.ContinuousTrajectoryAttribute())
     if isempty(state_cost)
-        lb = start_cost + terminal_cost(prob.initial_set[2])
+        lb = start_cost + UT.function_value(terminal_cost, prob.initial_set[2])
     else
         lb = start_cost
-        start_cost -= terminal_cost(start_sol.x[end])
+        start_cost -= UT.function_value(terminal_cost, start_sol.x[end])
     end
     if left <= algo.horizon || false # prob.allow_less_iterations
         horizon_prob = PR.OptimalControlProblem(
@@ -186,8 +189,11 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     return Candidate(lb, ub, traj), sol_traj
 end
 
+using Printf
+
 const NUM_NODES = ["#nodes", "#queued", "#done", "#pruned", "#infeas", "#left"]
 
+# Inspired from Pavito's `printgap`
 function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queued)
     num_nodes = [
         optimizer.num_total,
@@ -196,64 +202,35 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
         optimizer.num_pruned_bound,
         optimizer.num_pruned_inf,
     ]
-    push!(num_nodes, 2 * optimizer.num_total - sum(num_nodes))
+    push!(num_nodes, 2optimizer.num_total - sum(num_nodes))
     @assert num_nodes[end] >= 0
-
-    if optimizer.print_level >= 1
+    if optimizer.log_level >= 1
         len = max(maximum(length, NUM_NODES), length(string(num_nodes[1])))
-
-        padl(x, n) = lpad(string(x), n)
-        padr(x, n) = rpad(string(x), n)
-
-        if optimizer.num_iter == 0 || optimizer.print_level >= 2
-            header =
-                padr("Iter.", 5) *
-                " | " *
-                padr("Best feasible", 14) *
-                " | " *
-                padr("Time (s)", 11)
-
+        if optimizer.num_iter == 0 || optimizer.log_level >= 2
+            @printf "\n%-5s | %-14s | %-11s" "Iter." "Best feasible" "Time (s)"
             for s in NUM_NODES
-                header *= " | " * padl(s, len)
+                print(" | ", lpad(s, len))
             end
-            println("\n" * header)
+            println()
         end
-
-        if last_iter || (optimizer.num_iter in optimizer.print_iter)
-            line =
-                padl(optimizer.num_iter, 5) *
-                " | " *
-                padl(round(optimizer.upper_bound; sigdigits = 6), 14) *
-                " | " *
-                padl(round(time() - start_time; sigdigits = 3), 11)
-
+        if last_iter || (optimizer.num_iter in optimizer.log_iter)
+            @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (
+                time() - start_time
+            )
             for num in num_nodes
-                line *= " | " * padl(num, len)
+                print(" | ", lpad(string(num), len))
             end
-
-            println(line)
+            println()
         end
-
         flush(stdout)
         flush(stderr)
-    end
-
-    return nothing
-end
-
-function MOI.optimize!(optimizer::Optimizer)
-    start_time = time()
-    try
-        _optimize!(optimizer, start_time)
-    finally
-        optimizer.solve_time_sec = time() - start_time
     end
     return
 end
 
-function _optimize!(optimizer::Optimizer{T}, start_time) where {T}
+function MOI.optimize!(optimizer::Optimizer{T}) where {T}
+    start_time = time()
     prob = optimizer.problem
-    PR.check_safe_set_supported(prob, "BranchAndBound")
     if iszero(prob.time)
         if optimizer.problem.target_set == optimizer.problem.initial_set[1]
             optimizer.status = MOI.OPTIMAL
@@ -281,7 +258,7 @@ function _optimize!(optimizer::Optimizer{T}, start_time) where {T}
         prob,
         optimizer,
         optimizer.Q_function,
-        ST.AutomatonPath{transitiontype(prob.system)}(prob.initial_set[1]),
+        ST.DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]),
     )
     candidate_0 === nothing && return
     optimizer.upper_bound = candidate_0.upper_bound

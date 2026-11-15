@@ -1,0 +1,209 @@
+{
+  "complete": true,
+  "new_api_calls": 0,
+  "calibration": [
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "68",
+      "empirical_risk": 0.22666666666666666,
+      "corrected_risk": 0.2292358803986711,
+      "corrected_exact": "69/301",
+      "pair_empirical_risk": 0.22611464968152867,
+      "k": 1
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "189/4",
+      "empirical_risk": 0.1575,
+      "corrected_risk": 0.16029900332225913,
+      "corrected_exact": "193/1204",
+      "pair_empirical_risk": 0.15843949044585987,
+      "k": 2
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "169/4",
+      "empirical_risk": 0.14083333333333334,
+      "corrected_risk": 0.143687707641196,
+      "corrected_exact": "173/1204",
+      "pair_empirical_risk": 0.14171974522292993,
+      "k": 3
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "159/4",
+      "empirical_risk": 0.1325,
+      "corrected_risk": 0.13538205980066445,
+      "corrected_exact": "163/1204",
+      "pair_empirical_risk": 0.1337579617834395,
+      "k": 4
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "153/4",
+      "empirical_risk": 0.1275,
+      "corrected_risk": 0.1303986710963455,
+      "corrected_exact": "157/1204",
+      "pair_empirical_risk": 0.12898089171974522,
+      "k": 5
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "75/2",
+      "empirical_risk": 0.125,
+      "corrected_risk": 0.12790697674418605,
+      "corrected_exact": "11/86",
+      "pair_empirical_risk": 0.1265923566878981,
+      "k": 6
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "75/2",
+      "empirical_risk": 0.125,
+      "corrected_risk": 0.12790697674418605,
+      "corrected_exact": "11/86",
+      "pair_empirical_risk": 0.1265923566878981,
+      "k": 7
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "75/2",
+      "empirical_risk": 0.125,
+      "corrected_risk": 0.12790697674418605,
+      "corrected_exact": "11/86",
+      "pair_empirical_risk": 0.1265923566878981,
+      "k": 8
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "75/2",
+      "empirical_risk": 0.125,
+      "corrected_risk": 0.12790697674418605,
+      "corrected_exact": "11/86",
+      "pair_empirical_risk": 0.1265923566878981,
+      "k": 9
+    },
+    {
+      "n_classes": 300,
+      "n_prompts": 1256,
+      "class_loss_sum": "75/2",
+      "empirical_risk": 0.125,
+      "corrected_risk": 0.12790697674418605,
+      "corrected_exact": "11/86",
+      "pair_empirical_risk": 0.1265923566878981,
+      "k": 10
+    }
+  ],
+  "test": {
+    "1": {
+      "n_classes": 826,
+      "n_prompts": 3480,
+      "class_loss_sum": "2269/12",
+      "empirical_risk": 0.22891444713478612,
+      "corrected_risk": 0.22984683595324465,
+      "corrected_exact": "2281/9924",
+      "pair_empirical_risk": 0.22327586206896552,
+      "issuance": 0.8954297820823245,
+      "guaranteed_issuance": 0.6665153349475383,
+      "conditional_error": 0.25564756915103376,
+      "pair_issuance": 0.9002873563218391,
+      "pair_guaranteed_issuance": 0.6770114942528735,
+      "k": 1
+    },
+    "2": {
+      "n_classes": 826,
+      "n_prompts": 3480,
+      "class_loss_sum": "3251/24",
+      "empirical_risk": 0.16399313962873285,
+      "corrected_risk": 0.16500403063280936,
+      "corrected_exact": "3275/19848",
+      "pair_empirical_risk": 0.1589080459770115,
+      "issuance": 0.8633474576271186,
+      "guaranteed_issuance": 0.6993543179983858,
+      "conditional_error": 0.1899503359626059,
+      "pair_issuance": 0.8686781609195402,
+      "pair_guaranteed_issuance": 0.7097701149425287,
+      "k": 2
+    },
+    "3": {
+      "n_classes": 826,
+      "n_prompts": 3480,
+      "class_loss_sum": "2675/24",
+      "empirical_risk": 0.13493744955609363,
+      "corrected_risk": 0.13598347440548167,
+      "corrected_exact": "2699/19848",
+      "pair_empirical_risk": 0.13132183908045977,
+      "issuance": 0.8454903147699758,
+      "guaranteed_issuance": 0.7105528652138822,
+      "conditional_error": 0.15959668277549072,
+      "pair_issuance": 0.8514367816091954,
+      "pair_guaranteed_issuance": 0.7201149425287356,
+      "k": 3
+    }
+  },
+  "inventory": {
+    "prompts": 4736,
+    "calibration_prompts": 1256,
+    "test_prompts": 3480,
+    "distinct_normalized_conjunctions": 6848,
+    "existing_normalized_decisions": 1720,
+    "new_api_calls": 0,
+    "calibration_k1_missing_distinct_formulas": 226,
+    "test_k1_missing_distinct_formulas": 652
+  },
+  "table": [
+    {
+      "alpha": 0.05,
+      "selected_k": "infinity",
+      "test_risk": 0,
+      "issuance": 0,
+      "guaranteed_issuance": 0,
+      "status": "complete_always_abstain"
+    },
+    {
+      "alpha": 0.1,
+      "selected_k": "infinity",
+      "test_risk": 0,
+      "issuance": 0,
+      "guaranteed_issuance": 0,
+      "status": "complete_always_abstain"
+    },
+    {
+      "alpha": 0.15,
+      "selected_k": 3,
+      "test_risk": 0.13493744955609363,
+      "issuance": 0.8454903147699758,
+      "guaranteed_issuance": 0.7105528652138822,
+      "status": "complete",
+      "empirically_below_alpha": true
+    },
+    {
+      "alpha": 0.2,
+      "selected_k": 2,
+      "test_risk": 0.16399313962873285,
+      "issuance": 0.8633474576271186,
+      "guaranteed_issuance": 0.6993543179983858,
+      "status": "complete",
+      "empirically_below_alpha": true
+    },
+    {
+      "alpha": 0.25,
+      "selected_k": 1,
+      "test_risk": 0.22891444713478612,
+      "issuance": 0.8954297820823245,
+      "guaranteed_issuance": 0.6665153349475383,
+      "status": "complete",
+      "empirically_below_alpha": true
+    }
+  ],
+  "new_synthesis_jobs_total": 2561
+}

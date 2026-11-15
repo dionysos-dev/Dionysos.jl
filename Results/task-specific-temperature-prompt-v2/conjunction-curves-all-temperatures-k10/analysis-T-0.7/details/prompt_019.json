@@ -1,0 +1,68 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 0.7,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "f2a0535ea66bcb9e81e6f07db50c724afcc03b20614f6b7db64fe07a7f763690",
+    "prompt_index": 19,
+    "record_id": 510,
+    "input_field": "paraphrase_gemini-2.5-flash_gpt54mini_rewritten",
+    "reference_ltl": "G(((purple | yellow) | blue))",
+    "samples": 10,
+    "valid_samples": 10,
+    "satisfiable_samples": 10,
+    "excluded_candidates": [
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 1,
+            "representative": "G((purple) | (yellow) | (blue))",
+            "frequency": 10,
+            "sample_indices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": true
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "(G((purple) | (yellow) | (blue)))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

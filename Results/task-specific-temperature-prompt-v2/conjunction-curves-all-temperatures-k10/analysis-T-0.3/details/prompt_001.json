@@ -1,0 +1,96 @@
+{
+    "analysis_identity": {
+        "schema_version": 3,
+        "temperature": 0.3,
+        "candidate_filter": "parse_then_allowed_APs_then_SAT_before_clustering",
+        "allowed_propositions": [
+            "blue",
+            "brown",
+            "green",
+            "purple",
+            "yellow"
+        ],
+        "source_directory": "/Users/abayat/Documents/PhD/Code/Dio/Dionysos.jl_1/Results/task-specific-temperature-prompt-v2",
+        "manifest_sha256": "ce79f4deab32e1face79746145e4692ee91b01a85f276ec07ff579cbf701835e",
+        "max_k": 10
+    },
+    "source_sha256": "be7082772ea8c2d2a60e2a2174576cbb5bb1b219795da4163e269693a4b1b65b",
+    "prompt_index": 1,
+    "record_id": 750,
+    "input_field": "natural_paraphrase_gpt54mini_rewritten",
+    "reference_ltl": "(yellow U ((purple & ((green & G(blue)) | (!(green) & F(!(blue))))) | (!(purple) & ((green & F(!(blue))) | (!(green) & G(blue))))))",
+    "samples": 10,
+    "valid_samples": 10,
+    "satisfiable_samples": 10,
+    "excluded_candidates": [
+    ],
+    "ranked_clusters": [
+        {
+            "cluster_id": 2,
+            "representative": "(yellow) U ((((purple & green) | (!(purple) & !(green))) & G(blue)) | (((purple & !(green)) | (!(purple) & green)) & F(!(blue))))",
+            "frequency": 8,
+            "sample_indices": [
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                10
+            ],
+            "rank": 1,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": true
+        },
+        {
+            "cluster_id": 1,
+            "representative": "((yellow) U (((purple & green) | (!(purple) & !(green))) & G(blue)) | (((purple & !(green)) | (!(purple) & green)) & F(!(blue))))",
+            "frequency": 2,
+            "sample_indices": [
+                1,
+                9
+            ],
+            "rank": 2,
+            "satisfiable": true,
+            "implies_reference": true,
+            "individually_sufficient": true,
+            "equivalent_to_reference": false
+        }
+    ],
+    "conjunctions": [
+        {
+            "k": 1,
+            "phi_k": "((yellow) U ((((purple & green) | (!(purple) & !(green))) & G(blue)) | (((purple & !(green)) | (!(purple) & green)) & F(!(blue)))))",
+            "cluster_ranks": [
+                1
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        },
+        {
+            "k": 2,
+            "phi_k": "((yellow) U ((((purple & green) | (!(purple) & !(green))) & G(blue)) | (((purple & !(green)) | (!(purple) & green)) & F(!(blue))))) & (((yellow) U (((purple & green) | (!(purple) & !(green))) & G(blue)) | (((purple & !(green)) | (!(purple) & green)) & F(!(blue)))))",
+            "cluster_ranks": [
+                1,
+                2
+            ],
+            "satisfiable": true,
+            "implies_reference": true,
+            "logical_good": true,
+            "not_guaranteed": false,
+            "unsatisfiable": false,
+            "semantic_rescue_no_individual_sufficient": false,
+            "semantic_rescue_top_not_sufficient": false,
+            "semantic_rescue_no_individual_equivalent": false
+        }
+    ]
+}

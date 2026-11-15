@@ -1,0 +1,19 @@
+{
+    "repetition": 10,
+    "response": {
+        "finish_reason": "stop",
+        "formula": "F((brown)) | (((!brown) U (brown)) & (G(((!brown) U (brown)) -> ((blue) U ((!brown) U (yellow)) & (F(yellow) & ((brown) -> (yellow & purple)) U (yellow))))))",
+        "raw_output": "F((brown)) | (((!brown) U (brown)) & (G(((!brown) U (brown)) -> ((blue) U ((!brown) U (yellow)) & (F(yellow) & ((brown) -> (yellow & purple)) U (yellow))))))",
+        "usage": {
+            "prompt_tokens": 693,
+            "completion_tokens": 65,
+            "total_tokens": 758,
+            "prompt_tokens_details": {
+                "cached_tokens": 640
+            },
+            "prompt_cache_hit_tokens": 640,
+            "prompt_cache_miss_tokens": 53
+        },
+        "returned_model": "deepseek-v4-pro"
+    }
+}

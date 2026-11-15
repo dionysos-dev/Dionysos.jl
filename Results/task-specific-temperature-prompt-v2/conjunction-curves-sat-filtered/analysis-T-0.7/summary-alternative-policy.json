@@ -1,0 +1,131 @@
+{
+    "missing_policy": "strict",
+    "rescue_definition": "no_individual_equivalent",
+    "summary": [
+        {
+            "k": 1,
+            "eligible_prompts": 40,
+            "total_prompts": 40,
+            "counts": {
+                "satisfiable": 40,
+                "implies_reference": 25,
+                "logical_good": 25,
+                "not_guaranteed": 15,
+                "unsatisfiable": 0,
+                "semantic_rescue": 6,
+                "top1_rescue": 0,
+                "synergistic_rescue": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.625,
+                "logical_good": 0.625,
+                "not_guaranteed": 0.375,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.15,
+                "top1_rescue": 0,
+                "synergistic_rescue": 0
+            }
+        },
+        {
+            "k": 2,
+            "eligible_prompts": 19,
+            "total_prompts": 40,
+            "counts": {
+                "satisfiable": 19,
+                "implies_reference": 13,
+                "logical_good": 13,
+                "not_guaranteed": 6,
+                "unsatisfiable": 0,
+                "semantic_rescue": 6,
+                "top1_rescue": 5,
+                "synergistic_rescue": 1
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.6842105263157895,
+                "logical_good": 0.6842105263157895,
+                "not_guaranteed": 0.3157894736842105,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.3157894736842105,
+                "top1_rescue": 0.2631578947368421,
+                "synergistic_rescue": 0.05263157894736842
+            }
+        },
+        {
+            "k": 3,
+            "eligible_prompts": 13,
+            "total_prompts": 40,
+            "counts": {
+                "satisfiable": 13,
+                "implies_reference": 9,
+                "logical_good": 9,
+                "not_guaranteed": 4,
+                "unsatisfiable": 0,
+                "semantic_rescue": 5,
+                "top1_rescue": 4,
+                "synergistic_rescue": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.6923076923076923,
+                "logical_good": 0.6923076923076923,
+                "not_guaranteed": 0.3076923076923077,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.38461538461538464,
+                "top1_rescue": 0.3076923076923077,
+                "synergistic_rescue": 0
+            }
+        },
+        {
+            "k": 4,
+            "eligible_prompts": 7,
+            "total_prompts": 40,
+            "counts": {
+                "satisfiable": 7,
+                "implies_reference": 5,
+                "logical_good": 5,
+                "not_guaranteed": 2,
+                "unsatisfiable": 0,
+                "semantic_rescue": 3,
+                "top1_rescue": 3,
+                "synergistic_rescue": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.7142857142857143,
+                "logical_good": 0.7142857142857143,
+                "not_guaranteed": 0.2857142857142857,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.42857142857142855,
+                "top1_rescue": 0.42857142857142855,
+                "synergistic_rescue": 0
+            }
+        },
+        {
+            "k": 5,
+            "eligible_prompts": 4,
+            "total_prompts": 40,
+            "counts": {
+                "satisfiable": 4,
+                "implies_reference": 3,
+                "logical_good": 3,
+                "not_guaranteed": 1,
+                "unsatisfiable": 0,
+                "semantic_rescue": 3,
+                "top1_rescue": 2,
+                "synergistic_rescue": 0
+            },
+            "rates": {
+                "satisfiable": 1,
+                "implies_reference": 0.75,
+                "logical_good": 0.75,
+                "not_guaranteed": 0.25,
+                "unsatisfiable": 0,
+                "semantic_rescue": 0.75,
+                "top1_rescue": 0.5,
+                "synergistic_rescue": 0
+            }
+        }
+    ]
+}
