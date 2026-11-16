@@ -21,9 +21,11 @@ const UT = Dionysos.Utils
 const UGA = Dionysos.Optim.Abstraction.UniformGridAbstraction
 
 include(joinpath(@__DIR__, "..", "robot_problem.jl"))
-include(joinpath(@__DIR__, "..", "LocalGrowthAbstraction.jl"))
+include(joinpath(@__DIR__, "..", "LocalGrowthBound.jl"))
+include(joinpath(@__DIR__, "..", "BipedAbstraction.jl"))
 import .UnderactuatedRobotProblem as RP
-import .LocalGrowthAbstraction as LGA
+import .LocalGrowthBound as LGB
+import .BipedAbstraction as BA
 const MB = RP.Multibody2D
 
 Random.seed!(1234)
@@ -158,7 +160,7 @@ end
         )
 
         f_nf = RP.substitute_parameters(MODEL, reduced.f, VALUES)
-        nf = LGA.SymbolicDynamics(f_nf, reduced.x, reduced.u)
+        nf = LGB.SymbolicDynamics(f_nf, reduced.x, reduced.u)
         vel = velocity_model()
         δ = 1e-4
         for k in 1:6
@@ -210,7 +212,7 @@ end
             low = fill(-disc.u_max, 3),
             high = fill(disc.u_max, 3),
         )
-        dynamics = LGA.SymbolicDynamics(f_nf, reduced.x, reduced.u)
+        dynamics = LGB.SymbolicDynamics(f_nf, reduced.x, reduced.u)
         system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamics.f,
             5,
@@ -218,12 +220,12 @@ end
             X,
             U,
         )
-        optimizer = LGA.build_abstraction(
+        optimizer = BA.build_abstraction(
             system;
             state_grid = disc.state_grid,
             input_grid = disc.input_grid,
             approx_mode = UGA.GROWTH,
-            jacobian_bound = LGA.cellwise_bound(dynamics),
+            jacobian_bound = LGB.cellwise_bound(dynamics),
             time_step = disc.tstep,
             execution_backend = SY.SequentialBackend(),
         )
@@ -247,7 +249,7 @@ end
             low = fill(-disc.u_max, 3),
             high = fill(disc.u_max, 3),
         )
-        dynamics = LGA.SymbolicDynamics(f_nf, reduced.x, reduced.u)
+        dynamics = LGB.SymbolicDynamics(f_nf, reduced.x, reduced.u)
         system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamics.f,
             5,
@@ -256,7 +258,7 @@ end
             U,
         )
         function build(jacobian_bound)
-            optimizer = LGA.build_abstraction(
+            optimizer = BA.build_abstraction(
                 system;
                 state_grid = disc.state_grid,
                 input_grid = disc.input_grid,
@@ -269,10 +271,16 @@ end
             return optimizer,
             MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
         end
-        optimizer, sym = build(LGA.cellwise_bound(dynamics))
+        optimizer, sym = build(LGB.cellwise_bound(dynamics))
         # The growth bound of Dionysos over the whole state set, for comparison.
-        _, sym_global =
-            build(u -> LGA.jacobian_bound(dynamics, LazySets.low(X), LazySets.high(X), u))
+        _, sym_global = build(
+            u -> LGB.jacobian_bound_over_box(
+                dynamics,
+                LazySets.low(X),
+                LazySets.high(X),
+                u,
+            ),
+        )
         @test SY.get_n_state(sym) == 3^5 && SY.get_n_input(sym) == 27
         function successor_sets(abstract_system)
             sets = Dict{Tuple{Int, Int}, Set{Int}}()
@@ -342,7 +350,7 @@ end
         # the centre): on three cells per axis, the nondeterministic abstractions tried (a growth bound,
         # and the certified one) leave no controller. This
         # tests the start state and the closed loop of `robot_problem.jl`, not the abstraction.
-        optimizer = LGA.build_abstraction(
+        optimizer = BA.build_abstraction(
             system;
             state_grid = disc.state_grid,
             input_grid = disc.input_grid,

@@ -145,7 +145,7 @@ const KERNEL_VERSION = 1
 
 Plain data that identifies **how** the successors of `approx` are computed: the kernel version, the
 sampling period, the number of RK4 substeps and a fingerprint of the printed symbolic dynamics.
-`LocalGrowthAbstraction` stores it with cached transitions and chunks, and refuses transitions that
+`BipedAbstraction` stores it with cached transitions and chunks, and refuses transitions that
 do not carry the same one.
 """
 get_provenance(approx::CertifiedRK4GrowthBound) = (;

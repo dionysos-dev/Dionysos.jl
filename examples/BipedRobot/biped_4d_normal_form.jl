@@ -18,7 +18,7 @@
 #   i.e. `q̇₁ = (p₁ - D₁ₐ v_a) / D₁₁`, `ṗ₁ = ∂L/∂q₁`, `(q̇₂, q̇₃, q̇₄) = v_a`, with the commands
 #   held constant over a sampling period;
 # - **abstraction**: **certified successors of the RK4 map** (`CertifiedRK4GrowthBound`, see
-#   `LocalGrowthAbstraction.jl`): for every state that the grid assigns to a cell, the successor
+#   `BipedAbstraction.jl`): for every state that the grid assigns to a cell, the successor
 #   computed by the discrete-time (RK4) system used in the closed-loop run lies in one of the
 #   successor cells listed for that cell and input. Each image is the RK4 evolution of the cell centre
 #   plus a bound from the interval Jacobian over the cell (a local growth bound), with the roundoff
@@ -78,8 +78,8 @@ include(joinpath(PROBLEM_DIR, "robot_problem.jl"))
 import .UnderactuatedRobotProblem as RP
 
 # Certified successors of the RK4 map, and the builder of the abstraction.
-include(joinpath(PROBLEM_DIR, "LocalGrowthAbstraction.jl"))
-import .LocalGrowthAbstraction as LGA
+include(joinpath(PROBLEM_DIR, "BipedAbstraction.jl"))
+import .BipedAbstraction as BA
 
 # ------------------------------------------------------------
 # 1) Symbolic model → numerical dynamics
@@ -234,11 +234,11 @@ println(
 # 3) Certified abstraction of the RK4 map
 # ------------------------------------------------------------
 
-# `CertifiedRK4GrowthBound` is defined next to `LocalGrowthAbstraction.jl`, in the problem folder: it
+# `CertifiedRK4GrowthBound` is defined next to `BipedAbstraction.jl`, in the problem folder: it
 # uses only what Dionysos already offers (a discrete-time over-approximation, the `USER_DEFINED`
 # approximation mode, a lookup of the target cells for its own image type), on top of CoreMath,
 # IntervalArithmetic and Symbolics.
-@time certified = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+@time certified = BA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
 dynamics = certified.f
 concrete_system = ST.get_system(certified)   # discrete-time (RK4) system on the carved domain
 
@@ -275,14 +275,6 @@ println("swing foot at x0: ", RP.swing_foot_position(SVector{4}(x0[2:5]), geomet
 # `problems/BipedRobot/4D_model_underactuated/slurm_array`.
 abstraction_file = @isdefined(ABSTRACTION_FILE) ? ABSTRACTION_FILE : nothing
 abstraction_only = @isdefined(ABSTRACTION_ONLY) ? ABSTRACTION_ONLY : false
-# An outdated `LocalGrowthAbstraction.jl` would pass `abstraction_file` on as an optimizer attribute that
-# nothing reads, and silently compute the abstraction: refuse it.
-abstraction_file === nothing ||
-    isdefined(LGA, :merge_chunks_to_file) ||
-    error(
-        "$(PROBLEM_DIR)/LocalGrowthAbstraction.jl is too old for ABSTRACTION_FILE (no `merge_chunks_to_file`). " *
-        "Dionysos is loaded from $(pathof(Dionysos)): `PROBLEM_DIR` is relative to it.",
-    )
 execution_backend = @isdefined(EXECUTION_BACKEND) ? EXECUTION_BACKEND : SY.ThreadedBackend()
 merge_chunks = @isdefined(MERGE_CHUNKS) ? MERGE_CHUNKS : nothing
 # Merging the chunks into `ABSTRACTION_FILE` does not keep the abstraction in memory (it would not fit,
@@ -303,7 +295,7 @@ abstraction_info = (;
     ninputs = RP.input_count(disc; one_joint_per_step),
     obstacle = obstacle === nothing ? nothing : length(obstacle),
 )
-@time optimizer = LGA.build_abstraction(
+@time optimizer = BA.build_abstraction(
     certified;
     state_grid = disc.state_grid,
     input_grid = disc.input_grid,

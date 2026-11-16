@@ -23,8 +23,9 @@
 # `Multibody2D.jl`. A positive `q₁` leans the robot backwards, a positive `q₃` swings the swing
 # foot forwards, and the knee bends backwards for a negative `q₄`.
 #
-# The dynamics are nonlinear in the ankle coordinates. `LocalGrowthAbstraction.jl` uses a local
-# Jacobian bound to estimate the successor box. `closed_loop` tests a controller on the RK4 model.
+# The dynamics are nonlinear in the ankle coordinates: `LocalGrowthBound.jl` bounds the Jacobian per cell
+# and `BipedAbstraction.jl` computes the successors of the RK4 model.
+# `closed_loop` tests a controller on the RK4 model.
 module UnderactuatedRobotProblem
 
 using StaticArrays
@@ -901,7 +902,7 @@ action at the start: there is nothing to draw):
   input panel `(v₃, v₄)`; `title` is its title.
 
 A closed loop has one state per sampling period, which makes a short run (a few steps) a flash. With
-`dynamics`, the continuous dynamics `(x, u) -> ẋ` of the design model (e.g. the `f` of a `CertifiedRK4GrowthBound`, or `LGA.SymbolicDynamics(...).f`), and
+`dynamics`, the continuous dynamics `(x, u) -> ẋ` of the design model (e.g. the `f` of a `CertifiedRK4GrowthBound`, or `LocalGrowthBound.SymbolicDynamics(...).f`), and
 `subframes > 1`, each step is re-integrated (RK4, the input held constant) at `subframes` intermediate
 instants for the ankle plot and the animation, which then has `subframes` frames per step. `fps`
 (frames per second of the gif) defaults to the value that makes it last about four seconds, between 5

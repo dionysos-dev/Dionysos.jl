@@ -6,7 +6,8 @@ used to design controllers for the four-link biped:
 | File | Module | One-line description |
 | :--- | :--- | :--- |
 | `Multibody2D.jl` | `Multibody2D` | Symbolic planar multibody kinematics, energies and equations of motion in *normal form*. Generic: nothing in it is specific to the biped. |
-| `LocalGrowthAbstraction.jl` | `LocalGrowthAbstraction` | Discrete-time transition systems with **cell-wise (local) growth bounds**, plugged into the Dionysos abstraction pipeline. Generic as well. |
+| `LocalGrowthBound.jl` | `LocalGrowthBound` | The two functions that the `CellwiseBound` of Dionysos asks for (an enclosure of the step from a cell, and the Jacobian bound over it), for symbolic dynamics: a **cell-wise (local) growth bound**. Generic as well. |
+| `BipedAbstraction.jl`, `CertifiedRK4.jl` | `BipedAbstraction`, `CertifiedRK4` | Building the abstraction of the biped with the Dionysos optimizer (cache file, chunks of a Slurm array, provenance of the stored transitions), and the **certified successors of its RK4 map**. |
 | `robot_problem.jl` | `UnderactuatedRobotProblem` | The biped: **the single definition of the mechanism** (symbolic, with `Multibody2D`), its kinematics and its two 5-D velocity-controlled design models derived from it, and the footstep scenario (carving, target set, grids, plots). **No RigidBodyDynamics.** |
 | `BipedFourLink.jl`, `four_link_biped.urdf` | `BipedFourLink` | **Simulation and visualization** of the whole robot with RigidBodyDynamics and MeshCat. Kept separate because it is the only file that needs that dependency; see [`BipedFourLink.md`](BipedFourLink.md). |
 
@@ -21,7 +22,7 @@ The experiment that uses all of them is described in
 
 1. [Overview and requirements](#1-overview-and-requirements)
 2. [`Multibody2D`](#2-multibody2d)
-3. [`LocalGrowthAbstraction`](#3-localgrowthabstraction)
+3. [`LocalGrowthBound` and `BipedAbstraction`](#3-localgrowthbound-and-bipedabstraction)
 4. [`robot_problem.jl`: the biped, its design models and the footstep scenario](#4-robot_problemjl-the-biped-its-design-models-and-the-footstep-scenario)
 5. [Tests and known limitations](#5-tests-and-known-limitations)
 
@@ -32,8 +33,8 @@ The experiment that uses all of them is described in
 ### 1.1 The pipeline
 
 ```
- Multibody2D                       LocalGrowthAbstraction                        Dionysos
- ───────────                       ──────────────────────                        ────────
+ Multibody2D                       LocalGrowthBound, BipedAbstraction            Dionysos
+ ───────────                       ──────────────────────────────────            ────────
  frames, points, masses ──► normal form ──► numbers ──► SymbolicDynamics
  (symbolic, in q)           x = (q,v_a,p_u)  substituted   (compiled f, ∂f/∂x
                             ẋ = f(x) + g(x)τ late           for floats & intervals)
@@ -64,7 +65,8 @@ using StaticArrays
 
 dir = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "BipedRobot", "4D_model_underactuated")
 include(joinpath(dir, "robot_problem.jl"));          import .UnderactuatedRobotProblem as RP   # the biped; includes Multibody2D.jl
-include(joinpath(dir, "LocalGrowthAbstraction.jl")); import .LocalGrowthAbstraction as LGA
+include(joinpath(dir, "LocalGrowthBound.jl"));       import .LocalGrowthBound as LGB     # the growth bound per cell
+include(joinpath(dir, "BipedAbstraction.jl"));       import .BipedAbstraction as BA      # builder, cache, certified successors
 const MB = RP.Multibody2D                # the symbolic multibody module, to build anything else
 ```
 
@@ -72,8 +74,8 @@ const MB = RP.Multibody2D                # the symbolic multibody module, to bui
 objects of one copy must not be passed to functions of another: when you work with the biped, use
 `RP.Multibody2D` and do not include `Multibody2D.jl` a second time. To model another robot, include
 `Multibody2D.jl` on its own (`include(joinpath(dir, "Multibody2D.jl")); using .Multibody2D`).
-`LocalGrowthAbstraction.jl` does not depend on `Multibody2D.jl`: it only needs symbolic
-expressions of the dynamics.
+`LocalGrowthBound.jl` and `BipedAbstraction.jl` depend neither on `Multibody2D.jl` nor on each
+other: they only need symbolic expressions of the dynamics.
 
 Packages needed in the active environment: `Dionysos`, `Symbolics`, `IntervalArithmetic`,
 `MathematicalSystems`, `LazySets`, `StaticArrays`, `MathOptInterface`, and `Plots` for
@@ -378,12 +380,17 @@ Alternatively keep the parameters as run-time arguments:
 
 ---
 
-## 3. `LocalGrowthAbstraction`
+## 3. `LocalGrowthBound` and `BipedAbstraction`
 
-Tools to build the abstraction of a system with a **cell-wise growth bound**, on top of what
-Dionysos provides (`ST.CellwiseBound`, `ContinuousTimeGrowthBound` and the `GROWTH` mode of the
-`UniformGridAbstraction` optimizer), and to compute and store it on a server. Nothing in Dionysos
-itself had to change for it.
+Two modules, on top of what Dionysos provides (`ST.CellwiseBound`, `ContinuousTimeGrowthBound`, the
+`GROWTH` and `USER_DEFINED` modes of the `UniformGridAbstraction` optimizer, the Slurm backend).
+Nothing in Dionysos itself had to change for them.
+
+* `LocalGrowthBound` is everything needed to compute the two quantities that a `CellwiseBound`
+  asks for, for symbolic dynamics: a **growth bound per cell** (§3.1 to §3.3, first part).
+* `BipedAbstraction` is what the biped needs on top: building its abstraction with the Dionysos
+  optimizer, storing it in a cache file or in the chunks of a Slurm array, with a record of how the
+  transitions were computed, and the **certified successors of the RK4 map** (§3.3, second part, §3.5).
 
 ### 3.1 Why
 
@@ -393,7 +400,7 @@ The classical growth bound of Dionysos (`ST.ContinuousTimeGrowthBound`) uses one
 `L` is dictated by the worst point and the image of every other cell is needlessly large, which
 creates **spurious transitions**. Dionysos therefore accepts, as `jacobian_bound`, a
 `ST.CellwiseBound(enclosure, bound)`: a bound over an *enclosure of the step from the cell*. The
-caller supplies the two functions; this module supplies them for symbolic dynamics.
+caller supplies the two functions; `LocalGrowthBound` supplies them for symbolic dynamics.
 
 ### 3.2 Who does what (for one cell `R = c ± r` and input `u`, sampling time `τ`)
 
@@ -409,8 +416,8 @@ Dionysos (`ContinuousTimeGrowthBound` with a `CellwiseBound`, `GROWTH` mode):
 `cellwise_bound(dynamics)` supplies steps 2 and 3:
 
 * `enclosure(R, u, τ)` is a box `B` **verified** to contain the trajectories of **all** points of `R`
-  during the **whole** sampling period, not just at its end points (`flow_enclosure`, below),
-  together with the Jacobian bound `L_B` over `B`, as a `StepEnclosure`. It is `nothing` if no box
+  during the **whole** sampling period, not just at its end points (`picard_enclosure`, below),
+  together with the Jacobian bound `L_B` over `B`, as a `FlowEnclosure`. It is `nothing` if no box
   could be verified, or if the Jacobian is not bounded over it;
 * `bound(E, u)` returns that `L_B`.
 
@@ -426,6 +433,10 @@ diagonal entries and the magnitude of the off-diagonal ones.
 
 ### 3.3 Reference
 
+The snippets suppose `using .LocalGrowthBound` and `using .BipedAbstraction`.
+
+**`LocalGrowthBound`**
+
 #### `SymbolicDynamics(fsym, x, u)` and `SymbolicDynamics(system)`
 
 *Description.* The dynamics `ẋ = f(x, u)` given symbolically and compiled once into three
@@ -434,7 +445,7 @@ callables (fields):
 | Field | Signature | Use |
 | :--- | :--- | :--- |
 | `f` | `(x, u) -> SVector{N}` | plain floating-point evaluation (centre simulation) |
-| `f_interval` | `(xbox, ubox) -> Vector` | interval enclosure of `f` over boxes (flow enclosure) |
+| `f_interval` | `(xbox, ubox) -> Vector` | interval enclosure of `f` over boxes (Picard enclosure) |
 | `jacobian_interval` | `(xbox, ubox) -> Matrix` | interval enclosure of `∂f/∂x` (growth bounds) |
 
 `fsym` is a vector of `Symbolics` expressions in the variable vectors `x` and `u` (for instance the
@@ -452,7 +463,7 @@ dyn = SymbolicDynamics(fp, collect(x), collect(u))
 dyn.f([0.1, 0.2], [0.0])            # [0.2, -1.0794]
 ```
 
-#### `jacobian_bound(dynamics, xlow, xhigh, u) -> SMatrix`
+#### `jacobian_bound_over_box(dynamics, xlow, xhigh, u) -> SMatrix`
 
 *Description.* The Metzler growth-bound matrix `L` of `∂f/∂x`, bounded with interval arithmetic
 for all states in the box `[xlow, xhigh]` and the input `u`. Entries may be `Inf` if the interval
@@ -462,14 +473,14 @@ evaluation is unbounded (e.g. a denominator whose interval contains zero).
 is `g` over a full turn but small near `x₁ = π/2`:
 
 ```julia
-jacobian_bound(dyn, [-3.0, -6.0], [3.0, 6.0], [0.0])   # [0 1; 9.81 -0.5]   (whole state space)
-jacobian_bound(dyn, [1.4, -1.0], [1.7, 1.0], [0.0])    # [0 1; 1.67 -0.5]   (a small box)
+jacobian_bound_over_box(dyn, [-3.0, -6.0], [3.0, 6.0], [0.0])   # [0 1; 9.81 -0.5]   (whole state space)
+jacobian_bound_over_box(dyn, [1.4, -1.0], [1.7, 1.0], [0.0])    # [0 1; 1.67 -0.5]   (a small box)
 ```
 
 The first call is also the `INPUT_BOUND` of Dionysos' `ST.compute_jacobian_bound` for the same
 dynamics, taken over the whole state set.
 
-#### `flow_enclosure(dynamics, cell_low, cell_high, guess_low, guess_high, u, tstep; max_iterations = 10, inflation = 0.1, shrink = false)`
+#### `picard_enclosure(dynamics, cell_low, cell_high, guess_low, guess_high, u, tstep; max_iterations = 10, inflation = 0.1, shrink = false)`
 
 *Description.* Returns bounds `(lo, hi)` enclosing every exact ODE trajectory from the
 source cell for `t ∈ [0, tstep]` under constant input `u`. It assumes a locally Lipschitz
@@ -487,15 +498,15 @@ abstraction (`nothing` means that Dionysos will disable the input at that cell):
 
 ```julia
 cell = LazySets.Hyperrectangle(SVector(1.5, 0.0), SVector(0.1, 0.2))
-flow_enclosure(dyn, cell, LazySets.low(cell), LazySets.high(cell), [0.0], 0.1)
+picard_enclosure(dyn, cell, LazySets.low(cell), LazySets.high(cell), [0.0], 0.1)
 # ([1.229, -1.497], [1.682, 0.506])   or nothing
 ```
 
-#### `cellwise_bound(dynamics; max_iterations = 10, inflation = 0.1, shrink = false) -> ST.CellwiseBound`, `StepEnclosure`
+#### `cellwise_bound(dynamics; max_iterations = 10, inflation = 0.1, shrink = false) -> ST.CellwiseBound`, `FlowEnclosure`
 
 *Description.* The two functions of a `Dionysos.System.CellwiseBound` for symbolic dynamics, as
-described in §3.2. The keywords are the options of `flow_enclosure`, which starts from the cell
-itself. The enclosure it returns is a `StepEnclosure(low, high, L)`.
+described in §3.2. The keywords are the options of `picard_enclosure`, which starts from the cell
+itself. The enclosure it returns is a `FlowEnclosure(low, high, L)`.
 
 *Use case.* The pendulum, compared with the plain global bound:
 
@@ -508,13 +519,15 @@ growth(jb) = ST.discretize(ST.ContinuousTimeGrowthBound(system; jacobian_bound =
 cell = LazySets.Hyperrectangle(SVector(1.5, 0.0), SVector(0.1, 0.2))
 over_cellwise = ST.get_over_approximation_map(growth(cellwise_bound(dyn)))(cell, SVector(0.0))
 over_global   = ST.get_over_approximation_map(
-    growth(u -> jacobian_bound(dyn, [-3.0, -6.0], [3.0, 6.0], u)))(cell, SVector(0.0))
+    growth(u -> jacobian_bound_over_box(dyn, [-3.0, -6.0], [3.0, 6.0], u)))(cell, SVector(0.0))
 LazySets.radius_hyperrectangle(over_global)      # [0.1247, 0.2971]
 LazySets.radius_hyperrectangle(over_cellwise)    # [0.1212, 0.2257]
 ```
 
 A direct call of the over-approximation map returns `nothing` when the input is not admissible at
 the cell. In an abstraction, Dionysos does that for every input at every cell.
+
+**`BipedAbstraction`**
 
 #### `build_abstraction(system; state_grid, input_grid, print_level = 0, abstraction_file = nothing, abstraction_info = nothing, merge_chunks = nothing, attributes...) -> optimizer` and `build_abstraction(approx::CertifiedRK4GrowthBound; ...)`
 
@@ -549,7 +562,7 @@ SY.get_n_state(abs_sys), SY.get_n_input(abs_sys), SY.get_n_transitions(abs_sys) 
 
 # the same grids with the global bound: more (spurious) transitions
 base = build_abstraction(system; state_grid = …, input_grid = …, approx_mode = UGA.GROWTH,
-        jacobian_bound = u -> jacobian_bound(dyn, [-3.0, -6.0], [3.0, 6.0], u), time_step = 0.1)  # 12211
+        jacobian_bound = u -> jacobian_bound_over_box(dyn, [-3.0, -6.0], [3.0, 6.0], u), time_step = 0.1)  # 12211
 
 # control synthesis on the cached abstraction (a reach problem; set the problem, then optimize):
 # the discrete-time system that the optimizer built is the concrete system of the problem
@@ -587,7 +600,7 @@ successor where the exact quantizer does.
 
 #### Certified RK4 successors
 
-`CertifiedRK4GrowthBound` is defined in `CertifiedRK4.jl`, next to `LocalGrowthAbstraction.jl`, and
+`CertifiedRK4GrowthBound` is defined in `CertifiedRK4.jl`, next to `BipedAbstraction.jl`, and
 re-exported by it. It is not part of Dionysos: it plugs into the interfaces that Dionysos has (a
 discrete-time over-approximation, the `USER_DEFINED` approximation mode of the
 `UniformGridAbstraction` optimizer, a `get_states_from_set_strict` method for its own image type),
@@ -595,8 +608,8 @@ and needs CoreMath, IntervalArithmetic 1.x and Symbolics. `examples/BipedRobot/b
 
 ```julia
 import CoreMath, IntervalArithmetic, Symbolics
-approx = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
-optimizer = LGA.build_abstraction(approx; state_grid = disc.state_grid, input_grid = disc.input_grid)
+approx = BA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+optimizer = BA.build_abstraction(approx; state_grid = disc.state_grid, input_grid = disc.input_grid)
 concrete_system = ST.get_system(approx)
 sym = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 successors = SY.post(sym, source_id, input_id)
@@ -622,11 +635,11 @@ ends of each coordinate interval, including its ties-to-even behavior.
 An action is omitted if any substep cannot be enclosed or if the endpoint box can quantize
 to an excluded or unmapped index. The resulting coverage claim applies to each enabled
 action and to Float64 states and inputs of the returned sampled system. For safety between
-samples, check the exact ODE tube separately with `flow_enclosure`.
+samples, check the exact ODE tube separately with `picard_enclosure`.
 This path supports nonperiodic Float64 `GridFree` with explicit or implicit mappings, with every
 execution backend, including cache files and Slurm chunks. These store the **provenance** of the
 transitions (`CertifiedRK4.get_provenance`: the kernel version, the sampling period, the substeps, a
-fingerprint of the symbolic dynamics, and `LGA.abstraction_provenance`'s fingerprint of the cells and
+fingerprint of the symbolic dynamics, and `BA.abstraction_provenance`'s fingerprint of the cells and
 inputs), and loading or merging refuses a file or chunk that does not carry the same one, such as
 one computed by an uncertified growth bound, by another version of the kernel, or for other
 dynamics, grids, state box or carving. Bump `CertifiedRK4.KERNEL_VERSION` whenever a change of
@@ -812,8 +825,8 @@ disc = RP.default_discretization(; dx = 0.1, dq1 = 0.1, dq̇1 = 0.05, tstep = 0.
 h    = MP.get_h(disc.state_grid)
 X    = LazySets.Hyperrectangle(; low = -2.5 .* h, high = 2.5 .* h)           # 5 cells per axis
 U    = LazySets.Hyperrectangle(; low = fill(-disc.u_max, 3), high = fill(disc.u_max, 3))
-cert = LGA.CertifiedRK4GrowthBound(f, reduced.x, reduced.u, X, U, disc.tstep)
-opt  = LGA.build_abstraction(cert; state_grid = disc.state_grid, input_grid = disc.input_grid, print_level = 0)
+cert = BA.CertifiedRK4GrowthBound(f, reduced.x, reduced.u, X, U, disc.tstep)
+opt  = BA.build_abstraction(cert; state_grid = disc.state_grid, input_grid = disc.input_grid, print_level = 0)
 sym  = MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 # later: MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem); MOI.optimize!(opt)
 ```
@@ -1069,7 +1082,7 @@ RP.plot_footstep(traj, disc.state_grid, removed; x_lb, x_ub, tstep = disc.tstep,
 | `Geometry(; tibia, femur)`, the closed-form `cartesian_coordinates` and `check_kinematics` (a check of one copy against the other) | `Geometry(model, values)`, **compiled from the symbolic positions**; the hand-derived closed form lives only in the tests, as an independent check |
 | `UnderactuatedLocalAbstraction.numerical_dynamics(model, reduced, values)` | `substitute_parameters(model, expressions, values)`, shared with the kinematics |
 | `UnderactuatedLocalAbstraction.reduced_dynamics` (state `(q, p₁)`) and the permutation `[5, 1, 2, 3, 4]` in the experiment | `reduced_dynamics`, with `p₁` first |
-| `default_discretization`, `local_growth_bound`, `build_local_abstraction` of `UnderactuatedLocalAbstraction` | `RP.default_discretization` and `LGA.CertifiedRK4GrowthBound` / `LGA.build_abstraction`, which the experiment calls directly (the snippet of §4.4 is the whole chain) |
+| `default_discretization`, `local_growth_bound`, `build_local_abstraction` of `UnderactuatedLocalAbstraction` | `RP.default_discretization` and `BA.CertifiedRK4GrowthBound` / `BA.build_abstraction`, which the experiment calls directly (the snippet of §4.4 is the whole chain) |
 | `check_reduced_dynamics`, `check_abstraction`, `main` of `UnderactuatedLocalAbstraction` | tests (`tests/test_robot_problem.jl`): equivalence of the velocity and momentum forms, soundness by sampling and local ⊆ global on a small grid |
 
 `BipedFourLink.jl` is **not** merged: it is the only file that needs RigidBodyDynamics and MeshCat
@@ -1077,7 +1090,7 @@ RP.plot_footstep(traj, disc.state_grid, removed; x_lb, x_ub, tstep = disc.tstep,
 as inputs and uses the clockwise convention. Its consistency with the design model is enforced by
 `tests/test_biped_four_link.jl` instead. Inside it, the tibia length of the foot point (three copies)
 became one table, and the two state setters (locked ankle, compliant feet) one function.
-`Multibody2D.jl` and `LocalGrowthAbstraction.jl` are kept apart because they are generic and are
+`Multibody2D.jl` and `LocalGrowthBound.jl` are kept apart because they are generic and are
 tested on other systems (double pendulum, cart-pole, acrobot, damped pendulum).
 
 ---
@@ -1088,18 +1101,22 @@ Tests (run from the repository root, with an environment that has the packages o
 
 ```
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_multibody2d.jl                 # 172 checks
-julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_local_growth_abstraction.jl    # 5573 checks
-julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_robot_problem.jl               # 200 checks
+julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_local_growth_bound.jl          # 5648 checks
+julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_biped_abstraction.jl           # 91 checks
+julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_robot_problem.jl               # 212 checks
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_biped_four_link.jl             # 53 checks; needs RigidBodyDynamics and MeshCat
 ```
 
 `test_multibody2d.jl` checks the energies and the normal form against closed-form double-pendulum
 and cart-pole results and, numerically, against the second-order dynamics `D q̈ = h + Bτ`
 (finite differences for `Ḋ`; one, two and three unactuated coordinates, and fully actuated).
-`test_local_growth_abstraction.jl` checks the Jacobian bound against Dionysos'
-`compute_jacobian_bound`, the flow enclosure against simulated tubes, soundness by sampling,
-`local ⊆ global` transitions, the fallback, the boundary tolerance, and a full run on the acrobot
-normal form from `Multibody2D`. `test_robot_problem.jl` checks `robot_problem.jl`:
+`test_local_growth_bound.jl` checks the Jacobian bound against Dionysos'
+`compute_jacobian_bound`, the Picard enclosure against simulated tubes, the two functions of
+`cellwise_bound`, soundness by sampling, `cellwise ⊆ global` transitions, and a full run on the
+acrobot normal form from `Multibody2D`. `test_biped_abstraction.jl` checks the certified RK4
+successors, the cache files and the chunks of a Slurm array (also with an uncertified growth bound of
+the pendulum), and that the provenance of the transitions is checked when they are read back.
+`test_robot_problem.jl` checks `robot_problem.jl`:
 
 * the dynamics: the velocity form of `q̈₁` (a helper of the test file) against reference values
   computed once with RigidBodyDynamics on the URDF, a static equilibrium, and the equivalence of the

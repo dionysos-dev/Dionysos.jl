@@ -1,396 +1,53 @@
 """
-    LocalGrowthAbstraction
+    BipedAbstraction
 
-Tools to build the abstraction of a system with a growth bound **per cell**, on top of what Dionysos
-provides (`Dionysos.System.CellwiseBound`, `ContinuousTimeGrowthBound` and the `GROWTH` mode of the
-`UniformGridAbstraction` optimizer), and to compute and store it on a server.
+Computing, storing and reusing the abstraction of the biped, with what Dionysos provides
+(`UniformGridAbstraction` optimizer, `SY.SlurmArrayBackend`): nothing in Dionysos itself had to change.
 
-The classical growth bound of Dionysos (`ST.ContinuousTimeGrowthBound`) uses one Jacobian bound
-`L(u)` valid on the whole state space `X`: every cell of radius `r` is mapped to
-`Φ(c, u) ± ρ(r, u)` with `ρ̇ = L(u) ρ`, `ρ(0) = r`. Whenever the dynamics are only strongly
-non-linear in a small part of `X`, `L` is dictated by the worst point and the image of every other
-cell is needlessly large, which creates spurious transitions. A `CellwiseBound` replaces `L(u)` by
-a bound over an *enclosure of the step from the cell*. Dionysos asks the caller for two functions;
-this module supplies them for symbolic dynamics ([`cellwise_bound`](@ref)):
+* [`build_abstraction`](@ref) runs the optimizer for a system, with the approximation of the
+  successors chosen by its attributes. It is also where a cache file and the chunks of a Slurm array
+  are used ([`save_abstraction`](@ref), [`load_abstraction!`](@ref), [`merge_chunks!`](@ref),
+  [`merge_chunks_to_file`](@ref)).
+* [`CertifiedRK4GrowthBound`](@ref) (file `CertifiedRK4.jl`, next to this one) gives the certified
+  successors of the Float64 RK4 map of the biped, which is what the example uses.
+* Transitions that are written to a file are only as trustworthy as the record of how they were
+  computed. The certified approximation keeps such a record (its *provenance*), which is stored with
+  the transitions and checked when they are read back: transitions computed another way (an
+  uncertified growth bound, another kernel version, other dynamics or grids) are refused.
 
-1. `enclosure(cell, u, τ)`: a box `B` that contains the trajectories of **all** points of the cell
-   during the **whole** sampling period, not just at its end points. It is verified with an
-   interval Picard–Lindelöf check (`R + [0, τ]·f(B, u) ⊆ interior(B)` with outward rounding,
-   [`flow_enclosure`](@ref)), and the cell gets no transition under `u` if none is found;
-2. `bound(B, u)`: the Metzler matrix `L_B` of the Jacobian `∂f/∂x` over `B`, bounded with interval
-   arithmetic ([`jacobian_bound`](@ref)): signed supremum on the diagonal, magnitude off it.
-
-Dionysos then simulates the centre with RK4, integrates `ρ̇ = L_B ρ` with RK4 and finds the cells
-that the box `Φ(c, u) ± ρ` touches. The tube check applies to the exact ODE flow, whereas the
-centre and the radius are integrated with RK4: this does not certify successor coverage for the
-exact flow or for the RK4 map. Use [`CertifiedRK4GrowthBound`](@ref) (file `CertifiedRK4.jl`, next
-to this one) to build a certified abstraction of the Float64 RK4 map.
-
-[`build_abstraction`](@ref) runs the `UniformGridAbstraction` optimizer for such a system, and
-stores or merges the transitions to compute them on a server ([`save_abstraction`](@ref),
-[`load_abstraction!`](@ref), [`merge_chunks!`](@ref), [`merge_chunks_to_file`](@ref)). Nothing in
-Dionysos itself had to change for it.
+A growth bound per cell for the abstraction of a system (`ST.CellwiseBound`) is in the module
+`LocalGrowthBound`; give it to [`build_abstraction`](@ref) as the `jacobian_bound`.
 
 # Example
 
 ```julia
-using Symbolics, IntervalArithmetic
-include("LocalGrowthAbstraction.jl"); using .LocalGrowthAbstraction
-const UGA = Dionysos.Optim.Abstraction.UniformGridAbstraction
+include("BipedAbstraction.jl"); using .BipedAbstraction
 
-@variables x[1:2] u[1:1]
-f = [x[2], -9.81 * sin(x[1]) - 0.1 * x[2] + u[1]]          # pendulum
-X = LazySets.Hyperrectangle(; low = [-π, -8.0], high = [π, 8.0])
-U = LazySets.Hyperrectangle(; low = [-2.0], high = [2.0])
-
-dynamics = SymbolicDynamics(f, collect(x), collect(u))
-system = MS.ConstrainedBlackBoxControlContinuousSystem(dynamics.f, 2, 1, X, U)
-opt = build_abstraction(
-    system;
-    state_grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.1, 0.2)),
-    input_grid = MP.GridFree(SVector(0.0), SVector(1.0)),
-    approx_mode = UGA.GROWTH,
-    jacobian_bound = cellwise_bound(dynamics),
-    time_step = 0.1,
-)
+certified = CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U, tstep)
+opt = build_abstraction(certified; state_grid, input_grid)
 abstract_system = MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 ```
 """
-module LocalGrowthAbstraction
+module BipedAbstraction
 
 import Dionysos
 const ST = Dionysos.System
 const PR = Dionysos.Problem
-const MP = Dionysos.Mapping
 const SY = Dionysos.Symbolic
-const OP = Dionysos.Optim
-const AB = OP.Abstraction
+const AB = Dionysos.Optim.Abstraction
 
 import MathematicalSystems as MS
-import LazySets
 import MathOptInterface as MOI
 import JLD2
-import Symbolics
-import IntervalArithmetic as IA
-using StaticArrays
 
 # The certified successors of the Float64 RK4 map (a submodule of this file's folder, not of Dionysos).
 include(joinpath(@__DIR__, "CertifiedRK4.jl"))
 using .CertifiedRK4: CertifiedRK4GrowthBound
 import .CertifiedRK4: overapproximation_map
 
-export SymbolicDynamics, StepEnclosure, CertifiedRK4GrowthBound
-export jacobian_bound, flow_enclosure, cellwise_bound, build_abstraction
-export save_abstraction, load_abstraction!, merge_chunks!, merge_chunks_to_file
-
-# ------------------------------------------------------------------------------------------
-# Symbolic dynamics, compiled for floats and for intervals
-# ------------------------------------------------------------------------------------------
-
-"""
-    SymbolicDynamics{N, M}
-
-Continuous-time dynamics `ẋ = f(x, u)` (`N` states, `M` inputs) given symbolically, compiled once
-into three callables:
-
-* `f(x, u) -> SVector{N}`: plain floating-point evaluation;
-* `f_interval(xbox, ubox) -> Vector`: interval evaluation (an enclosure of `f` over the boxes);
-* `jacobian_interval(xbox, ubox) -> Matrix`: interval enclosure of `∂f/∂x` over the boxes.
-
-The Jacobian is differentiated symbolically and evaluated with interval arithmetic, exactly as
-the Dionysos Symbolics extension does for `compute_jacobian_bound`.
-
-    SymbolicDynamics(fsym, x, u)
-    SymbolicDynamics(system::MS.ConstrainedBlackBoxControlContinuousSystem)
-
-`fsym` is a vector of `Symbolics` expressions in the variable vectors `x` and `u`. The second form
-traces the black-box `f` of a Dionysos system with symbolic variables (it must be written with
-generic operations). Interval evaluation assumes those operations have sound interval
-implementations. Numeric constants denote their supplied values, including the stored binary
-values of floating-point constants.
-"""
-struct SymbolicDynamics{N, M, F, FI, JI}
-    f::F
-    f_interval::FI
-    jacobian_interval::JI
-end
-
-function _compile(expr, x, u)
-    # `nanmath = false`: the default NaNMath-backed `sin`/`cos`/... do not accept intervals.
-    # `cse = true`: shared sub-expressions are computed once; without it the large, deeply
-    # nested expressions of a multibody normal form take minutes to compile.
-    compiled = Symbolics.build_function(
-        expr,
-        x,
-        u;
-        expression = Val(false),
-        nanmath = false,
-        cse = true,
-    )
-    return compiled isa Tuple ? first(compiled) : compiled
-end
-
-function SymbolicDynamics(fsym::AbstractVector, x::AbstractVector, u::AbstractVector)
-    N, M = length(x), length(u)
-    length(fsym) == N ||
-        throw(DimensionMismatch("f has $(length(fsym)) components but there are $N states"))
-    fvec = Symbolics.Num[Symbolics.Num(e) for e in fsym]
-    xs = Symbolics.Num[Symbolics.Num(e) for e in x]
-    us = Symbolics.Num[Symbolics.Num(e) for e in u]
-    # One compiled function serves both float and interval arguments (it is generic code).
-    f_interval = _compile(fvec, xs, us)
-    f = (xv, uv) -> SVector{N, Float64}(f_interval(collect(xv), collect(uv)))
-    jacobian_interval = _compile(Symbolics.jacobian(fvec, xs), xs, us)
-    return SymbolicDynamics{N, M, typeof(f), typeof(f_interval), typeof(jacobian_interval)}(
-        f,
-        f_interval,
-        jacobian_interval,
-    )
-end
-
-function SymbolicDynamics(system::MS.ConstrainedBlackBoxControlContinuousSystem)
-    nx, nu = MS.statedim(system), MS.inputdim(system)
-    xs = [Symbolics.variable(:x, i) for i in 1:nx]
-    us = [Symbolics.variable(:u, i) for i in 1:nu]
-    fsym = try
-        collect(MS.mapping(system)(xs, us))
-    catch err
-        error(
-            "SymbolicDynamics: could not trace the dynamics symbolically " *
-            "($(sprint(showerror, err))). Build the dynamics from symbolic expressions instead.",
-        )
-    end
-    return SymbolicDynamics(fsym, xs, us)
-end
-
-# Intervals ---------------------------------------------------------------------------------
-
-_to_interval(v::IA.Interval{Float64}) = v
-_to_interval(v::Real) = IA.interval(Float64, v)
-
-# Plain `Vector`s (not `SizedVector`s, which a comprehension over an `SVector`'s indices gives):
-# the compiled functions build their output with the container type of their first argument.
-_box(lo, hi) =
-    IA.Interval{Float64}[IA.interval(Float64, lo[i], hi[i]) for i in 1:length(lo)]
-_point_box(u) = IA.Interval{Float64}[IA.interval(Float64, u[i]) for i in 1:length(u)]
-_cell_box(c, r) = IA.Interval{Float64}[
-    IA.interval(Float64, c[i], r[i]; format = :midpoint) for i in 1:length(c)
-]
-
-# A finite interval can still represent a partial domain, e.g. sqrt([-1, 1]).
-# Symbolics may mix interval arguments with plain literals. Their stored values are the
-# model coefficients, so IntervalArithmetic's NG flag for literal promotion is expected.
-_valid_interval_enclosure(v) = IA.decoration(v) >= IA.dac && IA.isbounded(v)
-
-# Form a fresh box from validated bounds. IntervalArithmetic's hull operation can
-# lower the decoration even when both operands are finite and continuous.
-_interval_hull(x, y) =
-    IA.interval(Float64, min(IA.inf(x), IA.inf(y)), max(IA.sup(x), IA.sup(y)))
-
-# Metzler majorant of an interval Jacobian: the sup of the diagonal (signed) and the magnitude of
-# the off-diagonal entries, which is what the growth-bound ODE `ρ̇ = L ρ` requires.
-function _metzler(J, ::Val{N}) where {N}
-    M = Matrix{Float64}(undef, N, N)
-    for j in 1:N, i in 1:N
-        v = _to_interval(J[i, j])
-        M[i, j] = if !_valid_interval_enclosure(v)
-            Inf
-        else
-            i == j ? IA.sup(v) : IA.mag(v)
-        end
-    end
-    return SMatrix{N, N, Float64}(M)
-end
-
-"""
-    jacobian_bound(dynamics::SymbolicDynamics, xlow, xhigh, u) -> SMatrix
-
-Growth-bound matrix `L` (Metzler: signed supremum on the diagonal, magnitude off the diagonal)
-of the Jacobian `∂f/∂x`, bounded with interval arithmetic for all states in the box
-`[xlow, xhigh]` and the input `u`. An entry is `Inf` if its interval evaluation fails
-to give a finite, defined and continuous enclosure.
-"""
-function jacobian_bound(
-    dynamics::SymbolicDynamics{N},
-    xlow::AbstractVector,
-    xhigh::AbstractVector,
-    u::AbstractVector,
-) where {N}
-    return _metzler(dynamics.jacobian_interval(_box(xlow, xhigh), _point_box(u)), Val(N))
-end
-
-# ------------------------------------------------------------------------------------------
-# A-priori enclosure of the flow tube
-# ------------------------------------------------------------------------------------------
-
-"""
-    flow_enclosure(dynamics, cell_low, cell_high, guess_low, guess_high, u, tstep;
-                   max_iterations = 10, inflation = 0.1, shrink = false)
-    flow_enclosure(dynamics, cell::LazySets.AbstractHyperrectangle, guess_low, guess_high,
-                   u, tstep; kwargs...)
-
-Return the lower and upper bounds of a box containing the exact ODE trajectories of **all**
-initial states in the cell throughout `[0, tstep]` with constant input `u`. Return `nothing`
-if the test cannot verify an enclosure. The hyperrectangle overload rounds the source
-endpoints outward from its stored centre and half-widths.
-
-The Picard inclusion test computes `E = R + [0, tstep]·[f](B, u)` with outward rounding and
-requires `E` to lie strictly inside `B`. A trajectory reaching the boundary would still lie
-inside `E` by the integral equation, so it cannot leave `B`. This assumes a locally Lipschitz
-vector field on a neighborhood of the accepted box and a sound interval evaluation of it.
-
-The initial candidate is the hull of the source and the guess. On failure the hull with `E`
-is inflated by `inflation` times its width, with at least one representable step of slack on
-each side. With `shrink = true`, return `E` from the successful test as a tighter enclosure.
-"""
-function flow_enclosure(
-    dynamics::SymbolicDynamics,
-    cell_low,
-    cell_high,
-    guess_low,
-    guess_high,
-    u,
-    tstep;
-    kwargs...,
-)
-    length(cell_low) == length(cell_high) ||
-        throw(DimensionMismatch("cell bounds must have the same length"))
-    source = _box(cell_low, cell_high)
-    return _flow_enclosure(dynamics, source, guess_low, guess_high, u, tstep; kwargs...)
-end
-
-function flow_enclosure(
-    dynamics::SymbolicDynamics,
-    cell::LazySets.AbstractHyperrectangle,
-    guess_low,
-    guess_high,
-    u,
-    tstep;
-    kwargs...,
-)
-    source = _cell_box(LazySets.center(cell), LazySets.radius_hyperrectangle(cell))
-    return _flow_enclosure(dynamics, source, guess_low, guess_high, u, tstep; kwargs...)
-end
-
-function _flow_enclosure(
-    dynamics::SymbolicDynamics{N, M},
-    source,
-    guess_low,
-    guess_high,
-    u,
-    tstep;
-    max_iterations::Int = 10,
-    inflation::Real = 0.1,
-    shrink::Bool = false,
-) where {N, M}
-    length(source) == length(guess_low) == length(guess_high) == N ||
-        throw(DimensionMismatch("cell and guess must have $N state coordinates"))
-    length(u) == M || throw(DimensionMismatch("input must have $M coordinates"))
-    isfinite(tstep) && tstep >= 0 ||
-        throw(ArgumentError("tstep must be finite and nonnegative"))
-    isfinite(inflation) && inflation >= 0 ||
-        throw(ArgumentError("inflation must be finite and nonnegative"))
-    # Detect the library's non-rigorous rounding mode without relying on its configuration
-    # internals. The upper endpoint of this sum must round up from halfway between floats.
-    one_interval = IA.interval(Float64, 1.0)
-    half_ulp = IA.interval(Float64, eps(1.0) / 2)
-    IA.sup(one_interval + half_ulp) >= nextfloat(1.0) ||
-        throw(ArgumentError("flow_enclosure requires outward interval rounding"))
-
-    guess = _box(guess_low, guess_high)
-    time = IA.interval(Float64, 0, tstep)
-    ubox = _point_box(u)
-    all(_valid_interval_enclosure, source) &&
-    all(_valid_interval_enclosure, guess) &&
-    all(_valid_interval_enclosure, ubox) &&
-    _valid_interval_enclosure(time) || return nothing
-    B = _interval_hull.(source, guess)
-    for _ in 1:max_iterations
-        F = _to_interval.(dynamics.f_interval(B, ubox))
-        all(_valid_interval_enclosure, F) || return nothing
-        E = source .+ Ref(time) .* F
-        all(_valid_interval_enclosure, E) || return nothing
-        if all(i -> IA.isinterior(E[i], B[i]), eachindex(B))
-            enclosure = shrink ? E : B
-            return IA.inf.(enclosure), IA.sup.(enclosure)
-        end
-        for i in eachindex(B)
-            lo = min(IA.inf(B[i]), IA.inf(E[i]))
-            hi = max(IA.sup(B[i]), IA.sup(E[i]))
-            # Inflation only proposes a new box. The next inclusion test validates it.
-            padding = iszero(inflation) ? 0.0 : inflation * (hi - lo)
-            inflated_lo = min(prevfloat(lo), lo - padding)
-            inflated_hi = max(nextfloat(hi), hi + padding)
-            isfinite(inflated_lo) && isfinite(inflated_hi) || return nothing
-            B[i] = IA.interval(Float64, inflated_lo, inflated_hi)
-        end
-    end
-    return nothing
-end
-
-# ------------------------------------------------------------------------------------------
-# The cell-wise bound of Dionysos, supplied for symbolic dynamics
-# ------------------------------------------------------------------------------------------
-
-"""
-    StepEnclosure
-
-What [`cellwise_bound`](@ref) returns as the enclosure of the step from a cell: the box `[low, high]`
-(an a-priori enclosure of the exact trajectories from the cell, see [`flow_enclosure`](@ref)) and the
-bound `L` of the Jacobian over it ([`jacobian_bound`](@ref)), which is what
-`Dionysos.System.CellwiseBound` asks of its `bound` function.
-"""
-struct StepEnclosure{V, M}
-    low::V
-    high::V
-    L::M
-end
-
-"""
-    cellwise_bound(dynamics::SymbolicDynamics; max_iterations = 10, inflation = 0.1,
-                   shrink = false) -> Dionysos.System.CellwiseBound
-
-The two functions of a `Dionysos.System.CellwiseBound`, for the symbolic dynamics `dynamics`:
-
-* `enclosure(cell, u, tstep)`: a box that contains the exact trajectories from `cell` under the
-  constant input `u` over `[0, tstep]` ([`flow_enclosure`](@ref), starting from the cell itself; the
-  keywords are its options), with the Jacobian bound over it, as a [`StepEnclosure`](@ref). It is
-  `nothing` if no box could be verified or if the Jacobian is not bounded over it: Dionysos then
-  disables the input for that cell;
-* `bound(E, u)`: the Metzler matrix of the Jacobian over `E` (signed supremum on the diagonal,
-  magnitude off it), which Dionysos integrates, `ṙ = L r`, to obtain the radius of the image.
-
-The growth bound is then taken over the enclosure of the step from each cell, not over the whole
-state set. Everything else (the RK4 simulation of the centre, the integration of the radius, the
-lookup of the successor cells) is done by Dionysos. Use it as the `jacobian_bound` of
-`ST.ContinuousTimeGrowthBound`, or of the `GROWTH` mode of the `UniformGridAbstraction` optimizer.
-"""
-function cellwise_bound(
-    dynamics::SymbolicDynamics;
-    max_iterations::Int = 10,
-    inflation::Real = 0.1,
-    shrink::Bool = false,
-)
-    function enclosure(cell, u, tstep)
-        c, r = LazySets.center(cell), LazySets.radius_hyperrectangle(cell)
-        box = flow_enclosure(
-            dynamics,
-            cell,
-            c .- r,
-            c .+ r,
-            u,
-            tstep;
-            max_iterations,
-            inflation,
-            shrink,
-        )
-        box === nothing && return nothing
-        L = jacobian_bound(dynamics, box[1], box[2], u)
-        all(isfinite, L) || return nothing
-        return StepEnclosure(box[1], box[2], L)
-    end
-    return ST.CellwiseBound(enclosure, (E, u) -> E.L)
-end
+export CertifiedRK4GrowthBound
+export build_abstraction, save_abstraction, load_abstraction!
+export merge_chunks!, merge_chunks_to_file
 
 # ------------------------------------------------------------------------------------------
 # Building the transition system with Dionysos
@@ -408,6 +65,7 @@ computed by the `UniformGridAbstraction` optimizer. `state_grid` / `input_grid` 
 choose how the successors are computed: for a growth bound per cell,
 
 ```julia
+using .LocalGrowthBound: SymbolicDynamics, cellwise_bound
 build_abstraction(
     system;                                   # continuous time
     state_grid, input_grid,

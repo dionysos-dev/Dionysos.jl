@@ -73,7 +73,7 @@ continuous flow between two samples nor the truncation error of RK4 with respect
 the module document).
 
 The example always builds this abstraction. The cell-wise growth bound that it used before is now the
-`CellwiseBound` of Dionysos, which `LGA.cellwise_bound` feeds (§3 of the module document): it is not
+`CellwiseBound` of Dionysos, which `LocalGrowthBound.cellwise_bound` feeds (§3 of the module document): it is not
 certified, and its box is looked up with closed cells, so it lists three successors in every motor
 coordinate that moves exactly one cell. A cache file or the chunks of a Slurm array can be used (§4.3):
 they record how their transitions were computed, and a file or chunk of an uncertified growth bound is
@@ -318,8 +318,8 @@ These have no override variable; each is one line in `biped_4d_normal_form.jl` u
 | :--- | :--- | :--- | :--- |
 | physical parameters | `L1 = 0.202`, `L2 = 0.172` m, `m1 = 0.0202`, `m2 = 0.0172` kg, `mM = 0.4` kg, `g = 9.81` | `values = RP.default_parameters()` | femur / tibia length, femur / tibia mass, motor mass, gravity. The URDF values; the kinematics of the carving (`RP.Geometry(model, values)`) is compiled from the same symbolic model and `values`, so dynamics and constraints cannot disagree |
 | inertia model | uniform thin-rod links `m L²/12`; motors point masses (`I = 0`); hip `2 mM`; swing foot massless | `RP.symbolic_model()` | the model structure (frames, bodies): the robot of `four_link_biped.urdf` |
-| `CertifiedRK4GrowthBound` option | `nsystem = ST.DEFAULT_NUM_SUBSTEPS` (5) | the call `LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)` | add it as a keyword; see below |
-| abstraction options | `print_level = 1`, `use_implicit_mapping = true`, `execution_backend = SY.ThreadedBackend()` | the call `LGA.build_abstraction(…)` | verbosity, implicit state mapping (low memory), threading; any other optimizer attribute can be added as a keyword |
+| `CertifiedRK4GrowthBound` option | `nsystem = ST.DEFAULT_NUM_SUBSTEPS` (5) | the call `BA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)` | add it as a keyword; see below |
+| abstraction options | `print_level = 1`, `use_implicit_mapping = true`, `execution_backend = SY.ThreadedBackend()` | the call `BA.build_abstraction(…)` | verbosity, implicit state mapping (low memory), threading; any other optimizer attribute can be added as a keyword |
 | closed-loop horizon | `400` steps | `horizon` keyword of `RP.closed_loop(…)` | maximum number of steps of the concrete run |
 | closed-loop start | `q0` with `p₁` at the middle of the initial range, snapped to the grid | `x0 = RP.start_state(…)` | the concrete run starts here (it does not sample the initial set) |
 | plot window, files, animation | `xlims = (-0.6, 0.6)`, `ylims = (-0.05, 0.55)`, `snapshot_every = 5`; `subframes = 10` (the example), `fps` chosen for about 4 s; `…_<scenario>.png / .gif / _ankle.png` next to the script | the call `RP.plot_footstep(…)` in the visualization section | add or change them as keywords |
@@ -362,8 +362,8 @@ The standard Dionysos aliases (`UT` utilities, `ST` systems, `PR` problems, `MP`
 
 ```julia
 const PROBLEM_DIR = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "BipedRobot", "4D_model_underactuated")
-include(joinpath(PROBLEM_DIR, "robot_problem.jl"));          import .UnderactuatedRobotProblem as RP
-include(joinpath(PROBLEM_DIR, "LocalGrowthAbstraction.jl")); import .LocalGrowthAbstraction as LGA
+include(joinpath(PROBLEM_DIR, "robot_problem.jl"));     import .UnderactuatedRobotProblem as RP
+include(joinpath(PROBLEM_DIR, "BipedAbstraction.jl"));  import .BipedAbstraction as BA
 ```
 
 * `RP` (`robot_problem.jl`) provides the **symbolic model** (`symbolic_model`, `reduced_dynamics`,
@@ -372,9 +372,10 @@ include(joinpath(PROBLEM_DIR, "LocalGrowthAbstraction.jl")); import .LocalGrowth
   (`abstraction_size`), the **target set** (`target_set`), the **problem** (`step_problem`), the
   **start state and closed loop** (`start_state`, `closed_loop`) and the **plots** (`plot_footstep`).
   It does not depend on RigidBodyDynamics.
-* `LGA` (`LocalGrowthAbstraction.jl`, with `CertifiedRK4.jl`) provides the certified successors
-  (`CertifiedRK4GrowthBound`), the supplier of the cell-wise growth bound of Dionysos (`cellwise_bound`) and the
-  abstraction builder (`build_abstraction`).
+* `BA` (`BipedAbstraction.jl`, with `CertifiedRK4.jl`) provides the certified successors
+  (`CertifiedRK4GrowthBound`) and the abstraction builder (`build_abstraction`, with the cache file and
+  the chunks of a Slurm array). The cell-wise growth bound of Dionysos (`cellwise_bound`) is in another
+  module, `LocalGrowthBound.jl`, which the example does not need.
 
 ### 4.1 Section 1: symbolic model → numerical dynamics
 
@@ -455,7 +456,7 @@ println("State space: ", size.cells, " cells (", size.cells_in_box, " before car
 ### 4.3 Section 3: the abstraction
 
 ```julia
-@time certified = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+@time certified = BA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
 dynamics = certified.f
 concrete_system = ST.get_system(certified)
 ```
@@ -481,7 +482,7 @@ middle of the initial range (clipped to the domain), snapped to the centre of it
 The script then prints `x0`, the ankle acceleration `ṗ₁` there and the swing-foot position.
 
 ```julia
-@time optimizer = LGA.build_abstraction(certified; state_grid = disc.state_grid, input_grid = disc.input_grid,
+@time optimizer = BA.build_abstraction(certified; state_grid = disc.state_grid, input_grid = disc.input_grid,
     print_level = 1, use_implicit_mapping = true, execution_backend = SY.ThreadedBackend(),
     abstraction_file, abstraction_info, extra_attributes...)
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -515,24 +516,24 @@ prints the number of transitions. The certified kernel keeps no statistics.
 
 **Computing the abstraction on a server, and its provenance.** The certified abstraction can be
 cached in a file and split over a Slurm array, but what is stored is only as good as the record of how
-it was computed. `LGA.CertifiedRK4.get_provenance(certified)` is that record: the version of the certified kernel
-(`LGA.CertifiedRK4.KERNEL_VERSION`, bumped when a change of the kernel can change its transitions), the
+it was computed. `BA.CertifiedRK4.get_provenance(certified)` is that record: the version of the certified kernel
+(`BA.CertifiedRK4.KERNEL_VERSION`, bumped when a change of the kernel can change its transitions), the
 sampling period, the number of RK4 substeps and a fingerprint of the printed symbolic dynamics, and
-`LGA.abstraction_provenance` adds a fingerprint of the cells (the retained states with their ids) and of
+`BA.abstraction_provenance` adds a fingerprint of the cells (the retained states with their ids) and of
 the inputs. It is stored in the file and in every chunk, and **loading or merging refuses anything
 that does not carry the same one**: a file or chunk of an uncertified growth bound (it has none), of
 another version of the kernel, for other dynamics, another sampling period, grids, state box or
-carving. The fingerprints are 64-bit FNV-1a (`LGA.CertifiedRK4.fingerprint`), identical in every Julia session and
+carving. The fingerprints are 64-bit FNV-1a (`BA.CertifiedRK4.fingerprint`), identical in every Julia session and
 version: they detect an accidental change, they are not a cryptographic proof. What they cannot see
 (for instance `state_input_filter`, which can only disable actions) stays in `abstraction_info`. With
 `ABSTRACTION_FILE` set, `build_abstraction` caches the
-transitions in that file (`LGA.save_abstraction` / `LGA.load_abstraction!`: three integer vectors and
+transitions in that file (`BA.save_abstraction` / `BA.load_abstraction!`: three integer vectors and
 the parameters that define the abstraction, 12 bytes per transition; the compiled symbolic dynamics are
 rebuilt at each run). `ABSTRACTION_ONLY = true` makes the run stop right after it, and the rest of the
 file (sections 4 and 5, which are cheap) runs where the file is loaded. For a **Slurm array**,
 `EXECUTION_BACKEND = SY.SlurmArrayBackend(nchunks, chunk_id, outdir, :contiguous, true)` makes each run
 compute and write one chunk of the transitions, and `MERGE_CHUNKS = (; outdir, nchunks)` makes the final
-run read the chunks instead of computing (`LGA.merge_chunks!`) and write the merged file. The folder
+run read the chunks instead of computing (`BA.merge_chunks!`) and write the merged file. The folder
 [`slurm_array/`](../slurm_array/README.md) has the scripts and the Slurm jobs, including a last job that runs the synthesis, the closed loop and the animation on the server from the saved file (and can be rerun alone with other starts or tolerances). The target, the start and
 the target velocity can be changed without recomputing the abstraction (they do not enter the file); a
 different grid or state box cannot (the file is then refused).

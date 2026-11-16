@@ -3,7 +3,7 @@
 > **The abstraction is the certified one.** `biped_4d_normal_form.jl` always builds
 > `CertifiedRK4GrowthBound`. Every chunk and the merged file **record how their transitions were
 > computed** (the version of the certified kernel, the sampling period, a fingerprint of the symbolic
-> dynamics and of the cells; `CertifiedRK4.get_provenance` and `LGA.abstraction_provenance`), and the merge and the
+> dynamics and of the cells; `CertifiedRK4.get_provenance` and `BipedAbstraction.abstraction_provenance`), and the merge and the
 > solve job **refuse** anything that does not carry the same record: chunks or files made by the
 > earlier local growth bound, by another version of the kernel, or for other dynamics, grids, state box
 > or carving. **Chunks and files computed before this change must be recomputed** (the merge stops with
@@ -259,7 +259,7 @@ The variables of the example that these scripts set before including it:
 
 They are also what you would set to run the steps by hand, e.g. a chunk outside Slurm
 (`DIONYSOS_CHUNK_ID=2 DIONYSOS_NCHUNKS=3 julia --project=problems/BipedRobot .../compute_chunk.jl`). The
-functions behind them are in `LocalGrowthAbstraction.jl`: `build_abstraction(...; merge_chunks,
+functions behind them are in `BipedAbstraction.jl`: `build_abstraction(...; merge_chunks,
 abstraction_file, abstraction_info)`, `merge_chunks!` (into the optimizer), `merge_chunks_to_file` (chunks to
 file, what the merge job uses), `save_abstraction` and `load_abstraction!`.
 
