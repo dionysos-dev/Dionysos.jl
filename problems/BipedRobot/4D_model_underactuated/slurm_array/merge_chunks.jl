@@ -48,7 +48,9 @@ const EXAMPLE = abspath(
 # The number of chunks, from the names `transitions_part_<id>_of_<N>.bin`; the missing ones are
 # reported now, not after a minute of setup.
 function chunk_files(outdir)
-    isdir(outdir) || error("$outdir does not exist: no chunk was written there (DIONYSOS_TRANSITION_OUTDIR)")
+    isdir(outdir) || error(
+        "$outdir does not exist: no chunk was written there (DIONYSOS_TRANSITION_OUTDIR)",
+    )
     found = Dict{Int, Vector{Int}}()
     for name in readdir(outdir)
         m = match(r"^transitions_part_(\d+)_of_(\d+)\.bin$", name)
@@ -59,8 +61,10 @@ function chunk_files(outdir)
 end
 
 try
-    stamp("start: job $(get(ENV, "SLURM_JOB_ID", "-")), memory requested " *
-          "$(get(ENV, "SLURM_MEM_PER_NODE", "?")) MB, Julia $(VERSION), $(gethostname())")
+    stamp(
+        "start: job $(get(ENV, "SLURM_JOB_ID", "-")), memory requested " *
+        "$(get(ENV, "SLURM_MEM_PER_NODE", "?")) MB, Julia $(VERSION), $(gethostname())",
+    )
     outdir = abspath(
         get(ENV, "DIONYSOS_TRANSITION_OUTDIR", joinpath(@__DIR__, "out", "transitions")),
     )
@@ -81,9 +85,13 @@ try
         "$(length(absent)) of the $nchunks chunks are missing in $outdir (first ones: " *
         "$(first(absent, 20))): did all the tasks of the array succeed?",
     )
-    chunk_bytes = sum(filesize(joinpath(outdir, "transitions_part_$(i)_of_$(nchunks).bin")) for i in ids)
-    stamp("$nchunks chunks found in $outdir, $(round(chunk_bytes / 2^30; digits = 1)) GB " *
-          "(about $(round(Int, chunk_bytes / 23)) transitions)")
+    chunk_bytes = sum(
+        filesize(joinpath(outdir, "transitions_part_$(i)_of_$(nchunks).bin")) for i in ids
+    )
+    stamp(
+        "$nchunks chunks found in $outdir, $(round(chunk_bytes / 2^30; digits = 1)) GB " *
+        "(about $(round(Int, chunk_bytes / 23)) transitions)",
+    )
 
     # Read by the example before it defaults them.
     global ABSTRACTION_FILE = abspath(
@@ -104,11 +112,24 @@ try
     t = @elapsed include(EXAMPLE)
 
     n = JLD2.jldopen(f -> f["n_transitions"], ABSTRACTION_FILE, "r")
-    stamp(@sprintf("MERGE OK in %.1f s: %d transitions, %s (%.2f GB), peak memory %.1f GB",
-        t, n, ABSTRACTION_FILE, filesize(ABSTRACTION_FILE) / 2^30, Sys.maxrss() / 2^30))
+    stamp(
+        @sprintf(
+            "MERGE OK in %.1f s: %d transitions, %s (%.2f GB), peak memory %.1f GB",
+            t,
+            n,
+            ABSTRACTION_FILE,
+            filesize(ABSTRACTION_FILE) / 2^30,
+            Sys.maxrss() / 2^30
+        )
+    )
 catch e
-    stamp("MERGE FAILED after peak memory $(peak_gb()) GB: " * (e isa OutOfMemoryError ?
-        "OutOfMemoryError: raise --mem of submit_merge_chunks.sbatch" : sprint(showerror, e)))
+    stamp(
+        "MERGE FAILED after peak memory $(peak_gb()) GB: " * (
+            e isa OutOfMemoryError ?
+            "OutOfMemoryError: raise --mem of submit_merge_chunks.sbatch" :
+            sprint(showerror, e)
+        ),
+    )
     @error "MERGE FAILED" exception = (e, catch_backtrace())
     exit(1)
 end

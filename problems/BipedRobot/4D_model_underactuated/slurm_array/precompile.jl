@@ -61,4 +61,6 @@ if !isempty(stale)
     )
     exit(1)
 end
-stamp("PRECOMPILE OK: loading takes $(round(t2; digits = 1)) s; the cache is valid for CPU $(Sys.CPU_NAME)")
+stamp(
+    "PRECOMPILE OK: loading takes $(round(t2; digits = 1)) s; the cache is valid for CPU $(Sys.CPU_NAME)",
+)

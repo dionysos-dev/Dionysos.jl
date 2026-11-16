@@ -52,8 +52,10 @@ const EXAMPLE = abspath(
 )
 
 try
-    stamp("start: job $(get(ENV, "SLURM_JOB_ID", "-")), memory requested " *
-          "$(get(ENV, "SLURM_MEM_PER_NODE", "?")) MB, Julia $(VERSION), $(gethostname())")
+    stamp(
+        "start: job $(get(ENV, "SLURM_JOB_ID", "-")), memory requested " *
+        "$(get(ENV, "SLURM_MEM_PER_NODE", "?")) MB, Julia $(VERSION), $(gethostname())",
+    )
     abstraction_path = abspath(
         get(
             ENV,
@@ -65,10 +67,16 @@ try
         "$abstraction_path does not exist: run the chunks and the merge first (submit_all.sh), " *
         "or set DIONYSOS_ABSTRACTION_FILE",
     )
-    n = JLD2.jldopen(f -> haskey(f, "n_transitions") ? f["n_transitions"] : nothing, abstraction_path, "r")
-    stamp("abstraction $abstraction_path: $(round(filesize(abstraction_path) / 2^30; digits = 1)) GB, " *
-          "$(n === nothing ? "?" : n) transitions (in memory, an automaton takes of the order of " *
-          "$(n === nothing ? "?" : round(Int, 200 * n / 2^30)) GB for them)")
+    n = JLD2.jldopen(
+        f -> haskey(f, "n_transitions") ? f["n_transitions"] : nothing,
+        abstraction_path,
+        "r",
+    )
+    stamp(
+        "abstraction $abstraction_path: $(round(filesize(abstraction_path) / 2^30; digits = 1)) GB, " *
+        "$(n === nothing ? "?" : n) transitions (in memory, an automaton takes of the order of " *
+        "$(n === nothing ? "?" : round(Int, 200 * n / 2^30)) GB for them)",
+    )
 
     # Read by the example before it defaults them.
     global ABSTRACTION_FILE = abstraction_path
@@ -88,22 +96,32 @@ try
     prefix = joinpath(OUTPUT_DIR, "biped_4d_normal_form_$(SCENARIO_NAME)")
     isempty(params) || cp(params, prefix * "_params.jl"; force = true)   # a record of what produced it
 
-    stamp("setting up the model, then loading the abstraction; scenario $SCENARIO_NAME, " *
-          "outputs $prefix*, params '$params'")
+    stamp(
+        "setting up the model, then loading the abstraction; scenario $SCENARIO_NAME, " *
+        "outputs $prefix*, params '$params'",
+    )
     t = @elapsed include(EXAMPLE)
-    stamp("synthesis and closed loop done in $(round(t; digits = 1)) s (peak memory $(peak_gb()) GB)")
+    stamp(
+        "synthesis and closed loop done in $(round(t; digits = 1)) s (peak memory $(peak_gb()) GB)",
+    )
 
     if isfile(prefix * ".gif")
         stamp("SOLVE OK: $(prefix * ".gif")")
     else
-        stamp("SOLVE FAILED: no animation was written: the controller has no action at the start " *
-              "state, or the closed loop did not run (see the lines above). Try a larger " *
-              "FOOTHOLD_TOLERANCE or another start.")
+        stamp(
+            "SOLVE FAILED: no animation was written: the controller has no action at the start " *
+            "state, or the closed loop did not run (see the lines above). Try a larger " *
+            "FOOTHOLD_TOLERANCE or another start.",
+        )
         exit(2)
     end
 catch e
-    stamp("SOLVE FAILED after peak memory $(peak_gb()) GB: " * (e isa OutOfMemoryError ?
-        "OutOfMemoryError: raise --mem of submit_solve.sbatch" : sprint(showerror, e)))
+    stamp(
+        "SOLVE FAILED after peak memory $(peak_gb()) GB: " * (
+            e isa OutOfMemoryError ?
+            "OutOfMemoryError: raise --mem of submit_solve.sbatch" : sprint(showerror, e)
+        ),
+    )
     @error "SOLVE FAILED" exception = (e, catch_backtrace())
     exit(1)
 end
