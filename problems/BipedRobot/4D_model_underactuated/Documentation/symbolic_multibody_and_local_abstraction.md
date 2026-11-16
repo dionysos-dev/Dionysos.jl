@@ -8,6 +8,7 @@ used to design controllers for the four-link biped:
 | `Multibody2D.jl` | `Multibody2D` | Symbolic planar multibody kinematics, energies and equations of motion in *normal form*. Generic: nothing in it is specific to the biped. |
 | `LocalGrowthBound.jl` | `LocalGrowthBound` | The two functions that the `CellwiseBound` of Dionysos asks for (an enclosure of the step from a cell, and the Jacobian bound over it), for symbolic dynamics: a **cell-wise (local) growth bound**. Generic as well. |
 | `BipedAbstraction.jl`, `CertifiedRK4.jl` | `BipedAbstraction`, `CertifiedRK4` | Building the abstraction of the biped with the Dionysos optimizer (cache file, chunks of a Slurm array, provenance of the stored transitions), and the **certified successors of its RK4 map**. |
+| `SampledAbstraction.jl` | `SampledAbstraction` | The **data-driven** successors: the cells of the images of `N` simulated points of a cell (random, or a regular design). Generic as well; it builds on `BipedAbstraction`. See [`sampled_abstraction.md`](sampled_abstraction.md). |
 | `robot_problem.jl` | `UnderactuatedRobotProblem` | The biped: **the single definition of the mechanism** (symbolic, with `Multibody2D`), its kinematics and its two 5-D velocity-controlled design models derived from it, and the footstep scenario (carving, target set, grids, plots). **No RigidBodyDynamics.** |
 | `BipedFourLink.jl`, `four_link_biped.urdf` | `BipedFourLink` | **Simulation and visualization** of the whole robot with RigidBodyDynamics and MeshCat. Kept separate because it is the only file that needs that dependency; see [`BipedFourLink.md`](BipedFourLink.md). |
 
@@ -1104,6 +1105,7 @@ julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_mult
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_local_growth_bound.jl          # 5648 checks
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_biped_abstraction.jl           # 91 checks
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_robot_problem.jl               # 212 checks
+julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_sampled_abstraction.jl         # 480 checks; see sampled_abstraction.md §6
 julia --project=<env> problems/BipedRobot/4D_model_underactuated/tests/test_biped_four_link.jl             # 53 checks; needs RigidBodyDynamics and MeshCat
 ```
 
