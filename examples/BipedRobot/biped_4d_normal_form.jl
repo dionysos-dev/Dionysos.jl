@@ -17,10 +17,14 @@
 #
 #   i.e. `q̇₁ = (p₁ - D₁ₐ v_a) / D₁₁`, `ṗ₁ = ∂L/∂q₁`, `(q̇₂, q̇₃, q̇₄) = v_a`, with the commands
 #   held constant over a sampling period;
-# - **abstraction**: a certified over-approximation with the **local growth bound** of
-#   `LocalGrowthAbstraction.jl` (a Jacobian bound per cell and input, with interval arithmetic and
-#   a verified flow enclosure). The abstraction is nondeterministic, so the controller is synthesized
-#   against the worst case.
+# - **abstraction**: **certified successors of the RK4 map** (`CertifiedRK4GrowthBound`, see
+#   `LocalGrowthAbstraction.jl`): for every state that the grid assigns to a cell, the successor
+#   computed by the discrete-time (RK4) system used in the closed-loop run lies in one of the
+#   successor cells listed for that cell and input. Each image is the RK4 evolution of the cell centre
+#   plus a bound from the interval Jacobian over the cell (a local growth bound), with the roundoff
+#   of the Float64 arithmetic enclosed, intersected with a direct interval evaluation of the RK4 map.
+#   It covers the sampled map, not the continuous flow between two samples. The abstraction is
+#   nondeterministic, so the controller is synthesized against the worst case.
 #
 # The constraints: the swing-foot height is bounded below by the ground (cells where the foot is
 # surely below `z = 0` are removed, the constraint named `"ground"`), the ankle momentum is bounded
@@ -40,8 +44,8 @@
 # number of cells is the *product* of the cell counts along the five axes: a state box that looks only
 # slightly wider can have ten times more cells (the size is printed before the abstraction starts).
 #
-# Run it with (an environment with Dionysos, Symbolics, IntervalArithmetic, Plots and the other
-# packages of `problems/BipedRobot`; RigidBodyDynamics is not needed):
+# Run it with (an environment with Dionysos, Symbolics, IntervalArithmetic, CoreMath, Plots and the
+# other packages of `problems/BipedRobot`; RigidBodyDynamics is not needed):
 #
 # ```
 # julia -t auto --project=problems/BipedRobot examples/BipedRobot/biped_4d_normal_form.jl
@@ -227,10 +231,15 @@ println(
 )
 
 # ------------------------------------------------------------
-# 3) Abstraction with local growth bounds
+# 3) Certified abstraction of the RK4 map
 # ------------------------------------------------------------
 
-@time lgb = LGA.LocalGrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+# `CertifiedRK4GrowthBound` is defined next to `LocalGrowthAbstraction.jl`, in the problem folder: it
+# uses only what Dionysos already offers (a discrete-time over-approximation, the `USER_DEFINED`
+# approximation mode, a lookup of the target cells for its own image type), on top of CoreMath,
+# IntervalArithmetic and Symbolics.
+@time lgb = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+dynamics = lgb.f
 concrete_system = ST.get_system(lgb)   # discrete-time (RK4) system on the carved domain
 
 # Concrete start of the closed-loop run below: the configuration `q0` with the first coordinate in the
@@ -244,7 +253,7 @@ x0 = RP.start_state(
     removed = carving,
     geometry,
 )
-println("x0 = ", x0, "  (ṗ₁ at x0: ", lgb.dynamics.f(x0, SVector(0.0, 0.0, 0.0))[1], ")")
+println("x0 = ", x0, "  (ṗ₁ at x0: ", dynamics(Vector(x0), zeros(3))[1], ")")
 println("swing foot at x0: ", RP.swing_foot_position(SVector{4}(x0[2:5]), geometry))
 
 # `build_abstraction` runs the Dionysos `UniformGridAbstraction` optimizer with the reach sets of
@@ -255,7 +264,11 @@ println("swing foot at x0: ", RP.swing_foot_position(SVector{4}(x0[2:5]), geomet
 # loaded if the file exists (no computation), otherwise computed and written there. With
 # `ABSTRACTION_ONLY = true` the run stops once the abstraction is available (nothing else is done). The
 # grids, the state box and the other parameters above are stored with the transitions and checked at
-# loading: a file computed for other parameters is refused. For a **Slurm array**, the transitions are
+# loading: a file computed for other parameters is refused. So is a file, or a chunk, that does not
+# record the **provenance** of the certified construction (the kernel version, the sampling period, a
+# fingerprint of the dynamics and of the cells; `CertifiedRK4.get_provenance`): one computed by the earlier
+# local growth bound, by another version of the kernel, for other dynamics, grids, state box or
+# carving. For a **Slurm array**, the transitions are
 # computed in chunks by `EXECUTION_BACKEND = SY.SlurmArrayBackend(nchunks, chunk_id, outdir,
 # :contiguous, true)` (one run per chunk), then `MERGE_CHUNKS = (; outdir, nchunks)` reads them
 # instead of computing and `ABSTRACTION_FILE` receives the merged result. See
@@ -277,7 +290,9 @@ merge_chunks = @isdefined(MERGE_CHUNKS) ? MERGE_CHUNKS : nothing
 merge_chunks === nothing ||
     abstraction_file === nothing ||
     abstraction_only ||
-    error("`MERGE_CHUNKS` writes `ABSTRACTION_FILE` and stops: set `ABSTRACTION_ONLY = true`")
+    error(
+        "`MERGE_CHUNKS` writes `ABSTRACTION_FILE` and stops: set `ABSTRACTION_ONLY = true`",
+    )
 abstraction_info = (;
     state_origin = collect(MP.get_origin(disc.state_grid)),
     state_h = collect(MP.get_h(disc.state_grid)),
@@ -306,7 +321,6 @@ if abstract_system === nothing
 else
     println("transitions: ", SY.get_n_transitions(abstract_system))
 end
-println("local growth bound statistics: ", LGA.stats(lgb))
 
 if !abstraction_only
 
@@ -332,9 +346,8 @@ if !abstraction_only
     @time MOI.optimize!(optimizer)
     println("footstep success: ", MOI.get(optimizer, MOI.RawOptimizerAttribute("success")))
 
-    # The abstraction is a certified over-approximation (up to the boundary convention of
-    # `LocalGrowthBound`), so a successful synthesis is guaranteed; the concrete closed loop below
-    # is the end-to-end check.
+    # Synthesis accounts for all successors listed by the abstraction. The concrete closed loop
+    # below checks the resulting controller on one RK4 trajectory.
     traj = RP.closed_loop(optimizer, step_pb, x0; ankle_name = "p₁")
 
     # ------------------------------------------------------------
@@ -360,7 +373,7 @@ if !abstraction_only
             foothold,
             file_prefix = joinpath(output_dir, "biped_4d_normal_form_$(scenario_name)"),
             ankle_label = "p₁ (N m s)",
-            dynamics = lgb.dynamics.f,      # re-integrate each step for a smoother animation
+            dynamics = (x, u) -> SVector{5}(dynamics(Vector(x), Vector(u))),
             subframes = 10,
             title = "Biped in normal form — footstep ($(scenario_name))",
         )
