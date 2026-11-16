@@ -1,5 +1,6 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CoreMath = "b7a15901-be09-4a0e-87d2-2e66b0e09b5a"
 Dionysos = "d92c97cf-b87d-42c1-a9c0-25df00b4d958"
 InteractBase = "d3863d7c-f0c8-5437-a7b4-3ae773c01009"
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"

@@ -1,5 +1,17 @@
 # Slurm-array abstraction
 
+> **The abstraction is the certified one.** `biped_4d_normal_form.jl` always builds
+> `CertifiedRK4GrowthBound`. Every chunk and the merged file **record how their transitions were
+> computed** (the version of the certified kernel, the sampling period, a fingerprint of the symbolic
+> dynamics and of the cells; `CertifiedRK4.get_provenance` and `LGA.abstraction_provenance`), and the merge and the
+> solve job **refuse** anything that does not carry the same record: chunks or files made by the
+> earlier local growth bound, by another version of the kernel, or for other dynamics, grids, state box
+> or carving. **Chunks and files computed before this change must be recomputed** (the merge stops with
+> `... has no provenance record`). Keep the same Dionysos version for the chunks, the merge and the
+> solve job: a change of the kernel (`CertifiedRK4.KERNEL_VERSION`) makes them incompatible. The
+> certified kernel costs about 0.9 ms of CPU per `(cell, input)` pair on 10 threads (0.5 ms on one
+> thread), against 0.2 ms for the local growth bound: size the array accordingly.
+
 The abstraction of the normal-form biped experiment
 ([`examples/BipedRobot/biped_4d_normal_form.jl`](../../../../examples/BipedRobot/biped_4d_normal_form.jl))
 is by far its most expensive part: one image to compute per `(cell, input)` pair (27 inputs by default, `(2k+1)³` with `input_steps = k`), and a

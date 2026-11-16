@@ -23,9 +23,8 @@
 # `Multibody2D.jl`. A positive `q₁` leans the robot backwards, a positive `q₃` swings the swing
 # foot forwards, and the knee bends backwards for a negative `q₄`.
 #
-# The dynamics are nonlinear in the ankle coordinates, so the abstraction has to be a certified
-# over-approximation: the local growth bound of `LocalGrowthAbstraction.jl` is. The closed-loop
-# trajectory of the concrete system is the end-to-end check of a controller (`closed_loop`).
+# The dynamics are nonlinear in the ankle coordinates. `LocalGrowthAbstraction.jl` uses a local
+# Jacobian bound to estimate the successor box. `closed_loop` tests a controller on the RK4 model.
 module UnderactuatedRobotProblem
 
 using StaticArrays
@@ -629,8 +628,12 @@ end
 # Size of the abstraction
 # ============================================================
 
-"CPU time of the local growth bound per `(cell, input)` pair, in seconds (measured on the biped: ≈ 0.2 ms)."
-const CPU_SECONDS_PER_PAIR = 2.0e-4
+"""
+Thread-seconds of the certified RK4 successor kernel per `(cell, input)` pair, in seconds (measured on
+the biped with a threaded build on 10 threads: ≈ 0.9 ms; on one thread the kernel alone takes ≈ 0.5 ms,
+the rest is the cost of its allocations when threaded; the local growth bound it replaced took ≈ 0.2 ms).
+"""
+const CPU_SECONDS_PER_PAIR = 9.0e-4
 
 "Average number of transitions per `(cell, input)` pair of the biped abstraction (measured: ≈ 4)."
 const TRANSITIONS_PER_PAIR = 4

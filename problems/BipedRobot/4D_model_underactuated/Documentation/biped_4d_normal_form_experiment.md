@@ -1,6 +1,6 @@
 # The `biped_4d_normal_form.jl` experiment
 
-`examples/BipedRobot/biped_4d_normal_form.jl` computes a certified abstraction of an underactuated
+`examples/BipedRobot/biped_4d_normal_form.jl` computes a local growth abstraction of an underactuated
 four-link biped and asks Dionysos for a controller that performs **one footstep**. Its default is a
 **symmetric forward step** without obstacle (§6): the swing foot starts at `x = -0.2 m` and has to land
 around the foothold at `x = +0.2 m`, the ankle falling forwards all along. `OBSTACLE = :bump` puts a bump
@@ -56,16 +56,29 @@ state   x = [p₁, q₁, q₂, q₃, q₄]          input  u = [v₂, v₃, v₄
 `robot_problem.jl` are written for `[ankle, q₁, q₂, q₃, q₄]`. Because `p₁ ≈ D₁₁ q̇₁ + D₁ₐ·v_a` with
 `D₁₁ ≈ 0.14 kg m²`, a momentum of `0.02 N m s` corresponds to about `0.15 rad/s` of ankle velocity.
 
-### 1.3 The abstraction: local growth bounds
+### 1.3 The abstraction: certified successors of the RK4 map
 
 The state space is divided into hyper-rectangular cells and the inputs into a finite set of velocity
 commands. For every `(cell, input)` pair the **reachable set after one sampling period** is
-over-approximated by a box (the cell centre is simulated, and the box radius comes from a growth
-bound computed *locally*, with interval arithmetic, for that cell and input; see the module
-document). The result is a nondeterministic finite transition system on which a controller is
-synthesized against the worst case, so a controller found on the abstraction is guaranteed to work on
-the concrete system (up to numerical integration and the boundary convention of the module document,
-§3.4).
+over-approximated by a box, and the cells that box can quantize into are the successors. The box is the
+**certified** image of the Float64 RK4 map of the closed-loop run (`CertifiedRK4GrowthBound`): the RK4
+image of the cell centre, plus a local bound from the interval Jacobian over the cell and the roundoff
+of the Float64 arithmetic, intersected with a direct interval evaluation of the RK4 map (see the
+module document). Hence the successor, computed by that map, of **every** state that the grid assigns
+to the cell lies in a listed successor cell. Ties of the grid quantizer (ties to even) on cell faces are
+handled exactly, so successors on motor-coordinate boundaries are included when the concrete quantizer
+can select them. The result is a nondeterministic finite transition system, and synthesis accounts for
+every listed successor. The guarantee is about the **sampled** system: it covers neither the
+continuous flow between two samples nor the truncation error of RK4 with respect to the ODE (§3.5 of
+the module document).
+
+The example always builds this abstraction (there is no switch back to the earlier local growth
+bound). A cache file or the chunks of a Slurm array can be used (§4.3): they record how their
+transitions were computed, and a file or chunk from the earlier local growth bound is refused.
+**The transition counts and timings below were measured with the earlier, non-certified
+local growth bound** (≈ 0.2 ms of CPU per pair, against ≈ 0.5 ms per pair on one thread and ≈ 0.9 ms
+per pair and thread on 10 threads for the certified kernel, e.g. 1.0 M pairs in 91 s) and have not been
+redone.
 
 The motor coordinates move by exactly one cell per step (the lattice trick of §3.2), so all the
 nondeterminism is in the ankle `(q₁, p₁)`: the image box of a cell is wider than the cell, because
@@ -105,7 +118,7 @@ one margin away from it (§6).
 
 An environment with Dionysos (developed from this repository: the example locates
 `problems/BipedRobot/4D_model_underactuated/` through `pathof(Dionysos)`), Symbolics,
-IntervalArithmetic, LazySets, StaticArrays, MathOptInterface and Plots (loaded by
+IntervalArithmetic, CoreMath, LazySets, StaticArrays, MathOptInterface and Plots (loaded by
 `robot_problem.jl`). RigidBodyDynamics is **not** needed. The `problems/BipedRobot` project lists all
 of them, so `--project=problems/BipedRobot` (below) is enough.
 
@@ -130,7 +143,6 @@ swing foot at x0: [-0.2001, 0.0284]
 [ Info: Number of inputs: 27
 [ Info: Number of forward images: 3332340
 transitions: 9327931
-local growth bound statistics: (calls = 3332340, enclosure_failures = 0, unbounded = 0, improved = 3332340)
 Optimal control terminated with success = true
 footstep success: true
 steps: 6, reached: true
@@ -231,7 +243,7 @@ The defaults below are those of the file at the time of writing; the file is the
 | **`ONE_JOINT_PER_STEP`** | `false` | `true` allows at most one moving motor joint per step (`1 + 6k` inputs instead of `(2k + 1)³`: 7 instead of 27 for `k = 1`, a much smaller automaton). |
 | **`RUN_PLOTS`** | `true` | `false` skips the figures and the animation. |
 | **`OUTPUT_DIR`** | the folder of the example | Directory of the figures and the animation (created if needed). The Slurm solve job sets it. |
-| **`ABSTRACTION_FILE`** | `nothing` | Path of a file that caches the **transitions** of the abstraction: loaded if it exists (no computation), otherwise computed and written. The parameters that define the abstraction (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, the obstacle) are stored in it and checked at loading. Used to compute the abstraction on a server (see [`slurm_array/`](../slurm_array/README.md)). |
+| **`ABSTRACTION_FILE`** | `nothing` | Path of a file that caches the **transitions** of the abstraction: loaded if it exists (no computation), otherwise computed and written. The parameters that define the abstraction (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, the obstacle) are stored in it and checked at loading. Used to compute the abstraction on a server (see [`slurm_array/`](../slurm_array/README.md)). The file also stores the provenance of the certified construction (§4.3): **a file written by an earlier version of the example, with the local growth bound, is refused**; compute it again. |
 | **`ABSTRACTION_ONLY`** | `false` | `true` stops after the abstraction (and its saving): no start-state synthesis, closed loop or plots. |
 
 ### 3.2 Grid cell sizes, sampling time and input set: `DISC`
@@ -316,10 +328,10 @@ The `LocalGrowthBound` options that matter:
 
 | Option | Effect |
 | :--- | :--- |
-| `refinements` | `0` = the plain global growth bound of Dionysos (use it as a baseline); `1` = one local refinement (default); more can tighten further |
+| `refinements` | `0` uses the global radius with the same boundary deflation; `1` does one local refinement (default). Pass `lgb.global_growth` to `build_abstraction` for the plain global baseline. |
 | `max_enclosure_iterations`, `enclosure_inflation` | how hard the flow enclosure is searched before a cell falls back to the global bound |
 | `shrink_enclosure` | `true` uses a tighter verified box for the Jacobian bound (slightly tighter images) |
-| `boundary_tolerance` | fraction of the cell radius by which images are deflated so that an image that only *touches* a neighbour does not overlap it. With the exact lattice of the motor joints, `0` gives 3 successors per motor joint instead of 1 and synthesis becomes hopeless |
+| `boundary_tolerance` | fraction of the cell radius removed from each image to suppress face contacts. It can also omit a true successor. `0` disables the deflation and can add face contacts to the successor set. |
 
 ### 3.6 Cost of a change
 
@@ -443,15 +455,18 @@ println("State space: ", size.cells, " cells (", size.cells_in_box, " before car
 ### 4.3 Section 3: the abstraction
 
 ```julia
-@time lgb = LGA.LocalGrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+@time lgb = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+dynamics = lgb.f
 concrete_system = ST.get_system(lgb)
 ```
 
-`LocalGrowthBound` receives the symbolic dynamics, the state variables, the input variables, the
-domain and the sampling time. It differentiates the dynamics symbolically, compiles `f` and `∂f/∂x`
-for floats **and** intervals (a few seconds), and builds the Dionysos global growth bound with a
-Jacobian bound over the outer box of `X`. `concrete_system` is the **discrete-time system** (RK4
-integration over `tstep`) on the carved domain; the control problem is posed on it.
+`CertifiedRK4GrowthBound` receives the symbolic dynamics, the state variables, the input variables, the
+domain and the sampling time. It compiles `f` once (a few seconds), with the correctly rounded
+elementary functions of CoreMath, so that the same operation graph runs on floats and on intervals.
+`concrete_system` is the **discrete-time system**, the Float64 RK4 map (`DEFAULT_NUM_SUBSTEPS` steps over
+`tstep`) on the carved domain: the control problem is posed on it, and it is the system whose
+successors the abstraction certifies. `dynamics` is the vector field alone, used to print `ṗ₁` at the
+start and in the plots.
 
 ```julia
 x0 = RP.start_state(disc.state_grid, q0, X_box; velocity = initial_velocity, removed = carving, geometry)
@@ -479,10 +494,14 @@ with at most one moving joint). `build_abstraction` then runs the Dionysos
 1. the **state mapping** is created implicitly (cell ids by linearization of the ambient box, low
    memory) on the domain `X`;
 2. the **input mapping** is the grid `{-k du, …, k du}³` (`k = input_steps`: 27 inputs for `k = 1`);
-3. for **every `(cell, input)` pair**, in parallel threads, `lgb` simulates the cell centre,
-   computes the global image, verifies a flow enclosure, bounds the Jacobian locally and returns the
-   box image; the cells that box overlaps become the successors, unless the box leaves the domain
-   (then the pair has no transition).
+3. the kernel turns each input into a point box **once per input** and reuses it across the
+   uniform grid;
+4. for **every `(cell, input)` pair**, in parallel threads, the certified kernel rebuilds the exact set
+   of Float64 states that the grid quantizer assigns to the cell, encloses its RK4 image (the centre
+   image plus the interval Jacobian and roundoff term, intersected with the direct interval
+   evaluation), and looks the cells up with the same quantizer at both corners of the box: these are
+   the successors. The pair has **no transition** (the action is disabled) if the image cannot be
+   enclosed, or can quantize outside the domain or into a removed cell.
 
 It prints the number of states, inputs and forward images (the pairs). **There is no progress output
 until it finishes**: this is the step that takes minutes (§2.3). The returned `optimizer` **caches the
@@ -490,14 +509,23 @@ abstraction**. Then
 
 ```julia
 println("transitions: ", SY.get_n_transitions(abstract_system))
-println("local growth bound statistics: ", LGA.stats(lgb))
 ```
 
-prints the number of transitions and the counters of the local bound: `improved ≈ calls` means the
-local bound beat the global one almost everywhere, `enclosure_failures = 0` means the sampling period
-is compatible with the dynamics.
+prints the number of transitions. The certified kernel keeps no statistics.
 
-**Computing the abstraction on a server.** With `ABSTRACTION_FILE` set, `build_abstraction` caches the
+**Computing the abstraction on a server, and its provenance.** The certified abstraction can be
+cached in a file and split over a Slurm array, but what is stored is only as good as the record of how
+it was computed. `LGA.CertifiedRK4.get_provenance(lgb)` is that record: the version of the certified kernel
+(`LGA.CertifiedRK4.KERNEL_VERSION`, bumped when a change of the kernel can change its transitions), the
+sampling period, the number of RK4 substeps and a fingerprint of the printed symbolic dynamics, and
+`LGA.abstraction_provenance` adds a fingerprint of the cells (the retained states with their ids) and of
+the inputs. It is stored in the file and in every chunk, and **loading or merging refuses anything
+that does not carry the same one**: a file or chunk of the earlier local growth bound (it has none), of
+another version of the kernel, for other dynamics, another sampling period, grids, state box or
+carving. The fingerprints are 64-bit FNV-1a (`LGA.CertifiedRK4.fingerprint`), identical in every Julia session and
+version: they detect an accidental change, they are not a cryptographic proof. What they cannot see
+(for instance `state_input_filter`, which can only disable actions) stays in `abstraction_info`. With
+`ABSTRACTION_FILE` set, `build_abstraction` caches the
 transitions in that file (`LGA.save_abstraction` / `LGA.load_abstraction!`: three integer vectors and
 the parameters that define the abstraction, 12 bytes per transition; the compiled symbolic dynamics are
 rebuilt at each run). `ABSTRACTION_ONLY = true` makes the run stop right after it, and the rest of the

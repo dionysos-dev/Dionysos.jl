@@ -12,6 +12,7 @@ const CACHE_PACKAGES = [
     "Dionysos",
     "Symbolics",
     "IntervalArithmetic",
+    "CoreMath",
     "JLD2",
     "Plots",
 ]

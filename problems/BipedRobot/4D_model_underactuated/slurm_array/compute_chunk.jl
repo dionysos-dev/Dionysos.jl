@@ -35,7 +35,7 @@ end
 t_load = time()
 import Dionysos
 import StaticArrays, MathematicalSystems, LazySets, MathOptInterface, Symbolics
-import IntervalArithmetic, JLD2, Plots
+import IntervalArithmetic, CoreMath, JLD2, Plots
 const SY = Dionysos.Symbolic
 @info "Start-up of the chunk task" host = gethostname() cpu = Sys.CPU_NAME julia = VERSION packages_loaded_in_s =
     round(time() - t_load; digits = 1)

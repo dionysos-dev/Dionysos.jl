@@ -47,9 +47,9 @@ The experiment that uses all of them is described in
 The point of the design is that the model stays **symbolic** until the last moment (no
 RigidBodyDynamics, whose symbolic handling is slow and unmaintained), so a general robot can be
 described once and its parameters (lengths, masses, inertias, gravity) replaced by numbers
-afterwards. The abstraction is a **certified over-approximation** (up to the boundary
-convention of §3.4) that improves on the global growth bound of Dionysos wherever the dynamics
-vary over the state space.
+afterwards. The local growth calculation can tighten the global growth bound of Dionysos wherever
+the dynamics vary over the state space. The numerical limits of the current abstraction are
+described in §3.4 and §3.5.
 
 ### 1.2 Requirements and how to load the modules
 
@@ -400,12 +400,14 @@ creates **spurious transitions**.
 
 *Why `B` is verified.* The growth-bound theorem needs `L_B` to bound the Jacobian on a convex set
 containing the trajectories of **all** points of `R` during the **whole** sampling period, not
-just at its end points. `B` is therefore checked with an interval Picard–Lindelöf test,
-`R + [0, τ]·f(B, u) ⊆ B`, and enlarged until it passes. If no such box is found (this happens
-when `τ·‖∂f/∂x‖` is not small, roughly `≳ 1`) the cell falls back to the global bound, which is
-always valid. Both images are valid, so their intersection is valid, and the local image is never
-worse than the global one. Optionally steps 3–4 are repeated (`refinements`), each time starting
-from the previous, smaller image.
+just at its end points. The interval Picard–Lindelöf test evaluates `R + [0, τ]·[f](B, u)`
+with outward rounding and requires it to lie strictly inside `B`. The candidate is enlarged
+until the test passes or the search stops. If no such box is found (this happens
+when `τ·‖∂f/∂x‖` is not small, roughly `≳ 1`) the first refinement falls back to the global
+radius. The global Jacobian is evaluated only on the outer state box, so applying the continuous
+comparison theorem to it requires the trajectories to stay in that box. The componentwise minimum
+keeps the computed radius no larger than the global one. Optionally steps 3–4 are repeated
+(`refinements`), each time starting from the previous, smaller image.
 
 The Jacobian bound is the *Metzler* majorant required by the radius ODE: the supremum of the
 diagonal entries and the magnitude of the off-diagonal ones.
@@ -454,13 +456,16 @@ jacobian_bound(dyn, [1.4, -1.0], [1.7, 1.0], [0.0])    # [0 1; 1.67 -0.5]   (a s
 
 #### `flow_enclosure(dynamics, cell_low, cell_high, guess_low, guess_high, u, tstep; max_iterations = 10, inflation = 0.1, shrink = false)`
 
-*Description.* Returns `(lo, hi)`, a box that provably contains the trajectory `x(t)`,
-`t ∈ [0, tstep]`, of every initial state in the cell `[cell_low, cell_high]` under the constant
-input `u`, or `nothing` if none was found. The search starts from the hull of the cell and
-`guess` (the conservative image); when the Picard test fails the box is replaced by the hull of
-itself and `R + [0, τ]·f(B, u)`, inflated by `inflation` times its width, up to `max_iterations`
-times. With `shrink = true` the tighter (still valid) `R + [0, τ]·f(B, u)` is returned. The
-endpoint arithmetic is plain floating point, not outward rounded.
+*Description.* Returns bounds `(lo, hi)` enclosing every exact ODE trajectory from the
+source cell for `t ∈ [0, tstep]` under constant input `u`. It assumes a locally Lipschitz
+vector field on a neighborhood of the accepted box and sound interval implementations of the
+operations in the model. The function returns `nothing` if it cannot verify an enclosure.
+
+The search starts from the hull of the source and the guessed endpoint box. If the
+inclusion fails, it inflates the hull of the candidate and the outward-rounded Picard image.
+It tries at most `max_iterations` candidates. With `shrink = true`, it returns the Picard
+image from the successful test as a tighter tube box. Pass the hyperrectangle directly in
+place of `cell_low, cell_high` to round the source bounds outward from its centre and radius.
 
 *Use case.* Check that a sampling period is compatible with the dynamics before building an
 abstraction (`nothing` means the local bound will fall back to the global one):
@@ -468,7 +473,7 @@ abstraction (`nothing` means the local bound will fall back to the global one):
 ```julia
 cell = LazySets.Hyperrectangle(SVector(1.5, 0.0), SVector(0.1, 0.2))
 glob = ST.get_over_approximation_map(lgb.global_growth)(cell, SVector(0.0))
-flow_enclosure(dyn, LazySets.low(cell), LazySets.high(cell),
+flow_enclosure(dyn, cell,
                LazySets.low(glob), LazySets.high(glob), [0.0], 0.1)    # (lo, hi) or nothing
 ```
 
@@ -489,7 +494,7 @@ Keywords:
 
 | Keyword | Default | Meaning |
 | :--- | :--- | :--- |
-| `refinements` | `1` | how many times steps 3–4 are applied (`0` = the global growth bound of Dionysos) |
+| `refinements` | `1` | how many times steps 3–4 are applied (`0` keeps the global radius and still applies `boundary_tolerance`) |
 | `ngrowthbound` | `ST.DEFAULT_NUM_SUBSTEPS` (5) | RK4 substeps for the radius ODE `ρ̇ = Lρ` |
 | `nsystem` | `ST.DEFAULT_NUM_SUBSTEPS` (5) | RK4 substeps for the centre simulation |
 | `max_enclosure_iterations` | `10` | iterations of the Picard enclosure before falling back |
@@ -515,10 +520,10 @@ LazySets.radius_hyperrectangle(over_global)    # [0.1247, 0.2971]
 LazySets.radius_hyperrectangle(over_local)     # [0.1212, 0.2245]
 ```
 
-As a Dionysos object it implements `ST.get_system`, `ST.input_cache` (the global radius is
-integrated once per input and reused for every cell), `ST.reach_set` and
-`ST.get_over_approximation_map`, so it can be used wherever Dionysos expects an
-over-approximation.
+As a Dionysos object it implements `ST.get_system`, `ST.input_cache`, `ST.reach_set` and
+`ST.get_over_approximation_map`. The transition kernel computes the global radius once per input
+for the uniform cell size and reuses it across cells. A direct call to the two-argument
+over-approximation map computes the radius for that call.
 
 #### `LocalGrowthBoundStats`, `stats(lgb)`, `reset_stats!(lgb)`
 
@@ -539,9 +544,10 @@ reset_stats!(lgb)
 #### `build_abstraction(approx; state_grid, input_grid, print_level = 0, abstraction_file = nothing, abstraction_info = nothing, attributes...) -> optimizer`
 
 *Description.* Builds the discrete-time transition system (symbolic model) of the system of
-`approx` with the Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode, using the
-reach sets of `approx`. Any `DiscreteTimeSystemOverApproximation` works: a `LocalGrowthBound`, or
-`lgb.global_growth` as the baseline. `state_grid` and `input_grid` are Dionysos grids; every extra
+`approx` with the Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode. It passes
+the approximation object directly, so the transition kernel can reuse its per-input cache
+(once per input per partition for a partitioned backend). Pass `lgb` for local refinement or
+`lgb.global_growth` for the plain global baseline. `state_grid` and `input_grid` are Dionysos grids; every extra
 keyword is forwarded as an optimizer attribute (`execution_backend`, `use_implicit_mapping`,
 `state_input_filter`, …). It returns the optimizer, which **caches the abstraction**: a control
 problem can be set on it afterwards. With `abstraction_file`, the transitions are cached on disk: loaded
@@ -580,13 +586,13 @@ controller = MOI.get(opt, MOI.RawOptimizerAttribute("concrete_controller"))
 
 If a coordinate evolves **exactly on the grid** (for instance `q̇ = u` with `τ·u` a multiple of the
 cell size), the image of a cell is exactly a cell and its boundary touches the neighbours along a
-face. Dionysos treats cells as closed (its `OUTER` lookup has `tol = 0`), so every such face
-contact would count as an overlap and each motor joint would get three successors instead of one,
-which makes controller synthesis hopeless. `LocalGrowthBound` therefore deflates the radius of
-every image by `boundary_tolerance × (cell radius)` (default `1e-9`): the half-open-cell
-convention of grid abstractions. It is far above floating-point noise (≈ 1e-17) and far below any
-real growth, but it means that an image protruding into a neighbour by less than that is ignored.
-Use `boundary_tolerance = 0` for the strict closed-cell behaviour.
+face. The `OUTER` lookup includes face contacts for the box it receives. `LocalGrowthBound`
+deflates every image by `boundary_tolerance × (cell radius)` (default `1e-9`) to suppress those
+contacts. This can also omit a true overlap. Moreover, the grid quantizer rounds ties to even:
+with unit grid spacing, a state at `0.5` belongs to index `0`, but translating it by one gives
+`1.5`, which belongs to index `2`. Deflating the translated box lists only index `1`.
+Set `boundary_tolerance = 0` to disable deflation. Floating-point roundoff can still move an
+image face inward, so this setting alone does not certify successor coverage.
 
 ### 3.5 Notes and limitations
 
@@ -594,10 +600,57 @@ Use `boundary_tolerance = 0` for the strict closed-cell behaviour.
 * The enclosure test needs `τ·‖∂f/∂x‖` not large. In the biped (`‖∂f/∂x‖ ≈ 9`) a sampling period
   of 0.05 s works and 0.1 s is marginal; with high-gain dynamics every cell falls back to the
   global bound (visible in `stats`).
-* The endpoint arithmetic of the enclosure is not outward rounded, and `RK4` simulates the centre;
-  as everywhere in Dionysos, "certified" means up to numerical integration and rounding error.
-* Cost: about 0.1 ms of interval arithmetic per cell/input pair (the biped: 4.8 M pairs in
-  ≈ 2 minutes on 10 threads). It is thread safe: use `SY.ThreadedBackend()`.
+* The Picard box certifies the exact ODE tube when the test succeeds. The endpoint estimate
+  uses ordinary RK4 for the centre and radius and can cap the local radius by the global one.
+  The continuous comparison theorem does not certify that endpoint estimate.
+* For certified successors of the sampled RK4 map, use `CertifiedRK4GrowthBound`.
+
+#### Certified RK4 successors
+
+`CertifiedRK4GrowthBound` is defined in `CertifiedRK4.jl`, next to `LocalGrowthAbstraction.jl`, and
+re-exported by it. It is not part of Dionysos: it plugs into the interfaces that Dionysos has (a
+discrete-time over-approximation, the `USER_DEFINED` approximation mode of the
+`UniformGridAbstraction` optimizer, a `get_states_from_set_strict` method for its own image type),
+and needs CoreMath, IntervalArithmetic 1.x and Symbolics. `examples/BipedRobot/biped_4d_normal_form.jl` always uses it.
+
+```julia
+import CoreMath, IntervalArithmetic, Symbolics
+approx = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+optimizer = LGA.build_abstraction(approx; state_grid = disc.state_grid, input_grid = disc.input_grid)
+concrete_system = ST.get_system(approx)
+sym = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+successors = SY.post(sym, source_id, input_id)
+```
+
+Use `concrete_system` for synthesis and simulation. This is a Float64 RK4 map with correctly
+rounded elementary functions from [CoreMath](https://github.com/JuliaIntervals/CoreMath.jl).
+It accepts branch-free symbolic dynamics with supported arithmetic, constant powers, and
+elementary functions. The constructor also accepts a continuous black-box system whose
+dynamics can be traced into these symbolic expressions.
+
+For each source index, the transition kernel bounds the preimage of the actual Float64
+quantizer, then uses monotonicity to find the first and last Float64 values that map to
+the index in each coordinate. At each RK4 substep, outward interval propagation bounds the rounded
+stage evaluations and endpoint. A second enclosure uses the interval Jacobian of the whole
+substep, a validated center image, and a bound on roundoff propagated through the arithmetic.
+The kernel intersects these independently valid enclosures when both are available.
+If a coordinate's slopes are fixed across the box, the kernel evaluates the rounded
+update at that coordinate's endpoints to avoid unnecessary widening from interval arithmetic.
+It keeps the interval endpoints for the grid lookup and evaluates the quantizer at both
+ends of each coordinate interval, including its ties-to-even behavior.
+
+An action is omitted if any substep cannot be enclosed or if the endpoint box can quantize
+to an excluded or unmapped index. The resulting coverage claim applies to each enabled
+action and to Float64 states and inputs of the returned sampled system. For safety between
+samples, check the exact ODE tube separately with `flow_enclosure`.
+This path supports nonperiodic Float64 `GridFree` with explicit or implicit mappings, with every
+execution backend, including cache files and Slurm chunks. These store the **provenance** of the
+transitions (`CertifiedRK4.get_provenance`: the kernel version, the sampling period, the substeps, a
+fingerprint of the symbolic dynamics, and `LGA.abstraction_provenance`'s fingerprint of the cells and
+inputs), and loading or merging refuses a file or chunk that does not carry the same one, such as
+one computed by the legacy `LocalGrowthBound`, by another version of the kernel, or for other
+dynamics, grids, state box or carving. Bump `CertifiedRK4.KERNEL_VERSION` whenever a change of
+the kernel can change its transitions.
 
 ---
 
@@ -870,7 +923,8 @@ cells lying entirely inside the box `X` (the cells the abstraction keeps, `MP.IN
 left after removing the carved ones (`removed`: a `Carving` or its `cells`); `pairs = cells · ninputs`,
 the number of `(cell, input)` pairs whose image must be computed; and rough estimates
 `transitions = RP.TRANSITIONS_PER_PAIR · pairs` (≈ 4 per pair) and `minutes` of wall time on `threads`
-threads (`RP.CPU_SECONDS_PER_PAIR`, ≈ 0.2 ms of CPU per pair). The experiment prints it before building
+threads (`RP.CPU_SECONDS_PER_PAIR`, ≈ 0.9 ms per pair and thread for the certified RK4 kernel on 10
+threads; it was ≈ 0.2 ms for the earlier local growth bound). The experiment prints it before building
 the abstraction.
 
 The cost is linear in `pairs`, and the number of cells is the **product** of the cell counts along the
@@ -1085,7 +1139,8 @@ conservation, compliant contact, reaction force, plots, MeshCat) and its agreeme
 
 Known limitations:
 
-* the endpoint arithmetic of the flow enclosure is not outward rounded;
+* the endpoint image used to build transitions still needs a validated centre and radius
+  calculation and a conservative grid lookup (§3.4 and §3.5);
 * the local growth bound needs a short enough sampling period (§3.5);
 * the gain over the global growth bound is modest when the Jacobian varies little over the domain
   (1.5 % on the 5⁵ biped grid of §4.4, 7 % on a 9⁵ grid, 34 % on the acrobot test). The image of

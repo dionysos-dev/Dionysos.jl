@@ -18,18 +18,24 @@ This module computes, for each pair `(cell R, input u)`, a **local** bound:
    arithmetic: the true (local) growth bound `L_B`;
 4. recompute the image with it: `Φ(c, u) ± ρ_loc`, `ρ̇_loc = L_B ρ_loc`.
 
-Step 3 is made rigorous: the growth-bound theorem needs `L_B` to bound the Jacobian on a convex
+The growth-bound theorem needs `L_B` to bound the Jacobian on a convex
 set containing the trajectories of **all** points of `R` during the **whole** sampling period, not
 just at its end points. So `B` is verified, with an interval Picard–Lindelöf check, to be an
-a-priori enclosure of that tube (`R + [0, τ]·f(B, u) ⊆ B`), and is enlarged until it is. If no such
-box is found the cell falls back to the global bound, which is always valid. Both images are sound,
-so their intersection `Φ(c, u) ± min(ρ_glob, ρ_loc)` is too, and the local image is never worse
-than the global one.
+a-priori enclosure of that tube (`R + [0, τ]·f(B, u) ⊆ interior(B)` with outward rounding).
+If the first refinement cannot verify a box, it falls back to the global radius. The global
+Jacobian bound is only valid on the outer box of `X`. The computed radius is capped by the
+global radius.
+
+The tube check applies to the exact ODE flow. The endpoint image still uses ordinary RK4 for
+the centre and radius, the global radius cap, and optional radius deflation. It does not
+certify successor coverage for the exact flow or the RK4 map.
+Use [`CertifiedRK4GrowthBound`](@ref) (file `CertifiedRK4.jl`, next to this one) to build a
+certified abstraction of its own Float64 RK4 map.
 
 The result, [`LocalGrowthBound`](@ref), is a `Dionysos.System.DiscreteTimeSystemOverApproximation`,
-so it plugs straight into Dionysos' abstraction machinery (`SY.compute_abstract_system_from_concrete_system!`,
-the `UniformGridAbstraction` optimizer, every execution backend). [`build_abstraction`](@ref) wraps
-that.
+so it plugs into Dionysos' abstraction machinery through the `USER_DEFINED` approximation mode of
+the `UniformGridAbstraction` optimizer (every execution backend works). [`build_abstraction`](@ref)
+wraps that. Nothing in Dionysos itself had to change for it.
 
 # Example
 
@@ -70,7 +76,13 @@ import Symbolics
 import IntervalArithmetic as IA
 using StaticArrays
 
-export SymbolicDynamics, LocalGrowthBound, LocalGrowthBoundStats
+# The certified successors of the Float64 RK4 map (a submodule of this file's folder, not of Dionysos).
+include(joinpath(@__DIR__, "CertifiedRK4.jl"))
+using .CertifiedRK4: CertifiedRK4GrowthBound
+import .CertifiedRK4: overapproximation_map
+
+export SymbolicDynamics, LocalGrowthBound, LocalGrowthBoundStats, CertifiedRK4GrowthBound
+export overapproximation_map
 export jacobian_bound, flow_enclosure, build_abstraction, stats, reset_stats!
 export save_abstraction, load_abstraction!, merge_chunks!, merge_chunks_to_file
 
@@ -96,7 +108,9 @@ the Dionysos Symbolics extension does for `compute_jacobian_bound`.
 
 `fsym` is a vector of `Symbolics` expressions in the variable vectors `x` and `u`. The second form
 traces the black-box `f` of a Dionysos system with symbolic variables (it must be written with
-generic operations).
+generic operations). Interval evaluation assumes those operations have sound interval
+implementations. Numeric constants denote their supplied values, including the stored binary
+values of floating-point constants.
 """
 struct SymbolicDynamics{N, M, F, FI, JI}
     f::F
@@ -154,14 +168,27 @@ end
 
 # Intervals ---------------------------------------------------------------------------------
 
-_to_interval(v::IA.Interval) = v
-_to_interval(v::Real) = IA.interval(float(v))
+_to_interval(v::IA.Interval{Float64}) = v
+_to_interval(v::Real) = IA.interval(Float64, v)
 
 # Plain `Vector`s (not `SizedVector`s, which a comprehension over an `SVector`'s indices gives):
 # the compiled functions build their output with the container type of their first argument.
 _box(lo, hi) =
-    IA.Interval{Float64}[IA.interval(Float64(lo[i]), Float64(hi[i])) for i in 1:length(lo)]
-_point_box(u) = IA.Interval{Float64}[IA.interval(Float64(u[i])) for i in 1:length(u)]
+    IA.Interval{Float64}[IA.interval(Float64, lo[i], hi[i]) for i in 1:length(lo)]
+_point_box(u) = IA.Interval{Float64}[IA.interval(Float64, u[i]) for i in 1:length(u)]
+_cell_box(c, r) = IA.Interval{Float64}[
+    IA.interval(Float64, c[i], r[i]; format = :midpoint) for i in 1:length(c)
+]
+
+# A finite interval can still represent a partial domain, e.g. sqrt([-1, 1]).
+# Symbolics may mix interval arguments with plain literals. Their stored values are the
+# model coefficients, so IntervalArithmetic's NG flag for literal promotion is expected.
+_valid_interval_enclosure(v) = IA.decoration(v) >= IA.dac && IA.isbounded(v)
+
+# Form a fresh box from validated bounds. IntervalArithmetic's hull operation can
+# lower the decoration even when both operands are finite and continuous.
+_interval_hull(x, y) =
+    IA.interval(Float64, min(IA.inf(x), IA.inf(y)), max(IA.sup(x), IA.sup(y)))
 
 # Metzler majorant of an interval Jacobian: the sup of the diagonal (signed) and the magnitude of
 # the off-diagonal entries, which is what the growth-bound ODE `ρ̇ = L ρ` requires.
@@ -169,7 +196,7 @@ function _metzler(J, ::Val{N}) where {N}
     M = Matrix{Float64}(undef, N, N)
     for j in 1:N, i in 1:N
         v = _to_interval(J[i, j])
-        M[i, j] = if !IA.isbounded(v)
+        M[i, j] = if !_valid_interval_enclosure(v)
             Inf
         else
             i == j ? IA.sup(v) : IA.mag(v)
@@ -183,7 +210,8 @@ end
 
 Growth-bound matrix `L` (Metzler: signed supremum on the diagonal, magnitude off the diagonal)
 of the Jacobian `∂f/∂x`, bounded with interval arithmetic for all states in the box
-`[xlow, xhigh]` and the input `u`. May contain `Inf` if the interval evaluation is unbounded.
+`[xlow, xhigh]` and the input `u`. An entry is `Inf` if its interval evaluation fails
+to give a finite, defined and continuous enclosure.
 """
 function jacobian_bound(
     dynamics::SymbolicDynamics{N},
@@ -201,19 +229,22 @@ end
 """
     flow_enclosure(dynamics, cell_low, cell_high, guess_low, guess_high, u, tstep;
                    max_iterations = 10, inflation = 0.1, shrink = false)
+    flow_enclosure(dynamics, cell::LazySets.AbstractHyperrectangle, guess_low, guess_high,
+                   u, tstep; kwargs...)
 
-A box `B` that provably contains the trajectory `x(t)`, `t ∈ [0, tstep]`, of **every** initial
-state in the cell `[cell_low, cell_high]` under the constant input `u` (or `nothing` if none was
-found).
+Return the lower and upper bounds of a box containing the exact ODE trajectories of **all**
+initial states in the cell throughout `[0, tstep]` with constant input `u`. Return `nothing`
+if the test cannot verify an enclosure. The hyperrectangle overload rounds the source
+endpoints outward from its stored centre and half-widths.
 
-The proof is the interval Picard–Lindelöf test: if `E = R + [0, τ]·f(B, u) ⊆ B` then no
-trajectory leaves `B` before `τ`. The search starts from `guess` (the user's "larger cell":
-the hull of the cell and its conservative image); when the test fails the box is replaced by the
-hull of itself and `E`, inflated by `inflation` times its width, and the test is repeated up to
-`max_iterations` times. With `shrink = true` the (tighter, still valid) `E` is returned instead of
-the verified guess.
+The Picard inclusion test computes `E = R + [0, tstep]·[f](B, u)` with outward rounding and
+requires `E` to lie strictly inside `B`. A trajectory reaching the boundary would still lie
+inside `E` by the integral equation, so it cannot leave `B`. This assumes a locally Lipschitz
+vector field on a neighborhood of the accepted box and a sound interval evaluation of it.
 
-The endpoint arithmetic is plain floating point, not outward rounded.
+The initial candidate is the hull of the source and the guess. On failure the hull with `E`
+is inflated by `inflation` times its width, with at least one representable step of slack on
+each side. With `shrink = true`, return `E` from the successful test as a tighter enclosure.
 """
 function flow_enclosure(
     dynamics::SymbolicDynamics,
@@ -223,26 +254,79 @@ function flow_enclosure(
     guess_high,
     u,
     tstep;
+    kwargs...,
+)
+    length(cell_low) == length(cell_high) ||
+        throw(DimensionMismatch("cell bounds must have the same length"))
+    source = _box(cell_low, cell_high)
+    return _flow_enclosure(dynamics, source, guess_low, guess_high, u, tstep; kwargs...)
+end
+
+function flow_enclosure(
+    dynamics::SymbolicDynamics,
+    cell::LazySets.AbstractHyperrectangle,
+    guess_low,
+    guess_high,
+    u,
+    tstep;
+    kwargs...,
+)
+    source = _cell_box(LazySets.center(cell), LazySets.radius_hyperrectangle(cell))
+    return _flow_enclosure(dynamics, source, guess_low, guess_high, u, tstep; kwargs...)
+end
+
+function _flow_enclosure(
+    dynamics::SymbolicDynamics{N, M},
+    source,
+    guess_low,
+    guess_high,
+    u,
+    tstep;
     max_iterations::Int = 10,
     inflation::Real = 0.1,
     shrink::Bool = false,
-)
-    lo = min.(cell_low, guess_low)
-    hi = max.(cell_high, guess_high)
+) where {N, M}
+    length(source) == length(guess_low) == length(guess_high) == N ||
+        throw(DimensionMismatch("cell and guess must have $N state coordinates"))
+    length(u) == M || throw(DimensionMismatch("input must have $M coordinates"))
+    isfinite(tstep) && tstep >= 0 ||
+        throw(ArgumentError("tstep must be finite and nonnegative"))
+    isfinite(inflation) && inflation >= 0 ||
+        throw(ArgumentError("inflation must be finite and nonnegative"))
+    # Detect the library's non-rigorous rounding mode without relying on its configuration
+    # internals. The upper endpoint of this sum must round up from halfway between floats.
+    one_interval = IA.interval(Float64, 1.0)
+    half_ulp = IA.interval(Float64, eps(1.0) / 2)
+    IA.sup(one_interval + half_ulp) >= nextfloat(1.0) ||
+        throw(ArgumentError("flow_enclosure requires outward interval rounding"))
+
+    guess = _box(guess_low, guess_high)
+    time = IA.interval(Float64, 0, tstep)
     ubox = _point_box(u)
+    all(_valid_interval_enclosure, source) &&
+    all(_valid_interval_enclosure, guess) &&
+    all(_valid_interval_enclosure, ubox) &&
+    _valid_interval_enclosure(time) || return nothing
+    B = _interval_hull.(source, guess)
     for _ in 1:max_iterations
-        F = dynamics.f_interval(_box(lo, hi), ubox)
-        flo = [IA.inf(_to_interval(v)) for v in F]
-        fhi = [IA.sup(_to_interval(v)) for v in F]
-        (all(isfinite, flo) && all(isfinite, fhi)) || return nothing
-        Elo = cell_low .+ tstep .* min.(0.0, flo)
-        Ehi = cell_high .+ tstep .* max.(0.0, fhi)
-        if all(Elo .>= lo) && all(Ehi .<= hi)
-            return shrink ? (Elo, Ehi) : (lo, hi)
+        F = _to_interval.(dynamics.f_interval(B, ubox))
+        all(_valid_interval_enclosure, F) || return nothing
+        E = source .+ Ref(time) .* F
+        all(_valid_interval_enclosure, E) || return nothing
+        if all(i -> IA.isinterior(E[i], B[i]), eachindex(B))
+            enclosure = shrink ? E : B
+            return IA.inf.(enclosure), IA.sup.(enclosure)
         end
-        nlo, nhi = min.(lo, Elo), max.(hi, Ehi)
-        w = nhi .- nlo
-        lo, hi = nlo .- inflation .* w, nhi .+ inflation .* w
+        for i in eachindex(B)
+            lo = min(IA.inf(B[i]), IA.inf(E[i]))
+            hi = max(IA.sup(B[i]), IA.sup(E[i]))
+            # Inflation only proposes a new box. The next inclusion test validates it.
+            padding = iszero(inflation) ? 0.0 : inflation * (hi - lo)
+            inflated_lo = min(prevfloat(lo), lo - padding)
+            inflated_hi = max(nextfloat(hi), hi + padding)
+            isfinite(inflated_lo) && isfinite(inflated_hi) || return nothing
+            B[i] = IA.interval(Float64, inflated_lo, inflated_hi)
+        end
     end
     return nothing
 end
@@ -293,15 +377,9 @@ previous, smaller image), `ngrowthbound = nsystem = ST.DEFAULT_NUM_SUBSTEPS`, an
 [`flow_enclosure`](@ref) options `max_enclosure_iterations = 10`, `enclosure_inflation = 0.1`,
 `shrink_enclosure = false`.
 
-`boundary_tolerance = 1e-9` is the fraction of the cell radius by which the radius of every image
-is deflated, so that an image that merely *touches* a neighbouring cell along a face does not
-count as overlapping it. This matters whenever some coordinate evolves exactly on the grid, e.g.
-`q̇ = u` with `τ u` a multiple of the cell size: its image is exactly one cell, and with closed
-cells (the `OUTER` lookup of Dionysos has `tol = 0`) it would otherwise be reported as three. It is
-the half-open-cell convention of grid abstractions; the tolerance is orders of magnitude above
-floating-point noise and orders of magnitude below any actual growth, but it does mean that an
-image protruding into a neighbour by less than `boundary_tolerance · r` is ignored. Use `0` for
-the strict closed-cell behaviour.
+`boundary_tolerance = 1e-9` is the fraction of the cell radius removed from every image to suppress
+face contacts. It can also remove true successors near a face. Set it to `0` to disable the
+deflation and keep the closed-cell lookup of the computed box.
 
 Fields of interest: `global_growth` (the Dionysos `DiscreteTimeGrowthBound` used for step 2 and as
 fallback) and `stats` (see [`LocalGrowthBoundStats`](@ref)).
@@ -431,7 +509,6 @@ ST.input_cache(lgb::LocalGrowthBound, r, u) = ST.input_cache(lgb.global_growth, 
 function ST.reach_set(lgb::LocalGrowthBound, cell, u, global_radius)
     c = LazySets.center(cell)
     r0 = LazySets.radius_hyperrectangle(cell)
-    cell_low, cell_high = LazySets.low(cell), LazySets.high(cell)
     Fc = ST.get_system_map(lgb.global_growth)(c, u)      # centre simulation
     Threads.atomic_add!(lgb.stats.calls, 1)
 
@@ -441,8 +518,7 @@ function ST.reach_set(lgb::LocalGrowthBound, cell, u, global_radius)
         # enclose the whole flow tube, and the Jacobian bounded over it.
         B = flow_enclosure(
             lgb.dynamics,
-            cell_low,
-            cell_high,
+            cell,
             Fc .- ρ,
             Fc .+ ρ,
             u,
@@ -460,12 +536,12 @@ function ST.reach_set(lgb::LocalGrowthBound, cell, u, global_radius)
             Threads.atomic_add!(lgb.stats.unbounded, 1)
             break
         end
-        # Step 4: the image with the local growth bound. Both radii are valid, take the smaller.
+        # Step 4: recompute the radius from the local Jacobian and keep the smaller estimate.
         ρ_local = ST.runge_kutta4((r, _) -> L * r, r0, u, lgb.tstep, lgb.ngrowthbound)
         ρ = min.(ρ, ρ_local)
     end
     any(ρ .< global_radius) && Threads.atomic_add!(lgb.stats.improved, 1)
-    # Half-open cells: an image touching a neighbour along a face does not overlap it.
+    # Suppress face contacts, with the loss of coverage described in the constructor docs.
     ρ = max.(ρ .- lgb.boundary_tolerance .* r0, 0.0)
     return LazySets.Hyperrectangle(Fc, ρ)
 end
@@ -478,6 +554,29 @@ ST.get_over_approximation_map(lgb::LocalGrowthBound) =
         ST.input_cache(lgb, LazySets.radius_hyperrectangle(elem), u),
     )
 
+"""
+    overapproximation_map(approx::ST.DiscreteTimeSystemOverApproximation, state_grid) -> Function
+
+The function `(cell, u) -> reach set` that the `USER_DEFINED` mode of the `UniformGridAbstraction`
+optimizer takes as its `overapproximation_map`. It reproduces what the kernel does for the
+approximations that Dionysos knows: `ST.input_cache` is evaluated **once per input** (for the uniform
+cell radius `h/2` of `state_grid`), not once per cell, and `ST.reach_set` is then called with it. The
+table of caches is shared by the threads of the build, behind a lock (a lookup is negligible next to
+the reach set of one cell).
+
+[`CertifiedRK4GrowthBound`](@ref) has its own method, which needs the grid to find the cells that
+its image can quantize into.
+"""
+function overapproximation_map(approx::ST.DiscreteTimeSystemOverApproximation, state_grid)
+    r = MP.get_h(state_grid) / 2.0
+    caches = Dict{Any, Any}()
+    lock = ReentrantLock()
+    return (elem, u) -> begin
+        cache = @lock lock get!(() -> ST.input_cache(approx, r, u), caches, u)
+        return ST.reach_set(approx, elem, u, cache)
+    end
+end
+
 # ------------------------------------------------------------------------------------------
 # Building the transition system with Dionysos
 # ------------------------------------------------------------------------------------------
@@ -488,9 +587,10 @@ ST.get_over_approximation_map(lgb::LocalGrowthBound) =
                       merge_chunks = nothing, attributes...) -> optimizer
 
 Discrete-time transition system (symbolic model) of the system of `approx`, computed by the
-Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode with the reach sets of
-`approx`: any `DiscreteTimeSystemOverApproximation` works, in particular a [`LocalGrowthBound`](@ref)
-and its `global_growth` (the baseline to compare with).
+Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode, with the function that
+[`overapproximation_map`](@ref) builds from `approx` and `state_grid`. Its `ST.input_cache` is
+computed once per input per build. For a [`LocalGrowthBound`](@ref) this caches the global starting
+radius across cells. Pass `lgb.global_growth` to build the global baseline.
 
 `state_grid` / `input_grid` are Dionysos grids (`MP.GridFree(x0, h)`); further keyword arguments
 are forwarded as optimizer attributes (`execution_backend`, `use_implicit_mapping`, ...).
@@ -512,6 +612,17 @@ optimizer). With `merge_chunks = (; outdir, nchunks)` the transitions are not co
 those chunks: into the optimizer ([`merge_chunks!`](@ref)), or, if there is an `abstraction_file`,
 straight into that file ([`merge_chunks_to_file`](@ref)), which needs far less memory and leaves the
 optimizer **without** an abstraction (run again with the file to load it).
+
+**Certified approximations.** A `CertifiedRK4GrowthBound` can use cache files and chunks. They store
+its provenance (`CertifiedRK4.get_provenance`: the kernel version, the sampling period, the substeps
+and a fingerprint of the dynamics, plus a fingerprint of the cells and inputs): in the cache file,
+and for a chunk in a small file next to it (`provenance_part_<id>_of_<N>.jld2`, with the size and a
+fingerprint of the chunk file, written once the chunk is complete and removed before any chunk is
+computed). Loading or merging **refuses** anything that does not carry the same provenance: a file or
+chunk computed by an uncertified approximation, by another version of the kernel, for other
+dynamics, grids, state box or carving, or a chunk modified after its record was written. The
+`abstraction_info` you pass should still identify what the provenance cannot see (the
+specification, `state_input_filter`, ...).
 """
 function build_abstraction(
     approx::ST.DiscreteTimeSystemOverApproximation;
@@ -523,6 +634,19 @@ function build_abstraction(
     merge_chunks = nothing,
     attributes...,
 )
+    if approx isa CertifiedRK4GrowthBound
+        # Cache files and chunks are allowed: they record how their transitions were computed
+        # (`provenance`), and are refused unless it is this construction.
+        for name in (:overapproximation_map, :approx_mode, :out_of_domain_handler)
+            haskey(attributes, name) &&
+                throw(ArgumentError("cannot override $name in a certified RK4 abstraction"))
+        end
+    end
+    backend = get(attributes, :execution_backend, nothing)
+    chunk_job = backend isa SY.SlurmArrayBackend && merge_chunks === nothing
+    # A chunk and its provenance record go together: the record of an older chunk must not outlive
+    # it, whoever overwrites the chunk file (it is written again when this one is complete).
+    chunk_job && _forget_chunk_provenance(backend)
     system = ST.get_system(approx)
     problem = PR.AlternatingSimulationProblem(system, system.X)
 
@@ -538,7 +662,7 @@ function build_abstraction(
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("overapproximation_map"),
-        ST.get_over_approximation_map(approx),
+        overapproximation_map(approx, state_grid),
     )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), print_level)
     for (name, value) in attributes
@@ -547,20 +671,32 @@ function build_abstraction(
     if abstraction_file !== nothing && isfile(abstraction_file)
         print_level >= 1 &&
             @info "Loading the abstraction from $abstraction_file (not computed)"
-        load_abstraction!(optimizer, abstraction_file; info = abstraction_info, print_level)
+        load_abstraction!(
+            optimizer,
+            abstraction_file;
+            info = abstraction_info,
+            print_level,
+            approx,
+        )
     else
         abstraction_file === nothing ||
             @warn "$abstraction_file does not exist (relative paths are relative to $(pwd())): the abstraction is built (computed or merged from chunks), then written there"
         if merge_chunks === nothing
             MOI.optimize!(optimizer)
-            abstraction_file === nothing ||
-                save_abstraction(abstraction_file, optimizer; info = abstraction_info)
+            chunk_job && _record_chunk_provenance(backend, optimizer, approx)
+            abstraction_file === nothing || save_abstraction(
+                abstraction_file,
+                optimizer;
+                info = abstraction_info,
+                approx,
+            )
         elseif abstraction_file === nothing
             merge_chunks!(
                 optimizer,
                 merge_chunks.outdir;
                 nchunks = merge_chunks.nchunks,
                 print_level = max(print_level, 1),
+                approx,
             )
         else
             # Straight from the chunks to the file: no automaton, hence a small fraction of the memory.
@@ -571,6 +707,7 @@ function build_abstraction(
                 nchunks = merge_chunks.nchunks,
                 info = abstraction_info,
                 print_level = max(print_level, 1),
+                approx,
             )
         end
     end
@@ -591,12 +728,130 @@ end
 
 _peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
 
+# ------------------------------------------------------------------------------------------
+# Provenance of the stored transitions
+# ------------------------------------------------------------------------------------------
+
+# Transitions that are written to a file (a cache, or the chunk of a Slurm array) and read back later
+# are only as trustworthy as the record of how they were computed. An approximation that keeps such a
+# record (`provenance`) has it stored with the transitions and checked when they are read, so that
+# they cannot be mixed with transitions computed another way. Dionysos itself stores no such record:
+# the cache file is this module's, and a chunk gets a small file of its own next to it.
+
+"""
+    provenance(approx) -> Union{Nothing, NamedTuple}
+
+Plain data that identifies **how** the successors of `approx` are computed: for a
+[`CertifiedRK4GrowthBound`](@ref), `CertifiedRK4.get_provenance`. `nothing`, the default, means that
+`approx` keeps no record and that stored transitions are not checked (the local growth bound).
+"""
+provenance(approx) = nothing
+provenance(approx::CertifiedRK4GrowthBound) = CertifiedRK4.get_provenance(approx)
+
+function _ids_fingerprint(abstract_system)
+    fp = CertifiedRK4.fingerprint
+    h = fp((
+        SY.get_n_state(abstract_system),
+        SY.get_n_allowed_state(abstract_system),
+        SY.get_n_input(abstract_system),
+    ))
+    for q in SY.enum_allowed_states(abstract_system)
+        h = fp(q, h)
+        h = fp(SY.get_concrete_state(abstract_system, q), h)
+    end
+    for u in SY.enum_inputs(abstract_system)
+        h = fp(u, h)
+        h = fp(SY.get_concrete_input(abstract_system, u), h)
+    end
+    return CertifiedRK4.fingerprint_string(h)
+end
+
+"""
+    abstraction_provenance(abstract_system, approx) -> Union{Nothing, NamedTuple}
+
+What a cache file or a chunk must record so that the transitions computed for `(abstract_system,
+approx)` are only read back by the same construction: [`provenance`](@ref)`(approx)`, and a
+fingerprint of the cells (the retained states, with their ids) and of the inputs behind the abstract
+ids. The latter catches another grid, state box or carving that happens to have the same number of
+states. `nothing` if `approx` keeps no record. `abstract_system` is the whole model, not a partition.
+"""
+function abstraction_provenance(abstract_system, approx)
+    approximation = provenance(approx)
+    approximation === nothing && return nothing
+    return (; approximation, ids = _ids_fingerprint(abstract_system))
+end
+
+# Error unless the provenance `found` in `what` (a cache file or a chunk) is the `expected` one.
+function check_provenance(found, expected, what)
+    found == expected && return nothing
+    reason = if found === nothing
+        "it has no provenance record: it was computed by an approximation that keeps none (not " *
+        "certified), or before provenance was recorded"
+    elseif expected === nothing
+        "it records the provenance of a certified construction, and this abstraction's " *
+        "approximation has none"
+    else
+        "it was computed by another construction (other dynamics, sampling period, kernel " *
+        "version, grid, state box or carving)"
+    end
+    return error(
+        "$what cannot be used for this abstraction: $reason.\n" *
+        "stored:    $found\nrequested: $expected",
+    )
+end
+
+_provenance_file(outdir, id, nchunks) =
+    joinpath(outdir, "provenance_part_$(id)_of_$(nchunks).jld2")
+
+function _forget_chunk_provenance(backend::SY.SlurmArrayBackend)
+    backend.chunk_id === nothing && return nothing
+    file = _provenance_file(backend.outdir, backend.chunk_id, backend.nchunks)
+    isfile(file) && rm(file)
+    return nothing
+end
+
+# The size and fingerprint of a chunk file, to bind its record to its content.
+_chunk_digest(file) =
+    (; bytes = filesize(file), fingerprint = CertifiedRK4.fingerprint_file(file))
+
+# Once the chunk is complete: its provenance, and the digest of the file it describes.
+function _record_chunk_provenance(backend::SY.SlurmArrayBackend, optimizer, approx)
+    expected = abstraction_provenance(
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system")),
+        approx,
+    )
+    expected === nothing && return nothing
+    chunk = SY.slurm_chunk_file(backend.outdir, backend.chunk_id, backend.nchunks)
+    file = _provenance_file(backend.outdir, backend.chunk_id, backend.nchunks)
+    JLD2.jldsave(file * ".tmp"; provenance = expected, digest = _chunk_digest(chunk))
+    mv(file * ".tmp", file; force = true)
+    return nothing
+end
+
+# Chunk `id` must have been computed by the construction `expected` (`nothing`: one without a
+# record, which a chunk with a record is not), and must not have changed since.
+function _check_chunk_provenance(outdir, id, nchunks, expected)
+    what = "chunk $id of $nchunks"
+    file = _provenance_file(outdir, id, nchunks)
+    record = isfile(file) ? JLD2.load(file) : nothing
+    check_provenance(record === nothing ? nothing : record["provenance"], expected, what)
+    expected === nothing && return nothing
+    chunk = SY.slurm_chunk_file(outdir, id, nchunks)
+    isfile(chunk) || return nothing           # reading it will say that it is missing
+    record["digest"] == _chunk_digest(chunk) || error(
+        "$what was modified after its provenance was recorded ($file): it is not the chunk " *
+        "that the certified construction wrote",
+    )
+    return nothing
+end
+
 # File format: `n_state`, `n_input`, `info`, `probe`, then the transitions in `nparts` parts (one per
 # chunk of a Slurm array, one in all for `save_abstraction`) as the integer vectors `target_k`,
 # `source_k`, `symbol_k`, and `n_transitions`. The files of the first version (one part, keys `target`,
 # `source`, `symbol`, no `nparts`) are still read. `parts` is an iterator, so that the parts of a big
-# abstraction are never all in memory.
-function _write_abstraction(file, abstract_system, info, parts)
+# abstraction are never all in memory. `provenance` (`abstraction_provenance`) is stored under its
+# own key when the approximation has one, and is absent otherwise.
+function _write_abstraction(file, abstract_system, info, parts; provenance = nothing)
     mkpath(dirname(abspath(file)))
     tmp = file * ".tmp"
     nparts, n = 0, 0
@@ -605,6 +860,7 @@ function _write_abstraction(file, abstract_system, info, parts)
         f["n_input"] = SY.get_n_input(abstract_system)
         f["info"] = info
         f["probe"] = _id_probe(abstract_system)
+        provenance === nothing || (f["provenance"] = provenance)
         for (target, source, symbol) in parts
             nparts += 1
             f["target_$nparts"], f["source_$nparts"], f["symbol_$nparts"] =
@@ -620,15 +876,20 @@ function _write_abstraction(file, abstract_system, info, parts)
 end
 
 """
-    save_abstraction(file, optimizer; info = nothing)
+    save_abstraction(file, optimizer; info = nothing, approx = nothing)
 
 Write the transitions of the abstraction cached in `optimizer` (see [`build_abstraction`](@ref)) to
 `file` (JLD2, three integer vectors `target`, `source`, `symbol` per part: 12 bytes per transition). The
 compiled symbolic dynamics cannot be saved, so only the transitions are: they are all the control
 synthesis needs. `info` is any plain data that identifies the problem (grids, state box, `tstep`, ...):
 it is stored, and [`load_abstraction!`](@ref) refuses a file whose `info` differs.
+
+`approx` is the approximation the transitions were computed with. If it keeps a record of how it
+computes them ([`provenance`](@ref), as a `CertifiedRK4GrowthBound` does), that record is stored too,
+with a fingerprint of the cells, and a file without it is refused when loaded for such an
+approximation (and the other way round).
 """
-function save_abstraction(file::AbstractString, optimizer; info = nothing)
+function save_abstraction(file::AbstractString, optimizer; info = nothing, approx = nothing)
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     n_state = SY.get_n_state(abstract_system)
     n_input = SY.get_n_input(abstract_system)
@@ -641,19 +902,27 @@ function save_abstraction(file::AbstractString, optimizer; info = nothing)
         target[k], source[k], symbol[k] = t, s, u
     end
     k == n || error("the abstraction has $k transitions, expected $n")
-    _write_abstraction(file, abstract_system, info, ((target, source, symbol),))
+    _write_abstraction(
+        file,
+        abstract_system,
+        info,
+        ((target, source, symbol),);
+        provenance = abstraction_provenance(abstract_system, approx),
+    )
     return file
 end
 
 """
-    merge_chunks!(optimizer, outdir; nchunks, print_level = 0) -> abstract_system
+    merge_chunks!(optimizer, outdir; nchunks, print_level = 0, approx = nothing) -> abstract_system
 
 Fill the abstraction of `optimizer` (built with the same problem, grids and attributes as the
 chunks, but not computed) with the transitions of the `nchunks` files that the jobs of a Slurm array
 wrote in `outdir` (each one computed by [`build_abstraction`](@ref) with
 `execution_backend = SY.SlurmArrayBackend(nchunks, chunk_id, outdir, :contiguous, true)`), and cache
 it in the optimizer. Errors if a chunk is missing or was computed for another number of chunks,
-states or inputs. All the transitions end up in an automaton: for a big abstraction use
+states or inputs, or (if `approx` keeps a record of how it computes the transitions,
+`provenance`) by another construction than `approx`: dynamics, sampling period, kernel,
+grids, state box or carving. All the transitions end up in an automaton: for a big abstraction use
 [`merge_chunks_to_file`](@ref) instead.
 """
 function merge_chunks!(
@@ -661,23 +930,31 @@ function merge_chunks!(
     outdir::AbstractString;
     nchunks::Int,
     print_level::Int = 0,
+    approx = nothing,
 )
     abstract_system =
         AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
+    expected = abstraction_provenance(abstract_system, approx)
+    for id in 1:nchunks
+        _check_chunk_provenance(outdir, id, nchunks, expected)
+    end
     SY.merge_transition_chunks!(abstract_system, outdir; nchunks, print_level)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
     return abstract_system
 end
 
 """
-    merge_chunks_to_file(optimizer, outdir, file; nchunks, info = nothing, print_level = 0) -> n
+    merge_chunks_to_file(optimizer, outdir, file; nchunks, info = nothing, print_level = 0,
+                         approx = nothing) -> n
 
 Write the transitions of the `nchunks` chunks in `outdir` (see [`merge_chunks!`](@ref)) to `file`
 ([`save_abstraction`](@ref) format) **without building the abstraction in memory**: the chunks are read
 and written one after the other, so the memory is that of one chunk (about 24 bytes per transition of
 it), instead of the hundreds of bytes per transition of the automaton. Returns the number of
 transitions. Errors if a chunk is missing or was computed for another number of chunks, states or
-inputs. The optimizer is left without an abstraction: [`load_abstraction!`](@ref) fills it from `file`.
+inputs, or by another construction than `approx` (see [`merge_chunks!`](@ref)); the provenance of
+`approx`, if it has one, is stored in the file. The optimizer is left without an abstraction:
+[`load_abstraction!`](@ref) fills it from `file`.
 With `print_level ≥ 1` every chunk is logged with the peak memory of the process so far.
 """
 function merge_chunks_to_file(
@@ -687,22 +964,27 @@ function merge_chunks_to_file(
     nchunks::Int,
     info = nothing,
     print_level::Int = 0,
+    approx = nothing,
 )
     abstract_system =
         AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
+    expected = abstraction_provenance(abstract_system, approx)
     n_state, n_input = SY.get_n_state(abstract_system), SY.get_n_input(abstract_system)
     T = max(n_state, n_input) < typemax(Int32) ? Int32 : Int
     seen = Ref(0)
     function part(id)
+        _check_chunk_provenance(outdir, id, nchunks, expected)
         data = try
             SY.read_transition_chunk(outdir, id, nchunks)
         catch e
             error(
                 "chunk $id of $nchunks cannot be read ($(SY.slurm_chunk_file(outdir, id, nchunks))): " *
-                "missing, or its task was killed while writing it: " * sprint(showerror, e),
+                "missing, or its task was killed while writing it: " *
+                sprint(showerror, e),
             )
         end
-        data.chunk_id == id || error("chunk $id: its file says it is chunk $(data.chunk_id)")
+        data.chunk_id == id ||
+            error("chunk $id: its file says it is chunk $(data.chunk_id)")
         data.nchunks == nchunks ||
             error("chunk $id was computed for $(data.nchunks) chunks, not $nchunks")
         (data.nstates, data.ninputs) == (n_state, n_input) || error(
@@ -710,7 +992,8 @@ function merge_chunks_to_file(
             "$n_state and $n_input: it was computed for another grid or state box",
         )
         n = length(data.transitions)
-        target, source, symbol = Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n)
+        target, source, symbol =
+            Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n)
         for (k, (t, s, u)) in enumerate(data.transitions)
             target[k], source[k], symbol[k] = t, s, u
         end
@@ -725,7 +1008,13 @@ function merge_chunks_to_file(
     end
     # The optimizer must not keep the empty abstraction: it would look computed.
     optimizer.abstraction_solver.abstract_system = nothing
-    n = _write_abstraction(file, abstract_system, info, (part(id) for id in 1:nchunks))
+    n = _write_abstraction(
+        file,
+        abstract_system,
+        info,
+        (part(id) for id in 1:nchunks);
+        provenance = expected,
+    )
     print_level >= 1 && @info(
         "Merged $nchunks chunks to $file",
         transitions = n,
@@ -736,20 +1025,23 @@ function merge_chunks_to_file(
 end
 
 """
-    load_abstraction!(optimizer, file; info = nothing, print_level = 0) -> abstract_system
+    load_abstraction!(optimizer, file; info = nothing, print_level = 0, approx = nothing) -> abstract_system
 
 Fill the abstraction of `optimizer` (built with the same problem, grids and attributes as the one that
 was saved, but not computed) with the transitions of `file` written by [`save_abstraction`](@ref) or
 [`merge_chunks_to_file`](@ref), and cache it in the optimizer so that a control problem can be set
 and solved on it. Errors if `info`, the number of states and inputs or the cells behind the state ids
-differ from the saved ones. With `print_level ≥ 1` the loading is logged part by part, with the peak
-memory of the process.
+differ from the saved ones, or if the provenance stored in the file is not that of `approx` (see
+[`save_abstraction`](@ref)): in particular a file computed without a record of how, by an
+uncertified approximation, is refused for a certified one. With `print_level ≥ 1` the loading is
+logged part by part, with the peak memory of the process.
 """
 function load_abstraction!(
     optimizer,
     file::AbstractString;
     info = nothing,
     print_level::Int = 0,
+    approx = nothing,
 )
     return JLD2.jldopen(file, "r") do f
         f["info"] == info || error(
@@ -757,6 +1049,11 @@ function load_abstraction!(
         )
         abstract_system =
             AB.UniformGridAbstraction.build_empty_abstraction!(optimizer.abstraction_solver)
+        check_provenance(
+            haskey(f, "provenance") ? f["provenance"] : nothing,
+            abstraction_provenance(abstract_system, approx),
+            file,
+        )
         (SY.get_n_state(abstract_system), SY.get_n_input(abstract_system)) ==
         (f["n_state"], f["n_input"]) || error(
             "$file has $(f["n_state"]) states and $(f["n_input"]) inputs, the problem has " *
@@ -766,7 +1063,8 @@ function load_abstraction!(
             error("$file numbers the cells differently: another state grid or state box")
         nparts = haskey(f, "nparts") ? f["nparts"] : 0       # 0: the first version of the format
         total = haskey(f, "n_transitions") ? f["n_transitions"] : nothing
-        print_level >= 1 && @info("Loading $file", parts = max(nparts, 1), transitions = total)
+        print_level >= 1 &&
+            @info("Loading $file", parts = max(nparts, 1), transitions = total)
         loaded = 0
         # In blocks: a single vector of all the `(target, source, symbol)` tuples (24 bytes each) would
         # be a needless peak for a big abstraction.
