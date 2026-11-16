@@ -118,7 +118,7 @@ State space: 123420 cells (...), 3332340 (cell, input) pairs: about 13.3 M trans
 Run with one thread (`-t 1`), the estimate is the total core time: 11.1 min for the default box, and the
 three chunks of a local test took 3 min each (the estimate is rough, and was optimistic by 1.5× on 10
 threads). A task needs, besides its share of the work, a fixed **start-up** (loading Julia and the packages, building
-the model and the local growth bound, carving the state box: of the order of a minute with a valid
+the model and the certified approximation, carving the state box: of the order of a minute with a valid
 precompilation cache, §1; the chunk log says `packages_loaded_in_s`), so the
 chunks must be long enough for it not to dominate: aim for 10–30 minutes per task, i.e.
 `N ≈ total core time / 20 min`. Set `--time` of `submit_compute_chunks.sbatch` (default 1 h, 4 GB) with a

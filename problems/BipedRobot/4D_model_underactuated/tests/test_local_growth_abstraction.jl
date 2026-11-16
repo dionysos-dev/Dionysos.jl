@@ -12,10 +12,13 @@ import LazySets
 import MathematicalSystems as MS
 import MathOptInterface as MOI
 import JLD2
+import IntervalArithmetic
 
 const ST = Dionysos.System
 const SY = Dionysos.Symbolic
 const MP = Dionysos.Mapping
+const PR = Dionysos.Problem
+const UGA = Dionysos.Optim.Abstraction.UniformGridAbstraction
 
 include(joinpath(@__DIR__, "..", "Multibody2D.jl"))
 include(joinpath(@__DIR__, "..", "LocalGrowthAbstraction.jl"))
@@ -23,6 +26,8 @@ using .Multibody2D
 using .LocalGrowthAbstraction
 const LGA = LocalGrowthAbstraction
 const CertifiedRK4 = LGA.CertifiedRK4
+
+Random.seed!(1234)
 
 Random.seed!(1234)
 
@@ -35,9 +40,27 @@ X_pend = LazySets.Hyperrectangle(; low = [-3.0, -6.0], high = [3.0, 6.0])
 U_pend = LazySets.Hyperrectangle(; low = [-2.0], high = [2.0])
 tstep = 0.1
 
-lgb = LocalGrowthBound(f_pend, collect(x), collect(u), X_pend, U_pend, tstep)
-dyn = lgb.dynamics
+dyn = SymbolicDynamics(f_pend, collect(x), collect(u))
+system_pend = MS.ConstrainedBlackBoxControlContinuousSystem(dyn.f, 2, 1, X_pend, U_pend)
 flow(x0, u0, τ) = ST.runge_kutta4(dyn.f, SVector{2}(x0), u0, τ, 400)   # accurate reference
+
+# The growth bound of Dionysos over the whole state set (one matrix per input) is the baseline of
+# the growth bound per cell, `cellwise_bound`, that Dionysos integrates in the same way.
+global_bound(dynamics, X) =
+    u -> LGA.jacobian_bound(dynamics, LazySets.low(X), LazySets.high(X), u)
+growth(jacobian_bound; system = system_pend, tstep = tstep) =
+    ST.discretize(ST.ContinuousTimeGrowthBound(system; jacobian_bound), tstep)
+global_growth = growth(global_bound(dyn, X_pend))
+cellwise_growth = growth(cellwise_bound(dyn))
+
+# The abstraction of the pendulum by the `GROWTH` mode of the Dionysos optimizer.
+pendulum_abstraction(jacobian_bound; kwargs...) = build_abstraction(
+    system_pend;
+    approx_mode = UGA.GROWTH,
+    jacobian_bound,
+    time_step = tstep,
+    kwargs...,
+)
 
 function random_cell(h)
     c = SVector(rand() * 5 - 2.5, rand() * 10 - 5)
@@ -75,7 +98,7 @@ random_point(cell) =
             cell = random_cell((0.2, 0.4))
             uval = [4 * rand() - 2]
             global_img =
-                ST.get_over_approximation_map(lgb.global_growth)(cell, SVector(uval...))
+                ST.get_over_approximation_map(global_growth)(cell, SVector(uval...))
             B = LGA.flow_enclosure(
                 dyn,
                 LazySets.low(cell),
@@ -264,10 +287,51 @@ random_point(cell) =
         )
     end
 
-    @testset "local image is sound, and never worse than the global one" begin
-        reset_stats!(lgb)
-        over_local = ST.get_over_approximation_map(lgb)
-        over_global = ST.get_over_approximation_map(lgb.global_growth)
+    @testset "cellwise_bound supplies the two functions of ST.CellwiseBound" begin
+        cb = cellwise_bound(dyn)
+        @test cb isa ST.CellwiseBound
+        cell, uval = random_cell((0.2, 0.4)), SVector(0.7)
+        E = cb.enclosure(cell, uval, tstep)
+        @test E isa StepEnclosure
+        for _ in 1:10, t in range(0, tstep; length = 11)         # the whole tube, not only its end
+            y = flow(random_point(cell), uval, t)
+            @test all(E.low .- 1e-9 .<= y .<= E.high .+ 1e-9)
+        end
+        @test cb.bound(E, uval) == E.L == LGA.jacobian_bound(dyn, E.low, E.high, uval)
+
+        # No verified enclosure (a step too long for the Picard test): `nothing`, which Dionysos
+        # turns into an input that is not admissible at that cell.
+        slow = cellwise_bound(dyn; max_iterations = 2)
+        @test slow.enclosure(cell, SVector(1.0), 3.0) === nothing
+        over_slow = ST.get_over_approximation_map(growth(slow; tstep = 3.0))
+        @test over_slow(cell, SVector(1.0)) === nothing
+
+        # An enclosure whose Jacobian is not bounded disables the input too.
+        f_unbounded = (xv, uv) -> SVector(uv[1])
+        f_interval = (xb, ub) -> [ub[1]]
+        jacobian_interval =
+            (xb, ub) -> reshape([IntervalArithmetic.entireinterval(Float64)], 1, 1)
+        unbounded = SymbolicDynamics{
+            1,
+            1,
+            typeof(f_unbounded),
+            typeof(f_interval),
+            typeof(jacobian_interval),
+        }(
+            f_unbounded,
+            f_interval,
+            jacobian_interval,
+        )
+        @test cellwise_bound(unbounded).enclosure(
+            LazySets.Hyperrectangle([0.0], [0.1]),
+            SVector(1.0),
+            0.1,
+        ) === nothing
+    end
+
+    @testset "cellwise image is sound, and never worse than the global one" begin
+        over_local = ST.get_over_approximation_map(cellwise_growth)
+        over_global = ST.get_over_approximation_map(global_growth)
         n_better = 0
         for _ in 1:60
             cell = random_cell((0.2, 0.4))
@@ -288,120 +352,20 @@ random_point(cell) =
             end
         end
         @test n_better > 30
-        s = stats(lgb)
-        @test s.calls == 60 && s.improved == n_better && s.enclosure_failures == 0
     end
 
-    @testset "refinements only tighten" begin
-        lgb2 = LocalGrowthBound(
-            f_pend,
-            collect(x),
-            collect(u),
-            X_pend,
-            U_pend,
-            tstep;
-            refinements = 3,
-        )
-        lgb0 = LocalGrowthBound(
-            f_pend,
-            collect(x),
-            collect(u),
-            X_pend,
-            U_pend,
-            tstep;
-            refinements = 0,
-        )
-        for _ in 1:20
-            cell, uval = random_cell((0.2, 0.4)), SVector(4 * rand() - 2)
-            r0 = LazySets.radius_hyperrectangle(
-                ST.get_over_approximation_map(lgb0)(cell, uval),
-            )
-            r1 = LazySets.radius_hyperrectangle(
-                ST.get_over_approximation_map(lgb)(cell, uval),
-            )
-            r3 = LazySets.radius_hyperrectangle(
-                ST.get_over_approximation_map(lgb2)(cell, uval),
-            )
-            @test all(r3 .<= r1 .+ 1e-12) && all(r1 .<= r0 .+ 1e-12)
-            r_glob = LazySets.radius_hyperrectangle(
-                ST.get_over_approximation_map(lgb.global_growth)(cell, uval),
-            )
-            @test r0 ≈ r_glob                                   # 0 refinements = Dionysos' global bound
-        end
-    end
-
-    @testset "fallback to the global bound when no enclosure exists" begin
-        slow = LocalGrowthBound(
-            f_pend,
-            collect(x),
-            collect(u),
-            X_pend,
-            U_pend,
-            3.0;
-            max_enclosure_iterations = 2,
-        )
-        cell, uval = random_cell((0.2, 0.4)), SVector(1.0)
-        Rl = ST.get_over_approximation_map(slow)(cell, uval)
-        Rg = ST.get_over_approximation_map(slow.global_growth)(cell, uval)
-        @test LazySets.radius_hyperrectangle(Rl) ≈ LazySets.radius_hyperrectangle(Rg)
-        @test stats(slow).enclosure_failures == 1
-    end
-
-    @testset "images touching a neighbour along a face do not overlap it" begin
-        # ẋ = u on a lattice: τ·u is exactly one cell, so the image of a cell is exactly a cell.
-        @variables y[1:2] w[1:2]
-        Xl = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [1.0, 1.0])
-        Ul = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [1.0, 1.0])
-        h = SVector(0.1, 0.1)
-        cell = LazySets.Hyperrectangle(SVector(0.0, 0.0), h ./ 2)
-        grid = MP.GridFree(SVector(0.0, 0.0), h)
-        ugrid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
-        function nsuccessors(tol)
-            l = LocalGrowthBound(
-                collect(w),
-                collect(y),
-                collect(w),
-                Xl,
-                Ul,
-                0.1;
-                boundary_tolerance = tol,
-            )
-            sym = MOI.get(
-                build_abstraction(l; state_grid = grid, input_grid = ugrid),
-                MOI.RawOptimizerAttribute("abstract_system"),
-            )
-            q = SY.get_abstract_state(sym, [0.0, 0.0])
-            i = SY.get_abstract_input(sym, [1.0, 0.0])
-            return count(t -> t[2] == q && t[3] == i, SY.enum_transitions(sym))
-        end
-        @test nsuccessors(1e-9) == 1            # exactly the cell one step to the right
-        @test nsuccessors(0.0) == 9             # closed cells: touching neighbours are included
-    end
-
-    @testset "transition systems: local ⊆ global, and sound" begin
+    @testset "transition systems: cellwise ⊆ global, and sound" begin
         grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
         igrid = MP.GridFree(SVector(0.0), SVector(2.0))
-        reset_stats!(lgb)
-        opt_local = build_abstraction(lgb; state_grid = grid, input_grid = igrid)
-        global_radius_calls = Ref(0)
-        global_growth = ST.DiscreteTimeGrowthBound(
-            ST.get_system(lgb.global_growth),
-            (r, u) -> begin
-                global_radius_calls[] += 1
-                lgb.global_growth.growthbound_map(r, u)
-            end,
+        opt_local =
+            pendulum_abstraction(cellwise_bound(dyn); state_grid = grid, input_grid = igrid)
+        opt_global = pendulum_abstraction(
+            global_bound(dyn, X_pend);
+            state_grid = grid,
+            input_grid = igrid,
         )
-        opt_global = build_abstraction(global_growth; state_grid = grid, input_grid = igrid)
         sym_l = MOI.get(opt_local, MOI.RawOptimizerAttribute("abstract_system"))
         sym_g = MOI.get(opt_global, MOI.RawOptimizerAttribute("abstract_system"))
-        # The optimizer wraps the function of `overapproximation_map` around the same system.
-        @test ST.get_system(
-            MOI.get(
-                opt_local,
-                MOI.RawOptimizerAttribute("discrete_time_system_approximation"),
-            ),
-        ) === ST.get_system(lgb)
-        @test global_radius_calls[] == length(collect(SY.enum_inputs(sym_g)))
 
         targets(sym) = begin
             d = Dict{Tuple{Int, Int}, Set{Int}}()
@@ -416,8 +380,8 @@ random_point(cell) =
         nl, ng = sum(length, values(Tl)), sum(length, values(Tg))
         avg_l, avg_g = nl / length(Tl), ng / length(Tg)
         @info "pendulum abstraction" cells = SY.get_n_state(sym_l) inputs =
-            SY.get_n_input(sym_l) transitions_global = ng transitions_local = nl avg_successors_global =
-            avg_g avg_successors_local = avg_l stats = stats(lgb)
+            SY.get_n_input(sym_l) transitions_global = ng transitions_cellwise = nl avg_successors_global =
+            avg_g avg_successors_cellwise = avg_l
         @test avg_l < avg_g                                    # fewer spurious transitions
 
         # Soundness: a sampled successor always lies in a target cell.
@@ -442,24 +406,32 @@ random_point(cell) =
         pairs_of(opt) = Set(
             SY.enum_transitions(MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))),
         )
+        # Counts the enclosures computed, to see whether a build computes anything.
+        cb = cellwise_bound(dyn)
+        enclosures = Ref(0)
+        counted = ST.CellwiseBound(
+            (cell, uu, t) -> (enclosures[] += 1; cb.enclosure(cell, uu, t)),
+            cb.bound,
+        )
 
-        computed = build_abstraction(
-            lgb;
+        computed = pendulum_abstraction(
+            counted;
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = file,
             abstraction_info = info,
         )
         @test isfile(file)                                     # written after the computation
-        calls = lgb.stats.calls[]
-        loaded = build_abstraction(
-            lgb;
+        calls = enclosures[]
+        @test calls > 0
+        loaded = pendulum_abstraction(
+            counted;
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = file,
             abstraction_info = info,
         )
-        @test lgb.stats.calls[] == calls                       # nothing was computed
+        @test enclosures[] == calls                            # nothing was computed
         @test pairs_of(loaded) == pairs_of(computed)
         @test !isempty(pairs_of(loaded))
 
@@ -467,15 +439,15 @@ random_point(cell) =
         @test MOI.get(loaded, MOI.RawOptimizerAttribute("abstract_system")) !== nothing
 
         # A file computed for other parameters, or another grid, is refused.
-        @test_throws ErrorException build_abstraction(
-            lgb;
+        @test_throws ErrorException pendulum_abstraction(
+            counted;
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = file,
             abstraction_info = (; tstep, h = [0.4, 0.4]),
         )
-        @test_throws ErrorException build_abstraction(
-            lgb;
+        @test_throws ErrorException pendulum_abstraction(
+            counted;
             state_grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.3, 0.8)),
             input_grid = igrid,
             abstraction_file = file,
@@ -486,7 +458,8 @@ random_point(cell) =
     @testset "files of the first format (single arrays) still load" begin
         grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
         igrid = MP.GridFree(SVector(0.0), SVector(2.0))
-        full = build_abstraction(lgb; state_grid = grid, input_grid = igrid)
+        cb = cellwise_bound(dyn)
+        full = pendulum_abstraction(cb; state_grid = grid, input_grid = igrid)
         sym = MOI.get(full, MOI.RawOptimizerAttribute("abstract_system"))
         tr = collect(SY.enum_transitions(sym))
         file = joinpath(mktempdir(), "legacy.jld2")
@@ -500,8 +473,8 @@ random_point(cell) =
             source = Int32[t[2] for t in tr],
             symbol = Int32[t[3] for t in tr],
         )
-        loaded = build_abstraction(
-            lgb;
+        loaded = pendulum_abstraction(
+            cb;
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = file,
@@ -514,17 +487,18 @@ random_point(cell) =
     @testset "chunks of a Slurm array, merged" begin
         grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
         igrid = MP.GridFree(SVector(0.0), SVector(2.0))
+        cb = cellwise_bound(dyn)
         dir = mktempdir()
         nchunks = 3
         transitions(opt) = Set(
             SY.enum_transitions(MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))),
         )
-        full = build_abstraction(lgb; state_grid = grid, input_grid = igrid)
+        full = pendulum_abstraction(cb; state_grid = grid, input_grid = igrid)
 
         # One run per task of the array: each writes its chunk and caches nothing.
         for id in 1:nchunks
-            build_abstraction(
-                lgb;
+            pendulum_abstraction(
+                cb;
                 state_grid = grid,
                 input_grid = igrid,
                 execution_backend = SY.SlurmArrayBackend(
@@ -539,8 +513,8 @@ random_point(cell) =
         @test length(readdir(dir)) == nchunks
 
         # Without a file, the chunks are merged into the optimizer.
-        in_memory = build_abstraction(
-            lgb;
+        in_memory = pendulum_abstraction(
+            cb;
             state_grid = grid,
             input_grid = igrid,
             merge_chunks = (; outdir = dir, nchunks),
@@ -551,8 +525,8 @@ random_point(cell) =
         # With a file, they go straight to it, without building the abstraction in memory.
         file = joinpath(dir, "merged.jld2")
         info = (; tstep)
-        streamed = build_abstraction(
-            lgb;
+        streamed = pendulum_abstraction(
+            cb;
             state_grid = grid,
             input_grid = igrid,
             merge_chunks = (; outdir = dir, nchunks),
@@ -565,8 +539,8 @@ random_point(cell) =
             @test f["nparts"] == nchunks
             @test f["n_transitions"] == length(transitions(full))
         end
-        loaded = build_abstraction(                            # ... which loads like a computation
-            lgb;
+        loaded = pendulum_abstraction(                            # ... which loads like a computation
+            cb;
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = file,
@@ -575,14 +549,13 @@ random_point(cell) =
         @test transitions(loaded) == transitions(full)
 
         # A chunk that is missing, or computed for another number of chunks, is an error.
-        @test_throws ErrorException build_abstraction(
-            lgb;
+        @test_throws ErrorException pendulum_abstraction(
+            cb;
             state_grid = grid,
             input_grid = igrid,
             merge_chunks = (; outdir = dir, nchunks = nchunks + 1),
         )
     end
-
     @testset "certified abstraction: cache files and Slurm chunks carry their provenance" begin
         grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.4, 0.8))
         igrid = MP.GridFree(SVector(0.0), SVector(2.0))
@@ -607,7 +580,7 @@ random_point(cell) =
         @test prov.approximation == "CertifiedRK4GrowthBound"
         @test prov.tstep == tstep && prov.nsystem == cert.nsystem
         @test prov.kernel_version == LGA.CertifiedRK4.KERNEL_VERSION
-        @test LGA.provenance(lgb) === nothing           # the local growth bound keeps no record
+        @test LGA.provenance(cellwise_bound(dyn)) === nothing   # a growth bound of Dionysos keeps no record
         @test LGA.CertifiedRK4.get_provenance(
             CertifiedRK4GrowthBound(f_pend, collect(x), collect(u), X_pend, U_pend, tstep),
         ) == prov                                          # the same dynamics, the same fingerprint
@@ -626,7 +599,7 @@ random_point(cell) =
         @test LGA.CertifiedRK4.get_provenance(other_tstep).tstep != prov.tstep
         @test LGA.abstraction_provenance(
             MOI.get(full, MOI.RawOptimizerAttribute("abstract_system")),
-            lgb,
+            cellwise_bound(dyn),
         ) === nothing
 
         # A cache file: written with the provenance, loaded back, equal to the computation.
@@ -653,8 +626,8 @@ random_point(cell) =
 
         # An uncertified file, even with the same `info`, is refused (and the other way round).
         legacy_file = joinpath(mktempdir(), "uncertified.jld2")
-        build_abstraction(
-            lgb;
+        pendulum_abstraction(
+            cellwise_bound(dyn);
             state_grid = grid,
             input_grid = igrid,
             abstraction_file = legacy_file,
@@ -674,8 +647,8 @@ random_point(cell) =
         end
         @test occursin("no provenance record", refused)
         refused = message() do
-            build_abstraction(
-                lgb;
+            pendulum_abstraction(
+                cellwise_bound(dyn);
                 state_grid = grid,
                 input_grid = igrid,
                 abstraction_file = file,
@@ -704,12 +677,22 @@ random_point(cell) =
 
         # The chunks of a Slurm array: merged into the optimizer or into a file, equal to the computation.
         nchunks = 3
-        function write_chunks(approx, dir)
-            for id in 1:nchunks
-                build_abstraction(
+        # `approx` is a certified approximation, or a `CellwiseBound` (an uncertified growth bound).
+        build_with(approx; kwargs...) =
+            if approx isa CertifiedRK4GrowthBound
+                build_abstraction(approx; state_grid = grid, input_grid = igrid, kwargs...)
+            else
+                pendulum_abstraction(
                     approx;
                     state_grid = grid,
                     input_grid = igrid,
+                    kwargs...,
+                )
+            end
+        function write_chunks(approx, dir)
+            for id in 1:nchunks
+                build_with(
+                    approx;
                     execution_backend = SY.SlurmArrayBackend(
                         nchunks,
                         id,
@@ -754,13 +737,13 @@ random_point(cell) =
 
         # Certified chunks are refused by an uncertified merge, and uncertified chunks by a
         # certified one; a chunk of other dynamics cannot slip into a set of certified chunks.
-        @test_throws ErrorException build_abstraction(
-            lgb;
+        @test_throws ErrorException pendulum_abstraction(
+            cellwise_bound(dyn);
             state_grid = grid,
             input_grid = igrid,
             merge_chunks = (; outdir = dir, nchunks),
         )
-        legacy_dir = write_chunks(lgb, mktempdir())
+        legacy_dir = write_chunks(cellwise_bound(dyn), mktempdir())
         refused = message() do
             build_abstraction(
                 cert;
@@ -798,11 +781,11 @@ random_point(cell) =
         refused = merge_from(mixed)
         @test occursin("chunk 2 of $nchunks cannot be used", refused) &&
               occursin("another construction", refused)
-        # Whoever recomputes a chunk without a record (here the local growth bound) removes the
+        # Whoever recomputes a chunk without a record (here a cell-wise growth bound) removes the
         # record of the certified chunk it overwrites: the chunk cannot pass for a certified one.
         recomputed = write_chunks(cert, mktempdir())
-        build_abstraction(
-            lgb;
+        pendulum_abstraction(
+            cellwise_bound(dyn);
             state_grid = grid,
             input_grid = igrid,
             execution_backend = SY.SlurmArrayBackend(
@@ -899,36 +882,44 @@ random_point(cell) =
         U = LazySets.Hyperrectangle(; low = [-2.0], high = [2.0])
         tstep_a = 0.01
         h = SVector(0.1, 0.1, 0.2, 0.2)
-        lgb_a = LocalGrowthBound(xdot, nf.state, nf.input, X, U, tstep_a)
+        dyn_a = SymbolicDynamics(xdot, nf.state, nf.input)
+        system_a(X) = MS.ConstrainedBlackBoxControlContinuousSystem(dyn_a.f, 4, 1, X, U)
+        growth_a(jacobian_bound, X) =
+            growth(jacobian_bound; system = system_a(X), tstep = tstep_a)
 
-        # The local bound does not degrade when the state set grows, the global one does.
+        # The cellwise bound does not degrade when the state set grows, the global one does.
         X_big = LazySets.Hyperrectangle(; low = 2.5 .* -xr, high = 2.5 .* xr)
-        lgb_big = LocalGrowthBound(xdot, nf.state, nf.input, X_big, U, tstep_a)
         cell0 = LazySets.Hyperrectangle(SVector(0.1, 0.1, 0.2, 0.2), h ./ 2)
-        rad(l, c, uu) =
-            LazySets.radius_hyperrectangle(ST.get_over_approximation_map(l)(c, uu))
+        rad(approx, c, uu) =
+            LazySets.radius_hyperrectangle(ST.get_over_approximation_map(approx)(c, uu))
         uu = SVector(2.0)
-        @test rad(lgb_big.global_growth, cell0, uu)[3] >
-              1.5 * rad(lgb_a.global_growth, cell0, uu)[3]
-        @test rad(lgb_big, cell0, uu)[3] < 1.1 * rad(lgb_a, cell0, uu)[3]
-        @test rad(lgb_a, cell0, uu)[3] < 0.7 * rad(lgb_a.global_growth, cell0, uu)[3]
-        reset_stats!(lgb_a)
+        cellwise_a = growth_a(cellwise_bound(dyn_a), X)
+        cellwise_big = growth_a(cellwise_bound(dyn_a), X_big)
+        global_a = growth_a(global_bound(dyn_a, X), X)
+        global_big = growth_a(global_bound(dyn_a, X_big), X_big)
+        @test rad(global_big, cell0, uu)[3] > 1.5 * rad(global_a, cell0, uu)[3]
+        @test rad(cellwise_big, cell0, uu)[3] < 1.1 * rad(cellwise_a, cell0, uu)[3]
+        @test rad(cellwise_a, cell0, uu)[3] < 0.7 * rad(global_a, cell0, uu)[3]
 
         grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), h)
         igrid = MP.GridFree(SVector(0.0), SVector(2.0))
-        sym_l = MOI.get(
-            build_abstraction(lgb_a; state_grid = grid, input_grid = igrid),
+        abstraction(jacobian_bound) = MOI.get(
+            build_abstraction(
+                system_a(X);
+                approx_mode = UGA.GROWTH,
+                jacobian_bound,
+                time_step = tstep_a,
+                state_grid = grid,
+                input_grid = igrid,
+            ),
             MOI.RawOptimizerAttribute("abstract_system"),
         )
-        sym_g = MOI.get(
-            build_abstraction(lgb_a.global_growth; state_grid = grid, input_grid = igrid),
-            MOI.RawOptimizerAttribute("abstract_system"),
-        )
+        sym_l = abstraction(cellwise_bound(dyn_a))
+        sym_g = abstraction(global_bound(dyn_a, X))
         ntl, ntg = SY.get_n_transitions(sym_l), SY.get_n_transitions(sym_g)
-        @info "acrobot abstraction" cells = SY.get_n_state(sym_l) transitions_global = ntg transitions_local =
-            ntl stats = stats(lgb_a)
+        @info "acrobot abstraction" cells = SY.get_n_state(sym_l) transitions_global = ntg transitions_cellwise =
+            ntl
         @test ntg > 0 && ntl > 0
-        @test stats(lgb_a).enclosure_failures == 0
 
         pairs(sym) = begin
             d = Dict{Tuple{Int, Int}, Set{Int}}()
@@ -938,11 +929,12 @@ random_point(cell) =
             d
         end
         Pl, Pg = pairs(sym_l), pairs(sym_g)
+        # No pair is disabled for lack of an enclosure, and every successor set is inside the global one.
         @test all(k -> haskey(Pl, k) && Pl[k] ⊆ Pg[k], keys(Pg))
         @test sum(length, values(Pl)) / length(Pl) < sum(length, values(Pg)) / length(Pg)
 
         # Soundness against an accurate simulation of the same normal form.
-        fa = lgb_a.dynamics.f
+        fa = dyn_a.f
         for ((q0, i), tg) in Iterators.take(shuffle(collect(Pl)), 300)
             x0 = SY.get_concrete_state(sym_l, q0)
             uc = SY.get_concrete_input(sym_l, i)

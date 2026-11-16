@@ -1,6 +1,6 @@
 # The `biped_4d_normal_form.jl` experiment
 
-`examples/BipedRobot/biped_4d_normal_form.jl` computes a local growth abstraction of an underactuated
+`examples/BipedRobot/biped_4d_normal_form.jl` computes a certified abstraction of an underactuated
 four-link biped and asks Dionysos for a controller that performs **one footstep**. Its default is a
 **symmetric forward step** without obstacle (§6): the swing foot starts at `x = -0.2 m` and has to land
 around the foothold at `x = +0.2 m`, the ankle falling forwards all along. `OBSTACLE = :bump` puts a bump
@@ -72,12 +72,14 @@ every listed successor. The guarantee is about the **sampled** system: it covers
 continuous flow between two samples nor the truncation error of RK4 with respect to the ODE (§3.5 of
 the module document).
 
-The example always builds this abstraction (there is no switch back to the earlier local growth
-bound). A cache file or the chunks of a Slurm array can be used (§4.3): they record how their
-transitions were computed, and a file or chunk from the earlier local growth bound is refused.
-**The transition counts and timings below were measured with the earlier, non-certified
-local growth bound** (≈ 0.2 ms of CPU per pair, against ≈ 0.5 ms per pair on one thread and ≈ 0.9 ms
-per pair and thread on 10 threads for the certified kernel, e.g. 1.0 M pairs in 91 s) and have not been
+The example always builds this abstraction. The cell-wise growth bound that it used before is now the
+`CellwiseBound` of Dionysos, which `LGA.cellwise_bound` feeds (§3 of the module document): it is not
+certified, and its box is looked up with closed cells, so it lists three successors in every motor
+coordinate that moves exactly one cell. A cache file or the chunks of a Slurm array can be used (§4.3):
+they record how their transitions were computed, and a file or chunk of an uncertified growth bound is
+refused. **The transition counts and timings below were measured with the earlier, non-certified
+abstraction** (≈ 0.2 ms of CPU per pair, against ≈ 0.5 ms per pair on one thread and ≈ 0.9 ms per
+pair and thread on 10 threads for the certified kernel, e.g. 1.0 M pairs in 91 s) and have not been
 redone.
 
 The motor coordinates move by exactly one cell per step (the lattice trick of §3.2), so all the
@@ -160,8 +162,8 @@ only matters with an obstacle.)
 
 ### 2.3 Know the size before you start: the cost of the abstraction
 
-The abstraction computes one image per `(cell, input)` pair, about **0.2 ms of CPU time each** (21 µs of
-wall time on 10 threads), and stores about **4 transitions per pair**. The number of cells is the
+The abstraction computes one image per `(cell, input)` pair, about **0.9 ms of CPU time each** with the certified
+kernel (≈ 90 µs of wall time on 10 threads), and stores about **4 transitions per pair**. The number of cells is the
 **product** of the cell counts along the five axes, so it reacts violently to the bounds. The
 experiment therefore prints the size (`RP.abstraction_size`) right after the carving, before anything
 expensive starts:
@@ -196,7 +198,7 @@ interval arithmetic, dominate. The printed estimate is a lower bound on the time
 | :--- | :--- |
 | symbolic normal form (mostly compilation) | ≈ 10 s |
 | carving the ground (≈ 7 s with the obstacle, compilation included) | < 1 s |
-| `LocalGrowthBound` (symbolic Jacobian, compilation) | ≈ 1 s |
+| `CertifiedRK4GrowthBound` (compilation of the symbolic dynamics) | ≈ 0.2 s |
 | abstraction (7.77 M `(cell, input)` pairs) | ≈ 165 s |
 | controller synthesis | ≈ 2 s |
 
@@ -316,7 +318,7 @@ These have no override variable; each is one line in `biped_4d_normal_form.jl` u
 | :--- | :--- | :--- | :--- |
 | physical parameters | `L1 = 0.202`, `L2 = 0.172` m, `m1 = 0.0202`, `m2 = 0.0172` kg, `mM = 0.4` kg, `g = 9.81` | `values = RP.default_parameters()` | femur / tibia length, femur / tibia mass, motor mass, gravity. The URDF values; the kinematics of the carving (`RP.Geometry(model, values)`) is compiled from the same symbolic model and `values`, so dynamics and constraints cannot disagree |
 | inertia model | uniform thin-rod links `m L²/12`; motors point masses (`I = 0`); hip `2 mM`; swing foot massless | `RP.symbolic_model()` | the model structure (frames, bodies): the robot of `four_link_biped.urdf` |
-| `LocalGrowthBound` options | `refinements = 1`, `ngrowthbound = 5`, `nsystem = 5`, `max_enclosure_iterations = 10`, `enclosure_inflation = 0.1`, `shrink_enclosure = false`, `boundary_tolerance = 1e-9` | the call `LGA.LocalGrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)` | add them as keywords; see below |
+| `CertifiedRK4GrowthBound` option | `nsystem = ST.DEFAULT_NUM_SUBSTEPS` (5) | the call `LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)` | add it as a keyword; see below |
 | abstraction options | `print_level = 1`, `use_implicit_mapping = true`, `execution_backend = SY.ThreadedBackend()` | the call `LGA.build_abstraction(…)` | verbosity, implicit state mapping (low memory), threading; any other optimizer attribute can be added as a keyword |
 | closed-loop horizon | `400` steps | `horizon` keyword of `RP.closed_loop(…)` | maximum number of steps of the concrete run |
 | closed-loop start | `q0` with `p₁` at the middle of the initial range, snapped to the grid | `x0 = RP.start_state(…)` | the concrete run starts here (it does not sample the initial set) |
@@ -324,20 +326,16 @@ These have no override variable; each is one line in `biped_4d_normal_form.jl` u
 | ground constraint | foot below `z = -margin` is removed; named `"ground"` | `RP.infeasible_cells` | the margin makes the ground constraint tolerant so that footholds on the ground stay |
 | obstacle constraint name | `"lift constraint"` | `obstacle_name` keyword of `RP.infeasible_cells(…)` | the name shown when this constraint carves the start cell; a string for all obstacles or one per obstacle |
 
-The `LocalGrowthBound` options that matter:
-
-| Option | Effect |
-| :--- | :--- |
-| `refinements` | `0` uses the global radius with the same boundary deflation; `1` does one local refinement (default). Pass `lgb.global_growth` to `build_abstraction` for the plain global baseline. |
-| `max_enclosure_iterations`, `enclosure_inflation` | how hard the flow enclosure is searched before a cell falls back to the global bound |
-| `shrink_enclosure` | `true` uses a tighter verified box for the Jacobian bound (slightly tighter images) |
-| `boundary_tolerance` | fraction of the cell radius removed from each image to suppress face contacts. It can also omit a true successor. `0` disables the deflation and can add face contacts to the successor set. |
+The `CertifiedRK4GrowthBound` option that matters: `nsystem` is the number of RK4 substeps per sampling
+period. It defines the concrete system (the Float64 RK4 map of the closed-loop run), so changing it
+changes the system whose successors are certified, and the provenance of the stored transitions (§4.3).
 
 ### 3.6 Cost of a change
 
 * **Number of `(cell, input)` pairs** = (cells after carving) × (number of inputs = `(2k + 1)³`: 27 for
   `input_steps = 1`, 125 for 2; or `1 + 6k` with `ONE_JOINT_PER_STEP`); printed before the abstraction (§2.3).
-* **Time of the abstraction** ≈ 0.2 ms of CPU per pair, i.e. ≈ 21 µs of wall time per pair on 10
+* **Time of the abstraction** ≈ 0.9 ms per pair and thread with the certified kernel on 10 threads
+  (≈ 0.5 ms on one thread; the kernel allocates, so threads scale worse), i.e. ≈ 90 µs of wall time per pair on 10
   threads. It is linear in the number of pairs.
 * **Memory** grows with the number of transitions (≈ 3 to 4 per pair; 9.3 M for the default run of §6).
   Halving every ankle step multiplies cells and transitions by about 4.
@@ -374,7 +372,9 @@ include(joinpath(PROBLEM_DIR, "LocalGrowthAbstraction.jl")); import .LocalGrowth
   (`abstraction_size`), the **target set** (`target_set`), the **problem** (`step_problem`), the
   **start state and closed loop** (`start_state`, `closed_loop`) and the **plots** (`plot_footstep`).
   It does not depend on RigidBodyDynamics.
-* `LGA` (`LocalGrowthAbstraction.jl`) provides the local growth bound and the abstraction builder.
+* `LGA` (`LocalGrowthAbstraction.jl`, with `CertifiedRK4.jl`) provides the certified successors
+  (`CertifiedRK4GrowthBound`), the supplier of the cell-wise growth bound of Dionysos (`cellwise_bound`) and the
+  abstraction builder (`build_abstraction`).
 
 ### 4.1 Section 1: symbolic model → numerical dynamics
 
@@ -455,9 +455,9 @@ println("State space: ", size.cells, " cells (", size.cells_in_box, " before car
 ### 4.3 Section 3: the abstraction
 
 ```julia
-@time lgb = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
-dynamics = lgb.f
-concrete_system = ST.get_system(lgb)
+@time certified = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+dynamics = certified.f
+concrete_system = ST.get_system(certified)
 ```
 
 `CertifiedRK4GrowthBound` receives the symbolic dynamics, the state variables, the input variables, the
@@ -481,7 +481,7 @@ middle of the initial range (clipped to the domain), snapped to the centre of it
 The script then prints `x0`, the ankle acceleration `ṗ₁` there and the swing-foot position.
 
 ```julia
-@time optimizer = LGA.build_abstraction(lgb; state_grid = disc.state_grid, input_grid = disc.input_grid,
+@time optimizer = LGA.build_abstraction(certified; state_grid = disc.state_grid, input_grid = disc.input_grid,
     print_level = 1, use_implicit_mapping = true, execution_backend = SY.ThreadedBackend(),
     abstraction_file, abstraction_info, extra_attributes...)
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -489,7 +489,7 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 
 `ONE_JOINT_PER_STEP` becomes an optimizer attribute (a state-input filter that keeps only the inputs
 with at most one moving joint). `build_abstraction` then runs the Dionysos
-`UniformGridAbstraction` optimizer, with the reach sets of `lgb`:
+`UniformGridAbstraction` optimizer, with the reach sets of `certified`:
 
 1. the **state mapping** is created implicitly (cell ids by linearization of the ambient box, low
    memory) on the domain `X`;
@@ -515,12 +515,12 @@ prints the number of transitions. The certified kernel keeps no statistics.
 
 **Computing the abstraction on a server, and its provenance.** The certified abstraction can be
 cached in a file and split over a Slurm array, but what is stored is only as good as the record of how
-it was computed. `LGA.CertifiedRK4.get_provenance(lgb)` is that record: the version of the certified kernel
+it was computed. `LGA.CertifiedRK4.get_provenance(certified)` is that record: the version of the certified kernel
 (`LGA.CertifiedRK4.KERNEL_VERSION`, bumped when a change of the kernel can change its transitions), the
 sampling period, the number of RK4 substeps and a fingerprint of the printed symbolic dynamics, and
 `LGA.abstraction_provenance` adds a fingerprint of the cells (the retained states with their ids) and of
 the inputs. It is stored in the file and in every chunk, and **loading or merging refuses anything
-that does not carry the same one**: a file or chunk of the earlier local growth bound (it has none), of
+that does not carry the same one**: a file or chunk of an uncertified growth bound (it has none), of
 another version of the kernel, for other dynamics, another sampling period, grids, state box or
 carving. The fingerprints are 64-bit FNV-1a (`LGA.CertifiedRK4.fingerprint`), identical in every Julia session and
 version: they detect an accidental change, they are not a cryptographic proof. What they cannot see
@@ -583,7 +583,7 @@ ranges of the ankle angle and momentum along the run, and returns the trajectory
 if @isdefined(RUN_PLOTS) ? RUN_PLOTS : true
     RP.plot_footstep(traj, disc.state_grid, removed; x_lb, x_ub, tstep = disc.tstep, geometry, obstacle,
                      foothold, file_prefix = joinpath(@__DIR__, "biped_4d_normal_form_$(scenario_name)"),
-                     ankle_label = "p₁ (N m s)", dynamics = lgb.dynamics.f, subframes = 10, title = "…")
+                     ankle_label = "p₁ (N m s)", dynamics = certified.f, subframes = 10, title = "…")
 end
 ```
 
@@ -599,7 +599,7 @@ the script:
    background (the carving does not depend on `p₁`), and the input panel `(v₃, v₄)`.
 
 A closed loop has one state per sampling period (0.05 s), so a run of a few steps would be a flash:
-with `dynamics = lgb.dynamics.f` and `subframes = 10` each step is re-integrated at ten intermediate
+with `dynamics = certified.f` and `subframes = 10` each step is re-integrated at ten intermediate
 instants for the ankle plot and the animation, and the gif lasts about four seconds.
 
 ---
@@ -608,7 +608,7 @@ instants for the ankle plot and the animation, and the gif lasts about four seco
 
 | Symptom | Cause | What to try |
 | :--- | :--- | :--- |
-| nothing printed for minutes after `Number of forward images` | the abstraction is being computed, and the box is big | read the `State space:` line: pairs × 0.2 ms of CPU / threads is the minimum time, and the memory is ≈ 4 transitions per pair (§2.3). Narrower `X_BOUNDS`, a coarser grid, or `ONE_JOINT_PER_STEP = true` |
+| nothing printed for minutes after `Number of forward images` | the abstraction is being computed, and the box is big | read the `State space:` line: pairs × 0.9 ms of CPU / threads is the minimum time, and the memory is ≈ 4 transitions per pair (§2.3). Narrower `X_BOUNDS`, a coarser grid, or `ONE_JOINT_PER_STEP = true` |
 | `error: the start cell is carved out by "lift constraint" (…)` | the swing foot at `Q0` is within the Lipschitz margin of the obstacle | the message gives the swing-foot position and the margin (obstacle on, `OBSTACLE = :bump`): move the swing foot farther from the obstacle (a larger swing-hip angle `q₃`, or a bent knee `q₄ < 0`), refine the grid (the margin scales with the cell size), or set `OBSTACLE = nothing` |
 | `error: the start cell is carved out by "ground" (…)` | the swing foot at `Q0` is more than the margin below the ground | change the posture so that the swing foot is above the ground |
 | `error: the cell of the initial configuration q0 = … is not in the state domain` | `Q0` outside `X_BOUNDS` | widen `X_BOUNDS` or change `Q0` |

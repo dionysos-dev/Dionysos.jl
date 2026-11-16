@@ -77,7 +77,7 @@ const PROBLEM_DIR = joinpath(
 include(joinpath(PROBLEM_DIR, "robot_problem.jl"))
 import .UnderactuatedRobotProblem as RP
 
-# Local growth bound.
+# Certified successors of the RK4 map, and the builder of the abstraction.
 include(joinpath(PROBLEM_DIR, "LocalGrowthAbstraction.jl"))
 import .LocalGrowthAbstraction as LGA
 
@@ -238,9 +238,9 @@ println(
 # uses only what Dionysos already offers (a discrete-time over-approximation, the `USER_DEFINED`
 # approximation mode, a lookup of the target cells for its own image type), on top of CoreMath,
 # IntervalArithmetic and Symbolics.
-@time lgb = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
-dynamics = lgb.f
-concrete_system = ST.get_system(lgb)   # discrete-time (RK4) system on the carved domain
+@time certified = LGA.CertifiedRK4GrowthBound(f_sym, x_sym, u_sym, X, U_box, disc.tstep)
+dynamics = certified.f
+concrete_system = ST.get_system(certified)   # discrete-time (RK4) system on the carved domain
 
 # Concrete start of the closed-loop run below: the configuration `q0` with the first coordinate in the
 # middle of the initial range, snapped to the grid so that the run starts where the abstraction does
@@ -257,7 +257,7 @@ println("x0 = ", x0, "  (ṗ₁ at x0: ", dynamics(Vector(x0), zeros(3))[1], ")"
 println("swing foot at x0: ", RP.swing_foot_position(SVector{4}(x0[2:5]), geometry))
 
 # `build_abstraction` runs the Dionysos `UniformGridAbstraction` optimizer with the reach sets of
-# `lgb`; the returned optimizer has the abstraction cached.
+# `certified`; the returned optimizer has the abstraction cached.
 #
 # **Computing it on a server.** The abstraction is by far the most expensive part, and it does not
 # depend on the control problem. With `ABSTRACTION_FILE` set, its transitions are cached in that file:
@@ -304,7 +304,7 @@ abstraction_info = (;
     obstacle = obstacle === nothing ? nothing : length(obstacle),
 )
 @time optimizer = LGA.build_abstraction(
-    lgb;
+    certified;
     state_grid = disc.state_grid,
     input_grid = disc.input_grid,
     print_level = 1,

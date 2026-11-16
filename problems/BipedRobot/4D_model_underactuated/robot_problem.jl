@@ -901,7 +901,7 @@ action at the start: there is nothing to draw):
   input panel `(v₃, v₄)`; `title` is its title.
 
 A closed loop has one state per sampling period, which makes a short run (a few steps) a flash. With
-`dynamics`, the continuous dynamics `(x, u) -> ẋ` of the design model (e.g. `lgb.dynamics.f`), and
+`dynamics`, the continuous dynamics `(x, u) -> ẋ` of the design model (e.g. the `f` of a `CertifiedRK4GrowthBound`, or `LGA.SymbolicDynamics(...).f`), and
 `subframes > 1`, each step is re-integrated (RK4, the input held constant) at `subframes` intermediate
 instants for the ankle plot and the animation, which then has `subframes` frames per step. `fps`
 (frames per second of the gif) defaults to the value that makes it last about four seconds, between 5

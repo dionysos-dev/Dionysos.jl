@@ -18,6 +18,7 @@ const SY = Dionysos.Symbolic
 const MP = Dionysos.Mapping
 const PR = Dionysos.Problem
 const UT = Dionysos.Utils
+const UGA = Dionysos.Optim.Abstraction.UniformGridAbstraction
 
 include(joinpath(@__DIR__, "..", "robot_problem.jl"))
 include(joinpath(@__DIR__, "..", "LocalGrowthAbstraction.jl"))
@@ -209,11 +210,21 @@ end
             low = fill(-disc.u_max, 3),
             high = fill(disc.u_max, 3),
         )
-        lgb = LGA.LocalGrowthBound(f_nf, reduced.x, reduced.u, X, U, disc.tstep)
+        dynamics = LGA.SymbolicDynamics(f_nf, reduced.x, reduced.u)
+        system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            dynamics.f,
+            5,
+            3,
+            X,
+            U,
+        )
         optimizer = LGA.build_abstraction(
-            lgb;
+            system;
             state_grid = disc.state_grid,
             input_grid = disc.input_grid,
+            approx_mode = UGA.GROWTH,
+            jacobian_bound = LGA.cellwise_bound(dynamics),
+            time_step = disc.tstep,
             execution_backend = SY.SequentialBackend(),
         )
         sym = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -226,7 +237,7 @@ end
         @test extrema(maximum(abs, u) for u in inputs) == (0.0, disc.u_max)
     end
 
-    @testset "local growth abstraction of the normal-form model (tiny grid)" begin
+    @testset "cellwise growth abstraction of the normal-form model (tiny grid)" begin
         reduced = RP.reduced_dynamics(MODEL)
         f_nf = RP.substitute_parameters(MODEL, reduced.f, VALUES)
         disc = RP.default_discretization(; dx = 0.1, dq1 = 0.1, dq̇1 = 0.05, tstep = 0.05)
@@ -236,29 +247,32 @@ end
             low = fill(-disc.u_max, 3),
             high = fill(disc.u_max, 3),
         )
-        function build(; kwargs...)
-            lgb = LGA.LocalGrowthBound(
-                f_nf,
-                reduced.x,
-                reduced.u,
-                X,
-                U,
-                disc.tstep;
-                kwargs...,
-            )
+        dynamics = LGA.SymbolicDynamics(f_nf, reduced.x, reduced.u)
+        system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            dynamics.f,
+            5,
+            3,
+            X,
+            U,
+        )
+        function build(jacobian_bound)
             optimizer = LGA.build_abstraction(
-                lgb;
+                system;
                 state_grid = disc.state_grid,
                 input_grid = disc.input_grid,
                 print_level = 0,
+                approx_mode = UGA.GROWTH,
+                jacobian_bound,
+                time_step = disc.tstep,
                 execution_backend = SY.SequentialBackend(),
             )
-            return lgb,
-            optimizer,
+            return optimizer,
             MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
         end
-        lgb, optimizer, sym = build()
-        _, _, sym_global = build(; refinements = 0)       # the global growth bound, for comparison
+        optimizer, sym = build(LGA.cellwise_bound(dynamics))
+        # The growth bound of Dionysos over the whole state set, for comparison.
+        _, sym_global =
+            build(u -> LGA.jacobian_bound(dynamics, LazySets.low(X), LazySets.high(X), u))
         @test SY.get_n_state(sym) == 3^5 && SY.get_n_input(sym) == 27
         function successor_sets(abstract_system)
             sets = Dict{Tuple{Int, Int}, Set{Int}}()
@@ -269,7 +283,7 @@ end
         end
         successors, successors_global = successor_sets(sym), successor_sets(sym_global)
         @test !isempty(successors) && !isempty(successors_global)
-        # The local image of a (cell, input) pair is inside its global image, so the local
+        # The cellwise image of a (cell, input) pair is inside its global image, so the cellwise
         # abstraction enables every pair the global one enables, with fewer successors. (It can
         # have more transitions in total: pairs whose global image leaves the domain are enabled.)
         @test all(
@@ -286,13 +300,13 @@ end
             x0 = SY.get_concrete_state(sym, s)
             u = SY.get_concrete_input(sym, i)
             p = x0 .+ (2 .* rand(5) .- 1) .* h ./ 2
-            y = ST.runge_kutta4(lgb.dynamics.f, SVector{5}(p), u, lgb.tstep, 200)
+            y = ST.runge_kutta4(dynamics.f, SVector{5}(p), u, disc.tstep, 200)
             t = SY.get_abstract_state(sym, y)
             (t === nothing || t in successors[(s, i)]) || (violations += 1)
         end
         @test violations == 0
 
-        # Start state and closed loop, on the same abstraction: from the origin, reach the cells one
+        # Start state and closed loop: from the origin, reach the cells one
         # step up along the grounded knee `q₂` with any other coordinate.
         origin_q = SVector(0.0, 0.0, 0.0, 0.0)
         x0 = RP.start_state(disc.state_grid, origin_q, X)
@@ -324,8 +338,21 @@ end
             [(a, i, 1, j, k) for a in -1:1, i in -1:1, j in -1:1, k in -1:1],
         )
         initial = LazySets.Hyperrectangle(; low = x0 .- 0.25 .* h, high = x0 .+ 0.25 .* h)
+        # The closed loop is on the deterministic abstraction of Dionysos (the cell of the image of
+        # the centre): on three cells per axis, the nondeterministic abstractions tried (a growth bound,
+        # and the certified one) leave no controller. This
+        # tests the start state and the closed loop of `robot_problem.jl`, not the abstraction.
+        optimizer = LGA.build_abstraction(
+            system;
+            state_grid = disc.state_grid,
+            input_grid = disc.input_grid,
+            print_level = 0,
+            approx_mode = UGA.CENTER_SIMULATION,
+            time_step = disc.tstep,
+            execution_backend = SY.SequentialBackend(),
+        )
         problem = PR.OptimalControlProblem(
-            ST.get_system(lgb),
+            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
             initial,
             target,
             nothing,

@@ -1,58 +1,57 @@
 """
     LocalGrowthAbstraction
 
-Discrete-time transition systems from **cell-wise (local) growth bounds**.
+Tools to build the abstraction of a system with a growth bound **per cell**, on top of what Dionysos
+provides (`Dionysos.System.CellwiseBound`, `ContinuousTimeGrowthBound` and the `GROWTH` mode of the
+`UniformGridAbstraction` optimizer), and to compute and store it on a server.
 
 The classical growth bound of Dionysos (`ST.ContinuousTimeGrowthBound`) uses one Jacobian bound
 `L(u)` valid on the whole state space `X`: every cell of radius `r` is mapped to
 `Φ(c, u) ± ρ(r, u)` with `ρ̇ = L(u) ρ`, `ρ(0) = r`. Whenever the dynamics are only strongly
 non-linear in a small part of `X`, `L` is dictated by the worst point and the image of every other
-cell is needlessly large, which creates spurious transitions.
+cell is needlessly large, which creates spurious transitions. A `CellwiseBound` replaces `L(u)` by
+a bound over an *enclosure of the step from the cell*. Dionysos asks the caller for two functions;
+this module supplies them for symbolic dynamics ([`cellwise_bound`](@ref)):
 
-This module computes, for each pair `(cell R, input u)`, a **local** bound:
+1. `enclosure(cell, u, τ)`: a box `B` that contains the trajectories of **all** points of the cell
+   during the **whole** sampling period, not just at its end points. It is verified with an
+   interval Picard–Lindelöf check (`R + [0, τ]·f(B, u) ⊆ interior(B)` with outward rounding,
+   [`flow_enclosure`](@ref)), and the cell gets no transition under `u` if none is found;
+2. `bound(B, u)`: the Metzler matrix `L_B` of the Jacobian `∂f/∂x` over `B`, bounded with interval
+   arithmetic ([`jacobian_bound`](@ref)): signed supremum on the diagonal, magnitude off it.
 
-1. start from the cell `R = c ± r` and the input `u`;
-2. compute a conservative image `Φ(c, u) ± ρ_glob` with the *global* growth bound, whose
-   Jacobian bound is obtained with interval arithmetic over all of `X`;
-3. take a larger box `B ⊇ R ∪ image` and bound the Jacobian over `B` only, again with interval
-   arithmetic: the true (local) growth bound `L_B`;
-4. recompute the image with it: `Φ(c, u) ± ρ_loc`, `ρ̇_loc = L_B ρ_loc`.
+Dionysos then simulates the centre with RK4, integrates `ρ̇ = L_B ρ` with RK4 and finds the cells
+that the box `Φ(c, u) ± ρ` touches. The tube check applies to the exact ODE flow, whereas the
+centre and the radius are integrated with RK4: this does not certify successor coverage for the
+exact flow or for the RK4 map. Use [`CertifiedRK4GrowthBound`](@ref) (file `CertifiedRK4.jl`, next
+to this one) to build a certified abstraction of the Float64 RK4 map.
 
-The growth-bound theorem needs `L_B` to bound the Jacobian on a convex
-set containing the trajectories of **all** points of `R` during the **whole** sampling period, not
-just at its end points. So `B` is verified, with an interval Picard–Lindelöf check, to be an
-a-priori enclosure of that tube (`R + [0, τ]·f(B, u) ⊆ interior(B)` with outward rounding).
-If the first refinement cannot verify a box, it falls back to the global radius. The global
-Jacobian bound is only valid on the outer box of `X`. The computed radius is capped by the
-global radius.
-
-The tube check applies to the exact ODE flow. The endpoint image still uses ordinary RK4 for
-the centre and radius, the global radius cap, and optional radius deflation. It does not
-certify successor coverage for the exact flow or the RK4 map.
-Use [`CertifiedRK4GrowthBound`](@ref) (file `CertifiedRK4.jl`, next to this one) to build a
-certified abstraction of its own Float64 RK4 map.
-
-The result, [`LocalGrowthBound`](@ref), is a `Dionysos.System.DiscreteTimeSystemOverApproximation`,
-so it plugs into Dionysos' abstraction machinery through the `USER_DEFINED` approximation mode of
-the `UniformGridAbstraction` optimizer (every execution backend works). [`build_abstraction`](@ref)
-wraps that. Nothing in Dionysos itself had to change for it.
+[`build_abstraction`](@ref) runs the `UniformGridAbstraction` optimizer for such a system, and
+stores or merges the transitions to compute them on a server ([`save_abstraction`](@ref),
+[`load_abstraction!`](@ref), [`merge_chunks!`](@ref), [`merge_chunks_to_file`](@ref)). Nothing in
+Dionysos itself had to change for it.
 
 # Example
 
 ```julia
-using Symbolics, IntervalArithmetic          # loads Dionysos' interval extension too
+using Symbolics, IntervalArithmetic
 include("LocalGrowthAbstraction.jl"); using .LocalGrowthAbstraction
+const UGA = Dionysos.Optim.Abstraction.UniformGridAbstraction
 
 @variables x[1:2] u[1:1]
 f = [x[2], -9.81 * sin(x[1]) - 0.1 * x[2] + u[1]]          # pendulum
 X = LazySets.Hyperrectangle(; low = [-π, -8.0], high = [π, 8.0])
 U = LazySets.Hyperrectangle(; low = [-2.0], high = [2.0])
 
-lgb = LocalGrowthBound(f, collect(x), collect(u), X, U, 0.1)
+dynamics = SymbolicDynamics(f, collect(x), collect(u))
+system = MS.ConstrainedBlackBoxControlContinuousSystem(dynamics.f, 2, 1, X, U)
 opt = build_abstraction(
-    lgb;
+    system;
     state_grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.1, 0.2)),
     input_grid = MP.GridFree(SVector(0.0), SVector(1.0)),
+    approx_mode = UGA.GROWTH,
+    jacobian_bound = cellwise_bound(dynamics),
+    time_step = 0.1,
 )
 abstract_system = MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 ```
@@ -60,7 +59,6 @@ abstract_system = MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 module LocalGrowthAbstraction
 
 import Dionysos
-const UT = Dionysos.Utils
 const ST = Dionysos.System
 const PR = Dionysos.Problem
 const MP = Dionysos.Mapping
@@ -81,9 +79,8 @@ include(joinpath(@__DIR__, "CertifiedRK4.jl"))
 using .CertifiedRK4: CertifiedRK4GrowthBound
 import .CertifiedRK4: overapproximation_map
 
-export SymbolicDynamics, LocalGrowthBound, LocalGrowthBoundStats, CertifiedRK4GrowthBound
-export overapproximation_map
-export jacobian_bound, flow_enclosure, build_abstraction, stats, reset_stats!
+export SymbolicDynamics, StepEnclosure, CertifiedRK4GrowthBound
+export jacobian_bound, flow_enclosure, cellwise_bound, build_abstraction
 export save_abstraction, load_abstraction!, merge_chunks!, merge_chunks_to_file
 
 # ------------------------------------------------------------------------------------------
@@ -332,249 +329,67 @@ function _flow_enclosure(
 end
 
 # ------------------------------------------------------------------------------------------
-# The over-approximation
+# The cell-wise bound of Dionysos, supplied for symbolic dynamics
 # ------------------------------------------------------------------------------------------
 
 """
-    LocalGrowthBoundStats
+    StepEnclosure
 
-Counters kept by a [`LocalGrowthBound`](@ref) (thread safe): `calls` (cell/input pairs processed),
-`enclosure_failures` (no verified flow enclosure found, global bound used), `unbounded` (the local
-Jacobian bound was not finite, global bound used) and `improved` (pairs whose local radius is
-strictly smaller than the global one in at least one dimension).
+What [`cellwise_bound`](@ref) returns as the enclosure of the step from a cell: the box `[low, high]`
+(an a-priori enclosure of the exact trajectories from the cell, see [`flow_enclosure`](@ref)) and the
+bound `L` of the Jacobian over it ([`jacobian_bound`](@ref)), which is what
+`Dionysos.System.CellwiseBound` asks of its `bound` function.
 """
-struct LocalGrowthBoundStats
-    calls::Threads.Atomic{Int}
-    enclosure_failures::Threads.Atomic{Int}
-    unbounded::Threads.Atomic{Int}
-    improved::Threads.Atomic{Int}
+struct StepEnclosure{V, M}
+    low::V
+    high::V
+    L::M
 end
 
-LocalGrowthBoundStats() = LocalGrowthBoundStats(
-    Threads.Atomic{Int}(0),
-    Threads.Atomic{Int}(0),
-    Threads.Atomic{Int}(0),
-    Threads.Atomic{Int}(0),
+"""
+    cellwise_bound(dynamics::SymbolicDynamics; max_iterations = 10, inflation = 0.1,
+                   shrink = false) -> Dionysos.System.CellwiseBound
+
+The two functions of a `Dionysos.System.CellwiseBound`, for the symbolic dynamics `dynamics`:
+
+* `enclosure(cell, u, tstep)`: a box that contains the exact trajectories from `cell` under the
+  constant input `u` over `[0, tstep]` ([`flow_enclosure`](@ref), starting from the cell itself; the
+  keywords are its options), with the Jacobian bound over it, as a [`StepEnclosure`](@ref). It is
+  `nothing` if no box could be verified or if the Jacobian is not bounded over it: Dionysos then
+  disables the input for that cell;
+* `bound(E, u)`: the Metzler matrix of the Jacobian over `E` (signed supremum on the diagonal,
+  magnitude off it), which Dionysos integrates, `ṙ = L r`, to obtain the radius of the image.
+
+The growth bound is then taken over the enclosure of the step from each cell, not over the whole
+state set. Everything else (the RK4 simulation of the centre, the integration of the radius, the
+lookup of the successor cells) is done by Dionysos. Use it as the `jacobian_bound` of
+`ST.ContinuousTimeGrowthBound`, or of the `GROWTH` mode of the `UniformGridAbstraction` optimizer.
+"""
+function cellwise_bound(
+    dynamics::SymbolicDynamics;
+    max_iterations::Int = 10,
+    inflation::Real = 0.1,
+    shrink::Bool = false,
 )
-
-"""
-    LocalGrowthBound <: Dionysos.System.DiscreteTimeSystemOverApproximation
-
-Over-approximation of the sampled dynamics (sampling period `tstep`) whose growth bound is
-computed locally for every cell, see the [module documentation](@ref LocalGrowthAbstraction).
-
-    LocalGrowthBound(system, dynamics::SymbolicDynamics, tstep; kwargs...)
-    LocalGrowthBound(system::MS.ConstrainedBlackBoxControlContinuousSystem, tstep; kwargs...)
-    LocalGrowthBound(fsym, x, u, X, U, tstep; kwargs...)
-
-`system` is a Dionysos continuous-time system (state set `X` a box, input set `U`): its `f` is what
-the cell centre is simulated with (RK4, `nsystem` substeps, via `ST.discretize`). The three
-constructors differ in where the symbolic form used for the interval bounds comes from: given
-explicitly, traced from `system`, or `fsym` itself (then `system` is built from it).
-
-Keywords: `refinements = 1` (how many times steps 3-4 are repeated, each time starting from the
-previous, smaller image), `ngrowthbound = nsystem = ST.DEFAULT_NUM_SUBSTEPS`, and the
-[`flow_enclosure`](@ref) options `max_enclosure_iterations = 10`, `enclosure_inflation = 0.1`,
-`shrink_enclosure = false`.
-
-`boundary_tolerance = 1e-9` is the fraction of the cell radius removed from every image to suppress
-face contacts. It can also remove true successors near a face. Set it to `0` to disable the
-deflation and keep the closed-cell lookup of the computed box.
-
-Fields of interest: `global_growth` (the Dionysos `DiscreteTimeGrowthBound` used for step 2 and as
-fallback) and `stats` (see [`LocalGrowthBoundStats`](@ref)).
-"""
-struct LocalGrowthBound{S, G, D} <: ST.DiscreteTimeSystemOverApproximation
-    system::S
-    global_growth::G
-    dynamics::D
-    tstep::Float64
-    refinements::Int
-    ngrowthbound::Int
-    max_enclosure_iterations::Int
-    enclosure_inflation::Float64
-    shrink_enclosure::Bool
-    boundary_tolerance::Float64
-    stats::LocalGrowthBoundStats
-end
-
-function LocalGrowthBound(
-    system::MS.ConstrainedBlackBoxControlContinuousSystem,
-    dynamics::SymbolicDynamics{N},
-    tstep::Real;
-    refinements::Int = 1,
-    ngrowthbound::Int = ST.DEFAULT_NUM_SUBSTEPS,
-    nsystem::Int = ST.DEFAULT_NUM_SUBSTEPS,
-    max_enclosure_iterations::Int = 10,
-    enclosure_inflation::Real = 0.1,
-    shrink_enclosure::Bool = false,
-    boundary_tolerance::Real = 1e-9,
-) where {N}
-    MS.statedim(system) == N ||
-        throw(DimensionMismatch("system and dynamics differ in dimension"))
-    refinements >= 0 || throw(ArgumentError("`refinements` must be nonnegative"))
-    boundary_tolerance >= 0 ||
-        throw(ArgumentError("`boundary_tolerance` must be nonnegative"))
-    # Step 2's ingredient: the *global* growth bound of Dionysos, with the Jacobian bound taken
-    # with interval arithmetic over the whole state set and the given input.
-    X = UT._outer_box(MS.stateset(system))
-    xlow, xhigh = LazySets.low(X), LazySets.high(X)
-    global_L = u -> jacobian_bound(dynamics, xlow, xhigh, u)
-    isfinite(sum(global_L(LazySets.center(MS.inputset(system))))) || error(
-        "the global Jacobian bound over the state set is unbounded; the dynamics are not " *
-        "Lipschitz on `X` (a singularity inside the box?)",
-    )
-    continuous_growth =
-        ST.ContinuousTimeGrowthBound(system; jacobian_bound = global_L, ngrowthbound)
-    global_growth = ST.discretize(continuous_growth, Float64(tstep); num_substeps = nsystem)
-    return LocalGrowthBound(
-        ST.get_system(global_growth),
-        global_growth,
-        dynamics,
-        Float64(tstep),
-        refinements,
-        ngrowthbound,
-        max_enclosure_iterations,
-        Float64(enclosure_inflation),
-        shrink_enclosure,
-        Float64(boundary_tolerance),
-        LocalGrowthBoundStats(),
-    )
-end
-
-LocalGrowthBound(
-    system::MS.ConstrainedBlackBoxControlContinuousSystem,
-    tstep::Real;
-    kwargs...,
-) = LocalGrowthBound(system, SymbolicDynamics(system), tstep; kwargs...)
-
-function LocalGrowthBound(
-    fsym::AbstractVector,
-    x::AbstractVector,
-    u::AbstractVector,
-    X,
-    U,
-    tstep::Real;
-    kwargs...,
-)
-    dynamics = SymbolicDynamics(fsym, x, u)
-    system = MS.ConstrainedBlackBoxControlContinuousSystem(
-        dynamics.f,
-        length(x),
-        length(u),
-        X,
-        U,
-    )
-    return LocalGrowthBound(system, dynamics, tstep; kwargs...)
-end
-
-ST.get_system(lgb::LocalGrowthBound) = lgb.system
-
-"""
-    stats(lgb) -> NamedTuple
-
-Snapshot of the counters of `lgb` (see [`LocalGrowthBoundStats`](@ref)).
-"""
-function stats(lgb::LocalGrowthBound)
-    s = lgb.stats
-    return (
-        calls = s.calls[],
-        enclosure_failures = s.enclosure_failures[],
-        unbounded = s.unbounded[],
-        improved = s.improved[],
-    )
-end
-
-"""
-    reset_stats!(lgb)
-
-Zero the counters of `lgb`.
-"""
-function reset_stats!(lgb::LocalGrowthBound)
-    for c in (
-        lgb.stats.calls,
-        lgb.stats.enclosure_failures,
-        lgb.stats.unbounded,
-        lgb.stats.improved,
-    )
-        c[] = 0
-    end
-    return lgb
-end
-
-# The per-input hoisting of Dionysos: the *global* radius depends on the (uniform) cell radius and
-# the input only, so it is integrated once per input and reused for every cell.
-ST.input_cache(lgb::LocalGrowthBound, r, u) = ST.input_cache(lgb.global_growth, r, u)
-
-function ST.reach_set(lgb::LocalGrowthBound, cell, u, global_radius)
-    c = LazySets.center(cell)
-    r0 = LazySets.radius_hyperrectangle(cell)
-    Fc = ST.get_system_map(lgb.global_growth)(c, u)      # centre simulation
-    Threads.atomic_add!(lgb.stats.calls, 1)
-
-    ρ = global_radius                                    # step 2: Φ(c, u) ± ρ_glob
-    for _ in 1:(lgb.refinements)
-        # Step 3: a larger box around the cell and the current conservative image, verified to
-        # enclose the whole flow tube, and the Jacobian bounded over it.
-        B = flow_enclosure(
-            lgb.dynamics,
+    function enclosure(cell, u, tstep)
+        c, r = LazySets.center(cell), LazySets.radius_hyperrectangle(cell)
+        box = flow_enclosure(
+            dynamics,
             cell,
-            Fc .- ρ,
-            Fc .+ ρ,
+            c .- r,
+            c .+ r,
             u,
-            lgb.tstep;
-            max_iterations = lgb.max_enclosure_iterations,
-            inflation = lgb.enclosure_inflation,
-            shrink = lgb.shrink_enclosure,
+            tstep;
+            max_iterations,
+            inflation,
+            shrink,
         )
-        if B === nothing
-            Threads.atomic_add!(lgb.stats.enclosure_failures, 1)
-            break
-        end
-        L = jacobian_bound(lgb.dynamics, B[1], B[2], u)
-        if !all(isfinite, L)
-            Threads.atomic_add!(lgb.stats.unbounded, 1)
-            break
-        end
-        # Step 4: recompute the radius from the local Jacobian and keep the smaller estimate.
-        ρ_local = ST.runge_kutta4((r, _) -> L * r, r0, u, lgb.tstep, lgb.ngrowthbound)
-        ρ = min.(ρ, ρ_local)
+        box === nothing && return nothing
+        L = jacobian_bound(dynamics, box[1], box[2], u)
+        all(isfinite, L) || return nothing
+        return StepEnclosure(box[1], box[2], L)
     end
-    any(ρ .< global_radius) && Threads.atomic_add!(lgb.stats.improved, 1)
-    # Suppress face contacts, with the loss of coverage described in the constructor docs.
-    ρ = max.(ρ .- lgb.boundary_tolerance .* r0, 0.0)
-    return LazySets.Hyperrectangle(Fc, ρ)
-end
-
-ST.get_over_approximation_map(lgb::LocalGrowthBound) =
-    (elem, u) -> ST.reach_set(
-        lgb,
-        elem,
-        u,
-        ST.input_cache(lgb, LazySets.radius_hyperrectangle(elem), u),
-    )
-
-"""
-    overapproximation_map(approx::ST.DiscreteTimeSystemOverApproximation, state_grid) -> Function
-
-The function `(cell, u) -> reach set` that the `USER_DEFINED` mode of the `UniformGridAbstraction`
-optimizer takes as its `overapproximation_map`. It reproduces what the kernel does for the
-approximations that Dionysos knows: `ST.input_cache` is evaluated **once per input** (for the uniform
-cell radius `h/2` of `state_grid`), not once per cell, and `ST.reach_set` is then called with it. The
-table of caches is shared by the threads of the build, behind a lock (a lookup is negligible next to
-the reach set of one cell).
-
-[`CertifiedRK4GrowthBound`](@ref) has its own method, which needs the grid to find the cells that
-its image can quantize into.
-"""
-function overapproximation_map(approx::ST.DiscreteTimeSystemOverApproximation, state_grid)
-    r = MP.get_h(state_grid) / 2.0
-    caches = Dict{Any, Any}()
-    lock = ReentrantLock()
-    return (elem, u) -> begin
-        cache = @lock lock get!(() -> ST.input_cache(approx, r, u), caches, u)
-        return ST.reach_set(approx, elem, u, cache)
-    end
+    return ST.CellwiseBound(enclosure, (E, u) -> E.L)
 end
 
 # ------------------------------------------------------------------------------------------
@@ -582,19 +397,31 @@ end
 # ------------------------------------------------------------------------------------------
 
 """
-    build_abstraction(approx::ST.DiscreteTimeSystemOverApproximation; state_grid, input_grid,
-                      print_level = 0, abstraction_file = nothing, abstraction_info = nothing,
-                      merge_chunks = nothing, attributes...) -> optimizer
+    build_abstraction(system; state_grid, input_grid, print_level = 0, abstraction_file = nothing,
+                      abstraction_info = nothing, merge_chunks = nothing, approx = nothing,
+                      attributes...) -> optimizer
+    build_abstraction(approx::CertifiedRK4GrowthBound; state_grid, input_grid, kwargs...)
 
-Discrete-time transition system (symbolic model) of the system of `approx`, computed by the
-Dionysos `UniformGridAbstraction` optimizer in `USER_DEFINED` mode, with the function that
-[`overapproximation_map`](@ref) builds from `approx` and `state_grid`. Its `ST.input_cache` is
-computed once per input per build. For a [`LocalGrowthBound`](@ref) this caches the global starting
-radius across cells. Pass `lgb.global_growth` to build the global baseline.
+Transition system (symbolic model) of `system`, a Dionysos continuous-time or discrete-time system,
+computed by the `UniformGridAbstraction` optimizer. `state_grid` / `input_grid` are Dionysos grids
+(`MP.GridFree(x0, h)`); the further keyword arguments are forwarded as optimizer attributes, which
+choose how the successors are computed: for a growth bound per cell,
 
-`state_grid` / `input_grid` are Dionysos grids (`MP.GridFree(x0, h)`); further keyword arguments
-are forwarded as optimizer attributes (`execution_backend`, `use_implicit_mapping`, ...).
-Returns the optimizer, which caches the abstraction so that a control problem can be set on it
+```julia
+build_abstraction(
+    system;                                   # continuous time
+    state_grid, input_grid,
+    approx_mode = UGA.GROWTH,                 # UGA = Dionysos.Optim.Abstraction.UniformGridAbstraction
+    jacobian_bound = cellwise_bound(SymbolicDynamics(system)),
+    time_step = 0.05,
+)
+```
+
+The second method is for a [`CertifiedRK4GrowthBound`](@ref): it builds the abstraction of its
+system with the function of [`overapproximation_map`](@ref), which is also what registers `approx`
+for the provenance below (the attributes it sets cannot be overridden).
+
+The optimizer is returned with the abstraction cached, so that a control problem can be set on it
 afterwards:
 
 ```julia
@@ -625,45 +452,30 @@ dynamics, grids, state box or carving, or a chunk modified after its record was 
 specification, `state_input_filter`, ...).
 """
 function build_abstraction(
-    approx::ST.DiscreteTimeSystemOverApproximation;
+    system::Union{
+        MS.ConstrainedBlackBoxControlContinuousSystem,
+        MS.ConstrainedBlackBoxControlDiscreteSystem,
+    };
     state_grid,
     input_grid,
     print_level::Int = 0,
     abstraction_file = nothing,
     abstraction_info = nothing,
     merge_chunks = nothing,
+    approx = nothing,
     attributes...,
 )
-    if approx isa CertifiedRK4GrowthBound
-        # Cache files and chunks are allowed: they record how their transitions were computed
-        # (`provenance`), and are refused unless it is this construction.
-        for name in (:overapproximation_map, :approx_mode, :out_of_domain_handler)
-            haskey(attributes, name) &&
-                throw(ArgumentError("cannot override $name in a certified RK4 abstraction"))
-        end
-    end
     backend = get(attributes, :execution_backend, nothing)
     chunk_job = backend isa SY.SlurmArrayBackend && merge_chunks === nothing
     # A chunk and its provenance record go together: the record of an older chunk must not outlive
     # it, whoever overwrites the chunk file (it is written again when this one is complete).
     chunk_job && _forget_chunk_provenance(backend)
-    system = ST.get_system(approx)
     problem = PR.AlternatingSimulationProblem(system, system.X)
 
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("approx_mode"),
-        AB.UniformGridAbstraction.USER_DEFINED,
-    )
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("overapproximation_map"),
-        overapproximation_map(approx, state_grid),
-    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), print_level)
     for (name, value) in attributes
         MOI.set(optimizer, MOI.RawOptimizerAttribute(String(name)), value)
@@ -714,6 +526,21 @@ function build_abstraction(
     return optimizer
 end
 
+function build_abstraction(approx::CertifiedRK4GrowthBound; state_grid, attributes...)
+    for name in (:overapproximation_map, :approx_mode, :out_of_domain_handler, :approx)
+        haskey(attributes, name) &&
+            throw(ArgumentError("cannot override $name in a certified RK4 abstraction"))
+    end
+    return build_abstraction(
+        ST.get_system(approx);
+        state_grid,
+        approx_mode = AB.UniformGridAbstraction.USER_DEFINED,
+        overapproximation_map = overapproximation_map(approx, state_grid),
+        approx,
+        attributes...,
+    )
+end
+
 # ------------------------------------------------------------------------------------------
 # Saving and loading the transitions (to compute them on a server)
 # ------------------------------------------------------------------------------------------
@@ -743,7 +570,7 @@ _peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
 
 Plain data that identifies **how** the successors of `approx` are computed: for a
 [`CertifiedRK4GrowthBound`](@ref), `CertifiedRK4.get_provenance`. `nothing`, the default, means that
-`approx` keeps no record and that stored transitions are not checked (the local growth bound).
+`approx` keeps no record and that stored transitions are not checked (any growth bound of Dionysos).
 """
 provenance(approx) = nothing
 provenance(approx::CertifiedRK4GrowthBound) = CertifiedRK4.get_provenance(approx)
