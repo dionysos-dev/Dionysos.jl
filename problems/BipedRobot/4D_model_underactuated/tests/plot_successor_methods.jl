@@ -1,6 +1,6 @@
 # Figures and tables of the presentation "Four ways to compute the successors" (the two decks
 # `successor_methods_detailed.tex` and `successor_methods_visual.tex` in
-# `Documentation/ground_cells_presentation/`), from the results of `compare_successor_methods.jl`.
+# `Documentation/transitions_comparison/`), from the results of `compare_successor_methods.jl`.
 #
 # It writes, in `OUTPUT_DIR` (by default the `figures/` folder of the presentations; every file starts
 # with `sm_`):
@@ -35,7 +35,7 @@ include(joinpath(@__DIR__, "compare_successor_methods.jl"))
 
 const OUT =
     @isdefined(OUTPUT_DIR) ? OUTPUT_DIR :
-    joinpath(@__DIR__, "..", "Documentation", "ground_cells_presentation", "figures")
+    joinpath(@__DIR__, "..", "Documentation", "transitions_comparison", "figures")
 const RESULTS = joinpath(@__DIR__, "successor_methods_results", "results.jls")
 
 # The configuration that is looked at in detail, for every system.
