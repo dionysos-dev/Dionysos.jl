@@ -73,7 +73,10 @@ Order   = [:module, :type, :function, :constant]
 ### PCLF bisimulation quotient
 
 Bisimulation-quotient synthesis for switched systems via a path-complete Lyapunov function, plus
-co-safe LTL control on the quotient.
+co-safe LTL control on the quotient. The certificate comes from
+[PathCompleteCertificates.jl](https://github.com/dionysos-dev/PathCompleteCertificates.jl): with
+both packages loaded, `MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), certificate)` takes a
+stability certificate with the quadratic, piecewise linear or dual piecewise linear template.
 
 ```@autodocs
 Modules = [Dionysos.Optim.Abstraction.PCLFBisimulationQuotient]

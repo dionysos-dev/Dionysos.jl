@@ -245,7 +245,10 @@ function bisimulation_pclf(
 
     U = typeof(first(pclf.graph.verts))
     SL = UT.SemiLinearSet
-    quotient = PCBisimulationQuotient{SL, U}(slices)
+    # The graph is consumed here and not kept, so the one thing the solvers cannot reconstruct from
+    # the quotient -- which modes each node is allowed to emit -- is copied onto it now.
+    quotient =
+        PCBisimulationQuotient{SL, U}(slices; enabled = PCLF.enabled_modes(pclf.graph))
 
     initialize_partitions!(quotient; neutral_obs = 0, terminal_obs = -1)
     refine_partitions_by_observations!(quotient, regions; terminal_obs = -1, atol = atol)

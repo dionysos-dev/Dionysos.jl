@@ -5,7 +5,10 @@ Foundational helpers built on [`LazySets`](https://juliareach.github.io/LazySets
 lacks for symbolic control — callable cost functions, exact ellipsoid predicates
 ([`is_included`](@ref Dionysos.Utils.is_included) / [`is_disjoint`](@ref Dionysos.Utils.is_disjoint)),
 periodic splitting, data structures, [`RRT`](@ref Dionysos.Utils.RRT) search, and scalar optimization.
-The `PathCompleteFramework` submodule provides path-complete Lyapunov functions.
+The `PathCompleteFramework` submodule reads path-complete Lyapunov functions as geometry: their
+graph, their rate, and pieces whose sublevel sets the quotient construction cuts. It does not
+compute them: [PathCompleteCertificates.jl](https://github.com/dionysos-dev/PathCompleteCertificates.jl)
+does, and `PCLF(certificate)` converts its certificates once both packages are loaded.
 
 ## Sets are LazySets, with no Dionysos wrapper
 

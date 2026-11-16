@@ -239,8 +239,8 @@ function merge_transition_chunks!(
                 "Read transition chunk",
                 chunk_id = chunk_id,
                 ntransitions = data.n_transitions,
-                nmetadata =
-                    haskey(pairs(data), :metadata_pairs) ? length(data.metadata_pairs) : 0,
+                nmetadata = haskey(pairs(data), :metadata_pairs) ?
+                            length(data.metadata_pairs) : 0,
                 n_source_states = data.n_source_states,
             )
         end

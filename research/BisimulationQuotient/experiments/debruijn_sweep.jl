@@ -24,10 +24,10 @@ function run_debruijn(;
 )
     (; f, problem, R1, R2) = two_mode_problem()
 
-    graph = PCLF.generate_DeBruijn_edges(2, k; dual = dual)
+    graph = PCLFProducer.generate_DeBruijn_edges(2, k; dual = dual)
     nodes = sort(collect(graph.verts))
 
-    pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+    pclf = PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         f,
         graph,
         JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => max_iter);

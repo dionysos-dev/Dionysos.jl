@@ -25,8 +25,7 @@ import MathOptInterface as MOI
 import StaticArrays: SVector
 import Clarabel
 import LazySets
-import HybridSystems
-const PCLF = UT.PathCompleteFramework
+import PathCompleteCertificates as PCC
 
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
@@ -34,22 +33,24 @@ include(
 
 # --- 1. Common quadratic (δ-GAS) Lyapunov function of the sampled modes ---------------
 # The error e = x − y obeys the same switched dynamics, so a common quadratic Lyapunov
-# function for the *sampled* modes exp(A_σ·τ) is exactly the δ-GAS certificate. We reuse
-# the path-complete quadratic SDP with a single-node (common-Lyapunov) graph.
+# function for the *sampled* modes exp(A_σ·τ) is exactly the δ-GAS certificate.
+# PathCompleteCertificates.jl computes it on the one-node (common) graph.
 params = DCDC.Params()
 τ = 0.5                                    # sampling time
 sampled_modes = [exp(Matrix(DCDC.A1(params)) * τ), exp(Matrix(DCDC.A2(params)) * τ)]
-switched_system = HybridSystems.discreteswitchedsystem(sampled_modes)
 
 sdp_optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
-pclf = PCLF.compute_quadratic_pieces_pclf(
-    switched_system,
-    PCLF.generate_DeBruijn_edges(length(sampled_modes), 0),   # single-node (common) graph
-    sdp_optimizer;
-    MLF = true,
+# The grid step below shrinks with the condition number of P, so it is kept at most 2000:
+# `conditioning_bound` imposes I ⪯ P ⪯ 2000 I.
+certificate = PCC.certify(
+    PCC.QuadraticTemplate(),
+    PCC.common_graph(length(sampled_modes)),
+    PCC.StabilityProblem(PCC.switched_system(sampled_modes));
+    optimizer = sdp_optimizer,
+    conditioning_bound = 2000,
 )
-P = pclf.pieces[1].P            # the single common Lyapunov matrix
-γ = pclf.JSRapprox              # per-step contraction of V(x, y) = ‖x - y‖_P
+P = only(PCC.functions(certificate)).Q   # the common Lyapunov matrix, V(x) = x' P x
+γ = certificate.rate                     # per-step contraction of V(x, y) = ‖x - y‖_P
 println(
     "Per-step contraction γ = ",
     round(γ; sigdigits = 4),

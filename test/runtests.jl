@@ -22,7 +22,6 @@ const TEST_FILES = [
     ("./utils/pclf.jl",),
     ("./utils/sets/set_algebra.jl",),
     ("./utils/periodic.jl",),
-    ("./utils/pclf.jl",),
     ("./utils/incremental_stability.jl",),
     ("./utils/plotting.jl",),  # the DrawPoint/DrawArrow/DrawSegment recipes
     ("./symbolic/automaton.jl",),
@@ -34,6 +33,7 @@ const TEST_FILES = [
     ("./system/approximation.jl",),
     # The three precision levels of the derived Jacobian bound (needs Symbolics).
     ("./system/jacobian_bound_precision.jl",),
+    ("./system/cellwise_growth_bound.jl",),
     ("./system/controllers.jl",),
     ("./system/pid_controller.jl",),
     ("./system/controller_serialization.jl",),
@@ -42,6 +42,8 @@ const TEST_FILES = [
     ("./problem/problems.jl",),
     # Every hand-written growth bound in `problems/`, checked against its own dynamics.
     ("./problems/growth_bounds.jl",),
+    # The point-mass cart-pole: the states of its two models, and its velocity servo.
+    ("./problems/point_mass_cart_pendulum.jl",),
     # Car following: the model against the closed form its invariant set can be checked with.
     ("./problems/adaptive_cruise_control.jl",),
     # 4-D velocity-controlled biped: kinematics, sound carving, exact lattice.
@@ -85,6 +87,7 @@ const TEST_FILES = [
     ("./optim/discrete_systems/reachability.jl",),
     ("./optim/discrete_systems/cosafe_accepting.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
+    ("./optim/discrete_systems/worst_case_cost.jl",),
     ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
     # Input slew-rate constrained synthesis (pair-keyed Dijkstra).
@@ -94,6 +97,7 @@ const TEST_FILES = [
     ("./optim/UniformGridAbstraction/noisy_growth.jl",),
     ("./optim/UniformGridAbstraction/linearized.jl",),
     ("./optim/UniformGridAbstraction/user_defined.jl",),
+    ("./optim/UniformGridAbstraction/state_input_variation.jl",),
     ("./optim/UniformGridAbstraction/reachability.jl",),
     ("./optim/UniformGridAbstraction/safety.jl",),
     ("./optim/UniformGridAbstraction/reach_and_stay.jl",),
@@ -120,6 +124,7 @@ const TEST_FILES = [
     ("./ext/plots_dashboard.jl", :slow),
     ("./ext/csv_controller.jl", :slow),
     ("./ext/makie_augmented.jl", :slow),
+    ("./ext/path_complete_certificates.jl",),
 ]
 
 const _timings = Tuple{String, Float64}[]

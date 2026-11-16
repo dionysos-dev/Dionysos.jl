@@ -1,0 +1,6 @@
+cache/
+figures/
+
+# The root .gitignore drops every Manifest.toml. Here the reported counts depend on solver versions,
+# so the environment is pinned.
+!Manifest.toml

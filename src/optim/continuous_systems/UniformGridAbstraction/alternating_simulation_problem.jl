@@ -138,6 +138,9 @@ When enabled, the following fields are required:
     - [`GROWTH`](@ref Dionysos.System.DiscreteTimeGrowthBound):
       Use growth-bound based approximation.
       Set `jacobian_bound`, or directly `growthbound_map`.
+      `jacobian_bound` is a function `u -> SMatrix` (one bound per input), or a
+      [`CellwiseBound`](@ref Dionysos.System.CellwiseBound) for a bound per cell over an
+      enclosure of the step from it.
       `ngrowthbound` controls the internal growth-bound discretization parameter.
       With neither supplied the bound is derived from the dynamics (needs `Symbolics`);
       `jacobian_bound_precision` — a
@@ -316,7 +319,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
 
     ### GROWTH
     growthbound_map::Union{Nothing, Function}
-    jacobian_bound::Union{Nothing, Function}
+    jacobian_bound::Union{Nothing, Function, ST.CellwiseBound}
     ngrowthbound::Int
     # Only consulted when no `jacobian_bound` is supplied and one has to be derived.
     jacobian_bound_precision::ST.JacobianBoundPrecision

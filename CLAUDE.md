@@ -331,7 +331,39 @@ tmux send-keys -t julia 'includet("test/…/foo.jl")' Enter     # includet = tra
 while ! tmux capture-pane -t julia -p | grep -q "^julia>"; do sleep 1; done
 tmux capture-pane -t julia -p
 ```
-Tear down with `tmux kill-session -t julia`. (Unix/tmux; on Windows use a persistent VSCode Julia REPL.)
+Tear down with `tmux kill-session -t julia`.
+
+**On Windows**, where there is no `tmux`, use either a persistent VSCode Julia REPL or a session that
+watches a command file — the latter is the one an agent can drive. Write a server script that loads
+what is expensive, then includes a command file each time its timestamp moves:
+```julia
+const CMD = "<scratchpad>/cmd.jl"
+include("<the script whose state you want kept>")   # or just `using` the heavy packages
+# The loop must live in a function: at top level `while` is a soft scope, and assigning the
+# timestamp there makes it a new local on every pass.
+function watch()
+    stamp = isfile(CMD) ? mtime(CMD) : 0.0
+    println("=== READY ===")
+    flush(stdout)
+    while true
+        if isfile(CMD) && mtime(CMD) > stamp
+            stamp = mtime(CMD)
+            try
+                Base.include(Main, CMD)
+            catch e
+                showerror(stdout, e, catch_backtrace())
+            end
+            flush(stdout)
+        end
+        sleep(0.4)
+    end
+end
+watch()
+```
+Start it in the background (`julia --project=. server.jl`), wait for `READY` in its output, then
+iterate by rewriting `cmd.jl`. Everything the loaded script left in `Main` is still there, so an
+iteration costs only its own work. Redefining a `const` needs a fresh session; plain functions and
+variables can be redefined from `cmd.jl`. Kill the background task when done.
 
 **Julia & dev packages.** Julia is managed by `juliaup` (`~/.julia/juliaup`); local dev checkouts of
 packages live in `~/.julia/dev`. If you need the source of a package that isn't there, ask for it to be
@@ -372,8 +404,15 @@ via the controller protocol`. The [`/commit`](.claude/commands/commit.md) comman
 **Package extensions.** Optional features live in [ext/](ext/) behind `[weakdeps]`/`[extensions]` in
 [Project.toml](Project.toml): `DionysosPlotsExt`, `DionysosSymbolicsExt` (Symbolics + IntervalArithmetic),
 `DionysosSpotExt`, `DionysosCSVExt` (CSV + DataFrames), `DionysosMathOptSymbolicADExt`,
-`DionysosRigidBodyDynamicsExt`. The stub functions in `src/Dionysos.jl` error until the corresponding
-extension is loaded (`using Plots`, `using Symbolics`, …).
+`DionysosRigidBodyDynamicsExt`, `DionysosPathCompleteCertificatesExt`. The stub functions in
+`src/Dionysos.jl` error until the corresponding extension is loaded (`using Plots`, `using Symbolics`,
+…).
+
+**Path-complete certificates come from PathCompleteCertificates.jl.** `Utils.PathCompleteFramework`
+only reads a certificate as geometry; `DionysosPathCompleteCertificatesExt` converts a PCC
+`StabilityCertificate` into its `PCLF`. The former certificate code lives on, verbatim, in
+[research/common/pclf_producer.jl](research/common/pclf_producer.jl), for the research scripts only:
+their published counts depend on the exact programs it solves.
 
 ---
 
@@ -387,5 +426,5 @@ extension is loaded (`using Plots`, `using Symbolics`, …).
   `:slow` tag) run in a timed loop; its include paths are slightly flatter than the deeply nested `src/`
   tree. Add every new test file to that list, and mirror the *actual* `src/` layout for source.
 - **Cross-platform.** The repo is developed both in a Linux container and on Windows. The `julia
-  --project …` commands are portable; the `tmux` persistent-REPL recipe is Unix-only (on Windows use a
-  persistent VSCode Julia REPL instead).
+  --project …` commands are portable; the `tmux` persistent-REPL recipe is Unix-only — §9 gives the
+  Windows equivalent.

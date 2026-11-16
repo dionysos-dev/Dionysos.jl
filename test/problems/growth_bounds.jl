@@ -105,6 +105,49 @@ const TOL = 1e-5
         ) <= TOL
     end
 
+    @testset "CartPendulum/point_mass" begin
+        include(joinpath(PROBLEMS, "CartPendulum", "point_mass_cart_pendulum.jl"))
+        PM = PointMassCartPendulum
+        P = PM.Params()
+        s = PM.velocity_system(P; p_max = 2.0, v_max = 2.0)
+        @test worst_violation(
+            PM.velocity_dynamics(P),
+            PM.velocity_jacobian_bound(P; p_max = 2.0),
+            s.X,
+            s.U,
+        ) <= TOL
+
+        # The force model's bound holds over a box of states, and the box is an enclosure of
+        # the step: check both on random cells.
+        f = PM.force_dynamics(P)
+        τ = 0.05
+        rng = Random.MersenneTwister(1)
+        for _ in 1:20
+            c = SVector(2π * rand(rng) - π, 4 * rand(rng) - 2, 16 * rand(rng) - 8)
+            cell = LazySets.Hyperrectangle(c, SVector(0.025, 0.1, 0.1))
+            F = 40 * rand(rng) - 20
+            Y0 = Tuple(PM.interval(cell, i) for i in 1:3)
+            E = PM.force_enclosure(P, Y0, F, τ)
+            E === nothing && continue
+            box = LazySets.Hyperrectangle(;
+                low = SVector(E[1][1], E[2][1], E[3][1]),
+                high = SVector(E[1][2], E[2][2], E[3][2]),
+            )
+            L = PM.force_jacobian_bound(P, E[1], E[3], F)
+            input = LazySets.Hyperrectangle(SVector(F), SVector(0.0))
+            @test worst_violation(f, _ -> L, box, input; nsample = 100) <= TOL
+            for _ in 1:10
+                y = c .+ (2 .* SVector(rand(rng), rand(rng), rand(rng)) .- 1) .* cell.radius
+                inside = true
+                for _ in 1:50
+                    y = ST.runge_kutta4(f, y, F, τ / 50, 1)
+                    inside &= y in box
+                end
+                @test inside
+            end
+        end
+    end
+
     @testset "PathPlanning" begin
         include(joinpath(PROBLEMS, "PathPlanning", "path_planning.jl"))
         s = PathPlanning.system(

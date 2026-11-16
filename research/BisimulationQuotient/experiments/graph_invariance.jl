@@ -40,7 +40,7 @@ function run_graph(label, graph)
     (; f, problem, R1, R2) = two_mode_problem()
     nodes = sort(collect(graph.verts))
 
-    pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+    pclf = PCLFProducer.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         f,
         graph,
         JuMP.optimizer_with_attributes(
@@ -94,10 +94,10 @@ function run_graph(label, graph)
 end
 
 const GRAPHS = [
-    ("De Bruijn k=0", PCLF.generate_DeBruijn_edges(2, 0)),
-    ("De Bruijn k=1", PCLF.generate_DeBruijn_edges(2, 1)),
-    ("De Bruijn k=2", PCLF.generate_DeBruijn_edges(2, 2)),
-    ("dual De Bruijn k=1", PCLF.generate_DeBruijn_edges(2, 1; dual = true)),
+    ("De Bruijn k=0", PCLFProducer.generate_DeBruijn_edges(2, 0)),
+    ("De Bruijn k=1", PCLFProducer.generate_DeBruijn_edges(2, 1)),
+    ("De Bruijn k=2", PCLFProducer.generate_DeBruijn_edges(2, 2)),
+    ("dual De Bruijn k=1", PCLFProducer.generate_DeBruijn_edges(2, 1; dual = true)),
 ]
 
 results = filter(!isnothing, [run_graph(label, graph) for (label, graph) in GRAPHS])
