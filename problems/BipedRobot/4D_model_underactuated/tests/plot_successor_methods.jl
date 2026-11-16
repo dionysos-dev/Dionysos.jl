@@ -2,22 +2,30 @@
 # `successor_methods_detailed.tex` and `successor_methods_visual.tex` in
 # `Documentation/transitions_comparison/`), from the results of `compare_successor_methods.jl`.
 #
+# The study has eight variants per system: the global and the cell-wise growth bound, and the random and
+# the uniform sample points, each for three values of N (`study.Ns`). In every figure the growth bounds
+# are red and orange, the random points are blue and the uniform points green, in three shades each:
+# the lightest for the fewest points, the darkest for the most.
+#
 # It writes, in `OUTPUT_DIR` (by default the `figures/` folder of the presentations; every file starts
 # with `sm_`):
 #
-# * `sm_bars_<system>.png`: the four statistics (total and average number of transitions, total and
-#   average computation time) of the four methods for every sampling time and cell size, as bars;
+# * `sm_bars_<system>_{transitions,time}.png`: the four statistics (total and average number of
+#   transitions, total and average computation time) of the eight variants for every sampling time and
+#   cell size, as bars; `sm_ref_<system>.png`: the same for the reference configuration, one big bar per
+#   variant; `sm_sens_<system>.png`: the effect of the sampling time and of the cell size;
 # * `sm_hist_<system>.png`: the histogram of the number of successors of a (cell, input) pair, for the
 #   reference configuration;
-# * `sm_table_<system>_transitions.tex`, `sm_table_<system>_time.tex`, `sm_table_<system>_ref.tex`: the
-#   same numbers as tables;
-# * `sm_overlay_simple.png`, `sm_overlay_double.png`: the successors of one cell and one input with the four
-#   methods on top of each other (the cells that each method lists, the growth-bound boxes, the images of
-#   the sample points, the true image), for the cells where the cell-wise bound helps the least and the
-#   most; `sm_gain_simple.png` and `sm_gain_double.png`: where the cell-wise bound helps, over the state
-#   space (simple pendulum) and as a distribution (double pendulum);
-# * `sm_coverage.png` and `sm_coverage.tex`: how much of what a fresh point of a cell does each method
-#   covers, and how many cells it lists for each cell that is actually reached.
+# * `sm_table_<system>_{transitions,pair,time,upair,ref}.tex`: the same numbers as tables;
+# * `sm_overlay_simple.png`, `sm_overlay_double_{small,large}.png`: the successors of one cell and one input
+#   with the four methods (at the reference N) on top of each other (the cells that each method lists, the
+#   growth-bound boxes, the images of the sample points, the true image), for the cells where the
+#   cell-wise bound helps the least and the most; `sm_overlayN_simple.png`, `sm_overlayN_double.png`: the
+#   cells listed by the random and the uniform points for each N, against those of the cell-wise bound;
+#   `sm_gain_simple.png` and `sm_gain_double.png`: where the cell-wise bound helps, over the state space
+#   (simple pendulum) and as a distribution (double pendulum);
+# * `sm_coverage.png` and `sm_coverage.tex`: how much of what a fresh point of a cell does each variant
+#   covers, and how many cells it lists for each cell that is actually reached, against N.
 #
 # Run it after `compare_successor_methods.jl`, with the same environment:
 #
@@ -44,25 +52,74 @@ const REFERENCE = (
     double = (tau = 0.01, size = [0.3, 0.3, 0.6, 0.6]),
 )
 
-# The colors of the deck (`preamble.tex`): red, orange, blue, green.
-const COLORS = Dict(
-    :global => Plots.RGB(190 / 255, 35 / 255, 35 / 255),
-    :cellwise => Plots.RGB(215 / 255, 105 / 255, 10 / 255),
-    :random => Plots.RGB(30 / 255, 100 / 255, 170 / 255),
-    :uniform => Plots.RGB(27 / 255, 120 / 255, 55 / 255),
+const STUDIES = studies()
+study_of(system) = only(s for s in STUDIES if s.name == system)
+# A variant is `(method, N)`, with `N = 0` for the growth bounds; see `variants` of the study script.
+variants_of(system) = variants(study_of(system))
+# The four methods at the reference number of points.
+function reference_of(system)
+    N = study_of(system).N
+    return [(:global, 0), (:cellwise, 0), (:random, N), (:uniform, N)]
+end
+
+# ------------------------------------------------------------------------------------------
+# Colors and names
+# ------------------------------------------------------------------------------------------
+
+rgb(r, g, b) = Plots.RGB(r / 255, g / 255, b / 255)
+
+# The colors of the deck (`preamble.tex`): red, orange, blue, green; the blue and the green of the deck
+# are the middle shades. Three shades for the three N: the lightest for the fewest points.
+const GROWTH_RGB = Dict(:global => (190, 35, 35), :cellwise => (215, 105, 10))
+const SHADE_RGB = Dict(
+    :random => [(125, 175, 220), (30, 100, 170), (10, 45, 100)],
+    :uniform => [(120, 195, 140), (27, 120, 55), (8, 62, 28)],
 )
-const LABELS = Dict(
+const RANKS = ("low", "mid", "high")
+
+rank_of(system, N) = findfirst(==(N), study_of(system).Ns)
+shade(m, k) = rgb(SHADE_RGB[m][k]...)
+
+function color_of(system, v)
+    m, N = v
+    haskey(GROWTH_RGB, m) && return rgb(GROWTH_RGB[m]...)
+    return shade(m, rank_of(system, N))
+end
+
+const FAMILY = Dict(
     :global => "global growth bound",
     :cellwise => "cell-wise growth bound",
     :random => "random points",
     :uniform => "uniform points",
 )
-const SHORT = Dict(
-    :global => "global bound",
-    :cellwise => "cell-wise bound",
-    :random => "random points",
-    :uniform => "uniform points",
-)
+
+function short_of(v)
+    m, N = v
+    m === :global && return "global"
+    m === :cellwise && return "cell-wise"
+    return "$m $N"
+end
+
+function tick_of(v)
+    m, N = v
+    m === :global && return "global"
+    m === :cellwise && return "cell-\nwise"
+    return "N=$N"
+end
+
+function tex_color(system, v)
+    m, N = v
+    m === :global && return "cbelow"
+    m === :cellwise && return "cacross"
+    return (m === :random ? "crand" : "cunif") * RANKS[rank_of(system, N)]
+end
+
+function tex_label(system, v)
+    m, N = v
+    text = m in SAMPLED ? "$(FAMILY[m]), \$N=$N\$" : FAMILY[m]
+    return "\\textcolor{$(tex_color(system, v))}{$text}"
+end
+
 const SYSTEM_TITLES = Dict(:simple => "simple pendulum", :double => "double pendulum")
 
 Plots.default(;
@@ -97,9 +154,12 @@ function configurations(system)
     return seen
 end
 
-record(system, method, tau, size) = only(
-    r for r in RECORDS if
-    r.system == system && r.method == method && r.tau == tau && r.size == size
+record(system, v, tau, size) = only(
+    r for r in RECORDS if r.system == system &&
+        r.method == v[1] &&
+        r.N == v[2] &&
+        r.tau == tau &&
+        r.size == size
 )
 
 fmt_g(x) = @sprintf("%g", x)
@@ -137,18 +197,8 @@ function tick_label(v, kind)
     return short(v)
 end
 
-# Ticks of a logarithmic axis that read as numbers (1, 2, 5, 10, ...), between `lo` and `hi`.
-function log_ticks(lo, hi)
-    ticks = Float64[]
-    for e in floor(Int, log10(lo)):ceil(Int, log10(hi)), m in (1, 2, 5)
-        t = m * 10.0^e
-        lo <= t <= hi && push!(ticks, t)
-    end
-    return ticks
-end
-
-# Bars: one group per configuration (`configs`, labelled by `labelf`), one bar per method. `values` maps
-# every method to its numbers, in the order of `configs`. `taus`: also write the sampling time above
+# Bars: one group per configuration (`configs`, labelled by `labelf`), one bar per variant. `values` maps
+# every variant to its numbers, in the order of `configs`. `taus`: also write the sampling time above
 # every run of equal τ.
 function bar_panel(
     system,
@@ -162,9 +212,12 @@ function bar_panel(
     title = "",
     annotate = nothing,
     ymax = nothing,
+    xtickfontsize = nothing,
 )
+    vs = variants_of(system)
+    nv = length(vs)
     n = length(configs)
-    positive = [v for m in METHODS for v in values[m] if v > 0]
+    positive = [x for v in vs for x in values[v] if x > 0]
     base = logscale ? minimum(positive) / 2.2 : 0.0
     top =
         ymax !== nothing ? ymax : maximum(positive) * (logscale ? (taus ? 4.0 : 1.8) : 1.15)
@@ -178,22 +231,22 @@ function bar_panel(
         xlims = (0.4, n + 0.6),
         xticks = (1:n, [labelf(t, s) for (t, s) in configs]),
         legend = false,
-        xtickfontsize = n > 5 ? 11 : 14,
+        xtickfontsize = xtickfontsize !== nothing ? xtickfontsize : (n > 5 ? 11 : 14),
         left_margin = 9Plots.mm,
         bottom_margin = 3Plots.mm,
     )
-    width = 0.2
-    for (m, method) in enumerate(METHODS), g in 1:n
-        v = values[method][g]
-        x0 = g + (m - 2.5) * width
-        if v > 0
+    width = 0.84 / nv
+    for (m, v) in enumerate(vs), g in 1:n
+        y = values[v][g]
+        x0 = g + (m - (nv + 1) / 2) * width
+        if y > 0
             Plots.plot!(
                 p,
                 Plots.Shape(
                     [x0 - width / 2, x0 + width / 2, x0 + width / 2, x0 - width / 2],
-                    [base, base, v, v],
+                    [base, base, y, y],
                 );
-                fillcolor = COLORS[method],
+                fillcolor = color_of(system, v),
                 linecolor = :black,
                 linewidth = 0.4,
                 label = "",
@@ -201,15 +254,15 @@ function bar_panel(
             annotate === nothing || Plots.annotate!(
                 p,
                 x0,
-                v * (logscale ? 1.25 : 1.0) + (logscale ? 0.0 : 0.05 * top),
-                Plots.text(annotate(v), 11, :black),
+                y * (logscale ? 1.25 : 1.0) + (logscale ? 0.0 : 0.05 * top),
+                Plots.text(annotate(y), 11, :black),
             )
         else
             Plots.annotate!(
                 p,
                 x0,
                 base * (logscale ? 1.6 : 1.0),
-                Plots.text("0", 11, COLORS[method]),
+                Plots.text("0", 10, color_of(system, v)),
             )
         end
     end
@@ -240,8 +293,21 @@ function bar_panel(
     return p
 end
 
-# A strip with the legend of the four methods (a plot without axes).
-function legend_strip(; fontsize = 15)
+# The variants in the order of the legend, which has four columns filled row by row: the growth bound
+# and the three N of the random points on the first row, the cell-wise bound and the uniform points on
+# the second.
+function legend_order(system)
+    vs = variants_of(system)
+    return vcat(
+        [(:global, 0)],
+        [v for v in vs if v[1] === :random],
+        [(:cellwise, 0)],
+        [v for v in vs if v[1] === :uniform],
+    )
+end
+
+# A strip with the legend of the variants of a system (a plot without axes), on two rows.
+function legend_strip(system; fontsize = 14)
     p = Plots.plot(;
         framestyle = :none,
         legend = :top,
@@ -249,14 +315,14 @@ function legend_strip(; fontsize = 15)
         legendfontsize = fontsize,
         foreground_color_legend = nothing,
     )
-    for method in METHODS
+    for v in legend_order(system)
         Plots.bar!(
             p,
             [NaN],
             [NaN];
-            fillcolor = COLORS[method],
+            fillcolor = color_of(system, v),
             linecolor = :black,
-            label = SHORT[method],
+            label = short_of(v),
         )
     end
     return p
@@ -264,20 +330,22 @@ end
 
 function values_of(system, field; configs = configurations(system))
     return Dict(
-        m => Float64[field(record(system, m, t, s)) for (t, s) in configs] for m in METHODS
+        v => Float64[field(record(system, v, t, s)) for (t, s) in configs] for
+        v in variants_of(system)
     )
 end
 
 # The four statistics, for the nine configurations of a system: one figure for the transitions
-# (total, per pair) and one for the time.
+# (total, per pair) and one for the time, the two panels one above the other.
 function bars_figure(system)
+    vs = variants_of(system)
     transitions = values_of(system, r -> r.transitions)
     average = values_of(system, r -> r.transitions / r.pairs)
     total_time = values_of(system, r -> r.time)
     average_time = values_of(system, r -> 1e6 * r.time / r.pairs)
     spread =
-        maximum(average[:global]) /
-        max(minimum(v for m in METHODS for v in average[m] if v > 0), 1e-9)
+        maximum(average[(:global, 0)]) /
+        max(minimum(x for v in vs for x in average[v] if x > 0), 1e-9)
     for (name, panels) in (
         (
             "transitions",
@@ -307,59 +375,60 @@ function bars_figure(system)
         ),
     )
         fig = Plots.plot(
-            legend_strip(),
+            legend_strip(system),
             panels...;
-            layout = Plots.@layout([l{0.11h}; grid(1, 2)]),
-            size = (1500, 700),
+            layout = Plots.@layout([l{0.1h}; grid(2, 1)]),
+            size = (1500, 960),
         )
         Plots.savefig(fig, joinpath(OUT, "sm_bars_$(system)_$name.png"))
     end
     return nothing
 end
 
-# The four statistics of the reference configuration, one big bar per method.
+# The four statistics of the reference configuration, one big bar per variant.
 function ref_figure(system)
     ref = REFERENCE[system]
-    rs = Dict(m => record(system, m, ref.tau, ref.size) for m in METHODS)
+    vs = variants_of(system)
+    rs = Dict(v => record(system, v, ref.tau, ref.size) for v in vs)
     panels = []
-    for (name, field, kind, logscale) in (
-        ("total transitions", r -> r.transitions, :count, false),
-        ("transitions per pair", r -> r.transitions / r.pairs, :plain, false),
-        ("total time", r -> r.time, :seconds, false),
-        ("time per pair (µs)", r -> 1e6 * r.time / r.pairs, :plain, false),
+    for (name, field, kind) in (
+        ("total transitions", r -> r.transitions, :count),
+        ("transitions per pair", r -> r.transitions / r.pairs, :plain),
+        ("total time", r -> r.time, :seconds),
+        ("time per pair (µs)", r -> 1e6 * r.time / r.pairs, :plain),
     )
-        vals = [Float64(field(rs[m])) for m in METHODS]
+        vals = [Float64(field(rs[v])) for v in vs]
         p = Plots.bar(
-            1:4,
+            1:length(vs),
             vals;
-            fillcolor = [COLORS[m] for m in METHODS],
+            fillcolor = [color_of(system, v) for v in vs],
             linecolor = :black,
             linewidth = 0.6,
-            bar_width = 0.72,
+            bar_width = 0.8,
             label = "",
-            xticks = (1:4, ["global", "cell-wise", "random", "uniform"]),
+            xticks = (1:length(vs), [tick_of(v) for v in vs]),
             ylims = (0, maximum(vals) * 1.22),
-            yformatter = v -> tick_label(v, kind),
+            yformatter = y -> tick_label(y, kind),
             title = name,
             left_margin = 4Plots.mm,
-            xtickfontsize = 15,
+            bottom_margin = 7Plots.mm,
+            xtickfontsize = 13,
         )
-        for (i, v) in enumerate(vals)
+        for (i, y) in enumerate(vals)
             Plots.annotate!(
                 p,
                 i,
-                v + 0.07 * maximum(vals),
-                Plots.text(tick_label(v, kind == :plain ? :plain : kind), 15, :black),
+                y + 0.07 * maximum(vals),
+                Plots.text(tick_label(y, kind), 12, :black),
             )
         end
         push!(panels, p)
     end
     fig = Plots.plot(
+        legend_strip(system),
         panels...;
-        layout = (2, 2),
-        size = (1300, 640),
-        plot_title = "$(SYSTEM_TITLES[system]): τ = $(fmt_g(ref.tau)), cells $(join(map(fmt_g, ref.size), "×"))",
-        plot_titlefontsize = 18,
+        layout = Plots.@layout([l{0.1h}; grid(2, 2)]),
+        size = (1400, 820),
     )
     Plots.savefig(fig, joinpath(OUT, "sm_ref_$system.png"))
     return nothing
@@ -369,14 +438,15 @@ end
 # sampling time) on the two statistics per pair.
 function sensitivity_figure(system)
     ref = REFERENCE[system]
+    vs = variants_of(system)
     all = configurations(system)
     by_tau = [(t, s) for (t, s) in all if s == ref.size]
     by_size = [(t, s) for (t, s) in all if t == ref.tau]
     average(c) = values_of(system, r -> r.transitions / r.pairs; configs = c)
     micro(c) = values_of(system, r -> 1e6 * r.time / r.pairs; configs = c)
     spread(v) =
-        maximum(maximum(v[m]) for m in METHODS) /
-        max(minimum(x for m in METHODS for x in v[m] if x > 0), 1e-9)
+        maximum(maximum(v[m]) for m in vs) /
+        max(minimum(x for m in vs for x in v[m] if x > 0), 1e-9)
     tau_label = (t, s) -> "τ=$(fmt_g(t))"
     size_label_ = (t, s) -> size_label(system, s)
     panels = [
@@ -416,10 +486,10 @@ function sensitivity_figure(system)
         ),
     ]
     fig = Plots.plot(
-        legend_strip(),
+        legend_strip(system; fontsize = 13),
         panels...;
-        layout = Plots.@layout([l{0.08h}; grid(2, 2)]),
-        size = (1200, 720),
+        layout = Plots.@layout([l{0.1h}; grid(2, 2)]),
+        size = (1300, 800),
     )
     Plots.savefig(fig, joinpath(OUT, "sm_sens_$system.png"))
     return nothing
@@ -442,44 +512,61 @@ function bins_of(hist; exact)
     return edges
 end
 
+# One panel per method; the sampled ones have one bar per N in a bin, in the three shades.
 function histogram_figure(system)
     ref = REFERENCE[system]
     exact = system == :simple ? 14 : 4
+    study = study_of(system)
+    vs = variants_of(system)
     all_bins = Dict(
-        m => begin
-            hist = record(system, m, ref.tau, ref.size).hist
+        v => begin
+            hist = record(system, v, ref.tau, ref.size).hist
             edges = bins_of(hist; exact)
             [sum(hist[(a + 1):min(b + 1, length(hist))]) for (a, b) in edges]
-        end for m in METHODS
+        end for v in vs
     )
-    longest = maximum(length(all_bins[m]) for m in METHODS)
+    longest = maximum(length(all_bins[v]) for v in vs)
     edges = bins_of(zeros(Int, 2^(longest) + 4); exact)[1:longest]
     labels = [a == b ? string(a) : "$(a)–$(b)" for (a, b) in edges]
+    pairs = record(system, (:global, 0), ref.tau, ref.size).pairs
+    ymax = maximum(maximum(all_bins[v]) for v in vs) / pairs * 100 * 1.12
+    families = [
+        (:global, [(:global, 0)]),
+        (:cellwise, [(:cellwise, 0)]),
+        (:random, [(:random, N) for N in study.Ns]),
+        (:uniform, [(:uniform, N) for N in study.Ns]),
+    ]
     panels = []
-    pairs = record(system, :global, ref.tau, ref.size).pairs
-    ymax = maximum(maximum(all_bins[m]) for m in METHODS) / pairs * 100 * 1.12
-    for (i, method) in enumerate(METHODS)
-        counts = vcat(all_bins[method], zeros(Int, longest - length(all_bins[method])))
-        share = counts ./ pairs .* 100
-        p = Plots.bar(
-            1:longest,
-            share;
-            fillcolor = COLORS[method],
-            linecolor = :black,
-            linewidth = 0.4,
-            bar_width = 0.9,
-            label = "",
-            title = LABELS[method],
+    for (i, (family, members)) in enumerate(families)
+        p = Plots.plot(;
+            title = FAMILY[family],
             xticks = (1:longest, labels),
             xrotation = 45,
             xtickfontsize = 13,
+            xlims = (0.3, longest + 0.7),
             ylims = (0, ymax),
             ylabel = i in (1, 3) ? "share of the pairs (%)" : "",
             xlabel = i in (3, 4) ? "number of successors" : "",
+            legend = length(members) > 1 ? :topright : false,
+            legendfontsize = 14,
             left_margin = 11Plots.mm,
             bottom_margin = 8Plots.mm,
         )
-        mean_k = sum((a + b) / 2 * c for ((a, b), c) in zip(edges, counts)) / pairs
+        k = length(members)
+        width = 0.9 / k
+        for (j, v) in enumerate(members)
+            counts = vcat(all_bins[v], zeros(Int, longest - length(all_bins[v])))
+            Plots.bar!(
+                p,
+                (1:longest) .+ (j - (k + 1) / 2) * width,
+                counts ./ pairs .* 100;
+                fillcolor = color_of(system, v),
+                linecolor = :black,
+                linewidth = 0.3,
+                bar_width = width,
+                label = k > 1 ? "N = $(v[2])" : "",
+            )
+        end
         push!(panels, p)
     end
     fig = Plots.plot(
@@ -523,47 +610,42 @@ cell_text(system, size) =
     system == :simple ? "\$$(fmt_g(size[1]))\\times$(fmt_g(size[2]))\$" :
     "\$$(fmt_g(size[1]))^2\\times$(fmt_g(size[3]))^2\$"
 
-function header_rows(columns)
-    cols = join(("c" for _ in 1:(2 + 1 + length(columns) * length(METHODS)));)
-    return cols
-end
-
-function table_config(system, body_columns)
-    # body_columns: a vector of (header, formatter(record) -> String); one group per method.
-    k = length(body_columns)
-    spec = "rrr" * join(("r" ^ k for _ in METHODS))
+# One statistic of the eight variants, one row per configuration: τ, cell size, number of cells, and a
+# column per variant under its group (growth bounds, random points N, uniform points N).
+function stat_table(system, f)
+    study = study_of(system)
+    vs = variants_of(system)
+    nN = length(study.Ns)
+    spec = "rrr" * "r"^length(vs)
     io = IOBuffer()
     println(io, "\\begin{tabular}{$spec}")
     println(io, "\\toprule")
+    println(
+        io,
+        " & & & \\multicolumn{2}{c}{growth bounds} & \\multicolumn{$nN}{c}{\\textcolor{crandmid}{random points}, \$N\$} & \\multicolumn{$nN}{c}{\\textcolor{cunifmid}{uniform points}, \$N\$} \\\\",
+    )
+    println(
+        io,
+        "\\cmidrule(lr){4-5} \\cmidrule(lr){6-$(5 + nN)} \\cmidrule(lr){$(6 + nN)-$(5 + 2nN)}",
+    )
     heads = join(
         (
-            "\\multicolumn{$k}{c}{\\textcolor{$(m == :global ? "cbelow" : m == :cellwise ? "cacross" : m == :random ? "cabove" : "cgood")}{$(LABELS[m])}}"
-            for m in METHODS
+            "\\textcolor{$(tex_color(system, v))}{$(v[1] in SAMPLED ? v[2] : v[1] === :global ? "global" : "cell-wise")}"
+            for v in vs
         ),
         " & ",
     )
-    println(io, " & & & $heads \\\\")
-    start = 4
-    rules = join(
-        (
-            "\\cmidrule(lr){$(start + (i - 1) * k)-$(start + i * k - 1)}" for
-            i in 1:length(METHODS)
-        ),
-        " ",
-    )
-    println(io, rules)
-    sub = join((join((h for (h, _) in body_columns), " & ") for _ in METHODS), " & ")
-    println(io, "\$\\tau\$ & cell & cells & $sub \\\\")
+    println(io, "\$\\tau\$ & cell & cells & $heads \\\\")
     println(io, "\\midrule")
-    configs = configurations(system)
     last_tau = nothing
-    for (tau, size) in configs
+    for (tau, size) in configurations(system)
         last_tau !== nothing && tau != last_tau && println(io, "\\addlinespace")
         last_tau = tau
-        rs = [record(system, m, tau, size) for m in METHODS]
-        cells = fmt_int(rs[1].n_cells)
-        vals = join((join((f(r) for (_, f) in body_columns), " & ") for r in rs), " & ")
-        println(io, "$(fmt_g(tau)) & $(cell_text(system, size)) & $cells & $vals \\\\")
+        rs = [record(system, v, tau, size) for v in vs]
+        println(
+            io,
+            "$(fmt_g(tau)) & $(cell_text(system, size)) & $(fmt_int(rs[1].n_cells)) & $(join((f(r) for r in rs), " & ")) \\\\",
+        )
     end
     println(io, "\\bottomrule")
     println(io, "\\end{tabular}")
@@ -571,28 +653,22 @@ function table_config(system, body_columns)
 end
 
 function write_tables(system)
-    write(
-        joinpath(OUT, "sm_table_$(system)_transitions.tex"),
-        table_config(
-            system,
-            [
-                ("total", r -> fmt_int(r.transitions)),
-                ("per pair", r -> fmt_avg(r.transitions / r.pairs)),
-                ("enabled", r -> @sprintf("%.0f\\%%", 100 * r.enabled_pairs / r.pairs)),
-            ],
+    for (name, f) in (
+        ("transitions", r -> fmt_int(r.transitions)),
+        (
+            "pair",
+            r -> @sprintf(
+                "%s / %.0f\\%%",
+                fmt_avg(r.transitions / r.pairs),
+                100 * r.enabled_pairs / r.pairs
+            ),
         ),
+        ("time", r -> fmt_time(r.time)),
+        ("upair", r -> fmt_us(1e6 * r.time / r.pairs)),
     )
-    write(
-        joinpath(OUT, "sm_table_$(system)_time.tex"),
-        table_config(
-            system,
-            [
-                ("total", r -> fmt_time(r.time)),
-                ("\$\\mu\$s per pair", r -> fmt_us(1e6 * r.time / r.pairs)),
-            ],
-        ),
-    )
-    # The reference configuration: one row per method.
+        write(joinpath(OUT, "sm_table_$(system)_$name.tex"), stat_table(system, f))
+    end
+    # The reference configuration: one row per variant.
     ref = REFERENCE[system]
     io = IOBuffer()
     println(io, "\\begin{tabular}{lrrrrrr}")
@@ -602,12 +678,12 @@ function write_tables(system)
         "method & transitions & per pair & per enabled pair & enabled pairs & time & \$\\mu\$s per pair \\\\",
     )
     println(io, "\\midrule")
-    for m in METHODS
-        r = record(system, m, ref.tau, ref.size)
+    for v in variants_of(system)
+        r = record(system, v, ref.tau, ref.size)
         per_enabled = r.enabled_pairs == 0 ? "--" : fmt_avg(r.transitions / r.enabled_pairs)
         println(
             io,
-            "\\textcolor{$(m == :global ? "cbelow" : m == :cellwise ? "cacross" : m == :random ? "cabove" : "cgood")}{$(LABELS[m])} & $(fmt_int(r.transitions)) & $(fmt_avg(r.transitions / r.pairs)) & $per_enabled & $(@sprintf("%.1f\\%%", 100 * r.enabled_pairs / r.pairs)) & $(fmt_time(r.time)) & $(fmt_us(1e6 * r.time / r.pairs)) \\\\",
+            "$(tex_label(system, v)) & $(fmt_int(r.transitions)) & $(fmt_avg(r.transitions / r.pairs)) & $per_enabled & $(@sprintf("%.1f\\%%", 100 * r.enabled_pairs / r.pairs)) & $(fmt_time(r.time)) & $(fmt_us(1e6 * r.time / r.pairs)) \\\\",
         )
     end
     println(io, "\\bottomrule")
@@ -621,7 +697,7 @@ end
 # ------------------------------------------------------------------------------------------
 
 function reference_abstractions(system; domain = nothing)
-    study = only(s for s in studies() if s.name == system)
+    study = study_of(system)
     # A domain of its own, for looking at one cell: the pendulum of the study ends at θ = π, which
     # disables every input of the cells next to it.
     domain === nothing ||
@@ -629,7 +705,10 @@ function reference_abstractions(system; domain = nothing)
     ref = REFERENCE[system]
     dynamics = SymbolicDynamics(study.system)
     grids = grids_of(study, ref.size)
-    opts = Dict(m => build(m, study, dynamics, grids, ref.tau) for m in METHODS)
+    opts = Dict(
+        (m, N) => build(m, study, dynamics, grids, ref.tau, N == 0 ? study.N : N) for
+        (m, N) in variants(study)
+    )
     return (; study, dynamics, grids, tau = ref.tau, opts)
 end
 
@@ -659,34 +738,38 @@ box_shape(lo, hi) =
 struct Scene
     plane::Tuple{Int, Int}
     source::Any                       # the cell
-    cells::Dict{Symbol, Vector{Any}}  # method => the cells that it lists (hyperrectangles)
+    cells::Dict{Tuple{Symbol, Int}, Vector{Any}}   # variant => the cells that it lists
     boxes::Dict{Symbol, Any}          # growth bounds => the box
-    points::Dict{Symbol, Vector{Any}} # sampled methods => the images of the sample points
+    points::Dict{Tuple{Symbol, Int}, Vector{Any}}  # sampled variants => the images of the sample points
     truth::Vector{Any}                # images of many points of the cell
     outline::Union{Nothing, Vector{Any}}   # the image of the boundary of the cell, in order (2-D only)
 end
 
+with_plane(s::Scene, plane) =
+    Scene(plane, s.source, s.cells, s.boxes, s.points, s.truth, nothing)
+
 function scene_of(ctx, source_cell, input_index, q, u; n_truth = 3000, plane = (1, 2))
-    sym = abstraction_of(ctx.opts[:global])
+    sym = abstraction_of(ctx.opts[(:global, 0)])
     study, tau = ctx.study, ctx.tau
     system = study.system
     approx = SampledSimulation(system, tau; nsamples = 1)
     F = ST.get_system_map(approx)
-    cells = Dict{Symbol, Vector{Any}}()
-    for m in METHODS
-        s = abstraction_of(ctx.opts[m])
-        cells[m] = [SY.get_concrete_elem(s, t) for t in SY.post(s, q, input_index)]
+    cells = Dict{Tuple{Symbol, Int}, Vector{Any}}()
+    for v in variants(study)
+        s = abstraction_of(ctx.opts[v])
+        cells[v] = [SY.get_concrete_elem(s, t) for t in SY.post(s, q, input_index)]
     end
     boxes = Dict(
         :global => growth_box(study, study.jacobian_bound, tau, source_cell, u),
         :cellwise =>
             growth_box(study, cellwise_bound(ctx.dynamics), tau, source_cell, u),
     )
-    points = Dict{Symbol, Vector{Any}}()
-    for (m, sampling) in ((:random, :random), (:uniform, :uniform))
-        a = SampledSimulation(system, tau; nsamples = study.N, sampling, seed = 1)
+    points = Dict{Tuple{Symbol, Int}, Vector{Any}}()
+    for (m, N) in variants(study)
+        m in SAMPLED || continue
+        a = SampledSimulation(system, tau; nsamples = N, sampling = m, seed = 1)
         image = ST.get_over_approximation_map(a)(source_cell, u)
-        points[m] = collect(image.points)
+        points[(m, N)] = collect(image.points)
     end
     c, ρ = LazySets.center(source_cell), LazySets.radius_hyperrectangle(source_cell)
     n = length(c)
@@ -726,20 +809,24 @@ function projected_cells(cells, plane)
     return out
 end
 
-function draw_scene(scene::Scene; title, xlabel, ylabel, window)
-    i, j = scene.plane
-    p = Plots.plot(;
+function scene_axes(scene::Scene; title, xlabel, ylabel, window, titlefontsize = 20)
+    return Plots.plot(;
         title,
         xlabel,
         ylabel,
         xlims = (window[1], window[2]),
         ylims = (window[3], window[4]),
         legend = false,
-        titlefontsize = 20,
+        titlefontsize,
         left_margin = 11Plots.mm,
         bottom_margin = 6Plots.mm,
+        top_margin = 4Plots.mm,
     )
-    # The true image of the cell: the image of its boundary (2-D), or of many of its points.
+end
+
+# The true image of the cell: the image of its boundary (2-D), or of many of its points.
+function draw_truth!(p, scene::Scene)
+    i, j = scene.plane
     if scene.outline !== nothing
         Plots.plot!(
             p,
@@ -762,60 +849,12 @@ function draw_scene(scene::Scene; title, xlabel, ylabel, window)
             label = "",
         )
     end
-    # The cells that each method lists, the largest set first and with the thickest outline, so that
-    # the nested sets show as stripes where their edges coincide.
-    for (m, width) in zip(METHODS, (5.5, 4, 2.8, 1.6))
-        for (lo, hi) in projected_cells(scene.cells[m], scene.plane)
-            Plots.plot!(
-                p,
-                box_shape(lo, hi);
-                fillcolor = COLORS[m],
-                fillalpha = 0.07,
-                linecolor = COLORS[m],
-                linewidth = width,
-                label = "",
-            )
-        end
-    end
-    # The growth-bound boxes (before the cells are looked up).
-    for m in (:global, :cellwise)
-        box = scene.boxes[m]
-        box === nothing && continue
-        c, r = LazySets.center(box), LazySets.radius_hyperrectangle(box)
-        Plots.plot!(
-            p,
-            box_shape(SVector(c[i] - r[i], c[j] - r[j]), SVector(c[i] + r[i], c[j] + r[j]));
-            fillalpha = 0,
-            linecolor = COLORS[m],
-            linestyle = :dash,
-            linewidth = 2.5,
-            label = "",
-        )
-    end
-    # The images of the sample points.
-    Plots.scatter!(
-        p,
-        [q[i] for q in scene.points[:random]],
-        [q[j] for q in scene.points[:random]];
-        markershape = :circle,
-        markersize = 8,
-        markercolor = COLORS[:random],
-        markerstrokecolor = :white,
-        markerstrokewidth = 1.5,
-        label = "",
-    )
-    Plots.scatter!(
-        p,
-        [q[i] for q in scene.points[:uniform]],
-        [q[j] for q in scene.points[:uniform]];
-        markershape = :diamond,
-        markersize = 9,
-        markercolor = COLORS[:uniform],
-        markerstrokecolor = :white,
-        markerstrokewidth = 2,
-        label = "",
-    )
-    # The cell itself.
+    return p
+end
+
+# The cell itself.
+function draw_source!(p, scene::Scene)
+    i, j = scene.plane
     c, r = LazySets.center(scene.source), LazySets.radius_hyperrectangle(scene.source)
     Plots.plot!(
         p,
@@ -828,8 +867,106 @@ function draw_scene(scene::Scene; title, xlabel, ylabel, window)
     return p
 end
 
+# The four methods at the reference N (`vs`, in the order global, cell-wise, random, uniform).
+function draw_scene(system, scene::Scene, vs; title, xlabel, ylabel, window)
+    i, j = scene.plane
+    p = scene_axes(scene; title, xlabel, ylabel, window)
+    draw_truth!(p, scene)
+    # The cells that each method lists, the largest set first and with the thickest outline, so that
+    # the nested sets show as stripes where their edges coincide.
+    for (v, width) in zip(vs, (5.5, 4, 2.8, 1.6))
+        for (lo, hi) in projected_cells(scene.cells[v], scene.plane)
+            Plots.plot!(
+                p,
+                box_shape(lo, hi);
+                fillcolor = color_of(system, v),
+                fillalpha = 0.07,
+                linecolor = color_of(system, v),
+                linewidth = width,
+                label = "",
+            )
+        end
+    end
+    # The growth-bound boxes (before the cells are looked up).
+    for v in vs
+        v[1] in (:global, :cellwise) || continue
+        box = scene.boxes[v[1]]
+        c, r = LazySets.center(box), LazySets.radius_hyperrectangle(box)
+        Plots.plot!(
+            p,
+            box_shape(SVector(c[i] - r[i], c[j] - r[j]), SVector(c[i] + r[i], c[j] + r[j]));
+            fillalpha = 0,
+            linecolor = color_of(system, v),
+            linestyle = :dash,
+            linewidth = 2.5,
+            label = "",
+        )
+    end
+    # The images of the sample points.
+    for (v, shape, size, stroke) in ((vs[3], :circle, 8, 1.5), (vs[4], :diamond, 9, 2))
+        Plots.scatter!(
+            p,
+            [q[i] for q in scene.points[v]],
+            [q[j] for q in scene.points[v]];
+            markershape = shape,
+            markersize = size,
+            markercolor = color_of(system, v),
+            markerstrokecolor = :white,
+            markerstrokewidth = stroke,
+            label = "",
+        )
+    end
+    draw_source!(p, scene)
+    return p
+end
+
+# One sampled variant against the cell-wise bound: the cells that it lists (filled, in its shade), the
+# cells of the cell-wise bound (dashed orange outline) as the reference, and the images of its points.
+function draw_scene_N(system, scene::Scene, v; title, xlabel, ylabel, window)
+    i, j = scene.plane
+    p = scene_axes(scene; title, xlabel, ylabel, window, titlefontsize = 17)
+    draw_truth!(p, scene)
+    for (lo, hi) in projected_cells(scene.cells[(:cellwise, 0)], scene.plane)
+        Plots.plot!(
+            p,
+            box_shape(lo, hi);
+            fillalpha = 0,
+            linecolor = color_of(system, (:cellwise, 0)),
+            linestyle = :dash,
+            linewidth = 2.5,
+            label = "",
+        )
+    end
+    color = color_of(system, v)
+    for (lo, hi) in projected_cells(scene.cells[v], scene.plane)
+        Plots.plot!(
+            p,
+            box_shape(lo, hi);
+            fillcolor = color,
+            fillalpha = 0.3,
+            linecolor = color,
+            linewidth = 3,
+            label = "",
+        )
+    end
+    Plots.scatter!(
+        p,
+        [q[i] for q in scene.points[v]],
+        [q[j] for q in scene.points[v]];
+        markershape = v[1] === :random ? :circle : :diamond,
+        markersize = 8,
+        markercolor = color,
+        markerstrokecolor = :white,
+        markerstrokewidth = 1.5,
+        label = "",
+    )
+    draw_source!(p, scene)
+    return p
+end
+
 # The key to the drawings of the successor sets: a plot without axes.
-function overlay_legend()
+function overlay_legend(system)
+    vs = reference_of(system)
     p = Plots.plot(;
         framestyle = :none,
         legend = :top,
@@ -837,8 +974,16 @@ function overlay_legend()
         legendfontsize = 15,
         foreground_color_legend = nothing,
     )
-    for m in METHODS
-        Plots.plot!(p, [NaN], [NaN]; color = COLORS[m], linewidth = 5, label = SHORT[m])
+    for v in vs
+        name = v[1] in SAMPLED ? "$(FAMILY[v[1]]) (N=$(v[2]))" : FAMILY[v[1]]
+        Plots.plot!(
+            p,
+            [NaN],
+            [NaN];
+            color = color_of(system, v),
+            linewidth = 5,
+            label = name,
+        )
     end
     Plots.plot!(
         p,
@@ -855,7 +1000,7 @@ function overlay_legend()
         [NaN];
         markershape = :circle,
         markersize = 9,
-        markercolor = COLORS[:random],
+        markercolor = color_of(system, vs[3]),
         label = "image: random pt",
     )
     Plots.scatter!(
@@ -864,7 +1009,7 @@ function overlay_legend()
         [NaN];
         markershape = :diamond,
         markersize = 9,
-        markercolor = COLORS[:uniform],
+        markercolor = color_of(system, vs[4]),
         label = "image: uniform pt",
     )
     Plots.plot!(p, [NaN], [NaN]; color = :gray, linewidth = 6, label = "true image")
@@ -872,12 +1017,61 @@ function overlay_legend()
     return p
 end
 
-# A window that contains everything that is drawn, with a margin.
-function window_of(scene::Scene)
+# The key to the drawings of the cells for each N.
+function overlay_legend_N(system)
+    study = study_of(system)
+    p = Plots.plot(;
+        framestyle = :none,
+        legend = :top,
+        legend_columns = 3,
+        legendfontsize = 14,
+        foreground_color_legend = nothing,
+    )
+    Plots.plot!(
+        p,
+        [NaN],
+        [NaN];
+        color = color_of(system, (:cellwise, 0)),
+        linestyle = :dash,
+        linewidth = 4,
+        label = "cells of the cell-wise bound",
+    )
+    Plots.plot!(
+        p,
+        [NaN],
+        [NaN];
+        color = shade(:random, 2),
+        linewidth = 6,
+        label = "cells of the random points",
+    )
+    Plots.plot!(
+        p,
+        [NaN],
+        [NaN];
+        color = shade(:uniform, 2),
+        linewidth = 6,
+        label = "cells of the uniform points",
+    )
+    Plots.plot!(p, [NaN], [NaN]; color = :gray, linewidth = 6, label = "true image")
+    Plots.scatter!(
+        p,
+        [NaN],
+        [NaN];
+        markershape = :circle,
+        markersize = 9,
+        markercolor = shade(:random, 2),
+        label = "image of a point",
+    )
+    Plots.plot!(p, [NaN], [NaN]; color = :black, linewidth = 5, label = "the cell")
+    return p
+end
+
+# A window that contains everything that is drawn for the variants `vs`, with a margin.
+function window_of(scene::Scene, vs)
     i, j = scene.plane
     xs = Float64[]
     ys = Float64[]
-    for m in METHODS, cell in scene.cells[m]
+    for v in vs, cell in scene.cells[v]
         c, r = LazySets.center(cell), LazySets.radius_hyperrectangle(cell)
         push!(xs, c[i] - r[i], c[i] + r[i])
         push!(ys, c[j] - r[j], c[j] + r[j])
@@ -886,15 +1080,47 @@ function window_of(scene::Scene)
         push!(xs, q[i])
         push!(ys, q[j])
     end
-    for m in (:global, :cellwise)
-        box = scene.boxes[m]
-        box === nothing && continue
+    for v in vs
+        v[1] in (:global, :cellwise) || continue
+        box = scene.boxes[v[1]]
         bc, br = LazySets.center(box), LazySets.radius_hyperrectangle(box)
         push!(xs, bc[i] - br[i], bc[i] + br[i])
         push!(ys, bc[j] - br[j], bc[j] + br[j])
     end
     mx, my = 0.05 * (maximum(xs) - minimum(xs)), 0.05 * (maximum(ys) - minimum(ys))
     return (minimum(xs) - mx, maximum(xs) + mx, minimum(ys) - my, maximum(ys) + my)
+end
+
+# The cells listed for each N of the two sampled methods, against the cell-wise bound: random points in
+# the top row, uniform points in the bottom row, N growing from left to right.
+function overlay_N_figure(system, scene::Scene, file; xlabel, ylabel)
+    study = study_of(system)
+    shown = vcat([(:cellwise, 0)], [(m, N) for m in SAMPLED for N in study.Ns])
+    window = window_of(scene, shown)
+    panels = []
+    for m in SAMPLED, (k, N) in enumerate(study.Ns)
+        v = (m, N)
+        push!(
+            panels,
+            draw_scene_N(
+                system,
+                scene,
+                v;
+                title = "$m, N = $N: $(length(scene.cells[v])) cells",
+                xlabel = m === :uniform ? xlabel : "",
+                ylabel = k == 1 ? ylabel : "",
+                window,
+            ),
+        )
+    end
+    fig = Plots.plot(
+        panels...,
+        overlay_legend_N(system);
+        layout = Plots.@layout([grid(2, 3); l{0.14h}]),
+        size = (1400, 780),
+    )
+    Plots.savefig(fig, joinpath(OUT, file))
+    return nothing
 end
 
 # ------------------------------------------------------------------------------------------
@@ -905,45 +1131,58 @@ function overlay_simple()
     domain =
         LazySets.Hyperrectangle(; low = SVector(-3.95, -5.0), high = SVector(3.95, 5.0))
     ctx = reference_abstractions(:simple; domain)
-    sym = abstraction_of(ctx.opts[:global])
-    sets = Dict(m => successor_sets(ctx.opts[m]) for m in METHODS)
+    vs = reference_of(:simple)
+    sym = abstraction_of(ctx.opts[(:global, 0)])
+    sets = Dict(v => successor_sets(ctx.opts[v]) for v in variants_of(:simple))
     u = SVector(0.0)
     input = SY.get_abstract_input(sym, u)
     # The cells just below θ = π (the domain ends there) and around θ = π/2, at zero velocity.
     chosen = [("θ ≈ π", SVector(3.1, 0.0)), ("θ ≈ π/2", SVector(1.6, 0.0))]
     panels = []
     notes = String[]
+    pi2 = nothing
     for (k, (name, x)) in enumerate(chosen)
         q = SY.get_abstract_state(sym, x)
         cell = SY.get_concrete_elem(sym, q)
         scene = scene_of(ctx, cell, input, q, u)
-        counts = join(("$(m): $(length(scene.cells[m]))" for m in METHODS), ", ")
+        k == 2 && (pi2 = scene)
+        counts = join(
+            ("$(short_of(v)): $(length(scene.cells[v]))" for v in variants_of(:simple)),
+            ", ",
+        )
         push!(notes, "$name: $counts")
-        c = LazySets.center(cell)
         push!(
             panels,
             draw_scene(
-                scene;
+                :simple,
+                scene,
+                vs;
                 title = "$name, u = 0: cells " *
-                        join(("$(length(scene.cells[m]))" for m in METHODS), " / "),
+                        join(("$(length(scene.cells[v]))" for v in vs), " / "),
                 xlabel = "θ (rad)",
                 ylabel = k == 1 ? "ω (rad/s)" : "",
-                window = window_of(scene),
+                window = window_of(scene, vs),
             ),
         )
     end
     fig = Plots.plot(
         panels...,
-        overlay_legend();
+        overlay_legend(:simple);
         layout = Plots.@layout([grid(1, 2); l{0.2h}]),
         size = (1400, 680),
     )
     Plots.savefig(fig, joinpath(OUT, "sm_overlay_simple.png"))
-    println("simple pendulum overlay: ", join(notes, "  |  "))
+    println("simple pendulum overlay: ", join(notes, "\n  "))
+    overlay_N_figure(
+        :simple,
+        pi2,
+        "sm_overlayN_simple.png";
+        xlabel = "θ (rad)",
+        ylabel = "ω (rad/s)",
+    )
 
     # Where does the cell-wise bound help? The number of cells that the global bound lists more, for
     # every cell and u = 0, and its average over the velocities as a function of θ.
-    mapping = SY.get_state_mapping(sym)
     thetas = Float64[]
     omegas = Float64[]
     for q in 1:SY.get_n_state(sym)
@@ -956,8 +1195,8 @@ function overlay_simple()
     gain = fill(NaN, length(ωs), length(θs))
     for q in 1:SY.get_n_state(sym)
         x = SY.get_concrete_state(sym, q)
-        g = get(sets[:global], (q, input), nothing)
-        c = get(sets[:cellwise], (q, input), nothing)
+        g = get(sets[(:global, 0)], (q, input), nothing)
+        c = get(sets[(:cellwise, 0)], (q, input), nothing)
         (g === nothing || c === nothing) && continue
         gain[
             searchsortedfirst(ωs, round(x[2]; digits = 9)),
@@ -995,7 +1234,7 @@ function overlay_simple()
     profile = Plots.plot(
         θs,
         mean_gain;
-        color = COLORS[:global],
+        color = color_of(:simple, (:global, 0)),
         linewidth = 4,
         label = "average over ω",
         xlabel = "θ (rad)",
@@ -1041,54 +1280,60 @@ end
 
 function overlay_double()
     ctx = reference_abstractions(:double)
-    sym = abstraction_of(ctx.opts[:global])
-    sets = Dict(m => successor_sets(ctx.opts[m]) for m in METHODS)
-    both = [p for p in keys(sets[:global]) if haskey(sets[:cellwise], p)]
-    ratio(p) = length(sets[:global][p]) / length(sets[:cellwise][p])
+    vs = reference_of(:double)
+    sym = abstraction_of(ctx.opts[(:global, 0)])
+    sets = Dict(v => successor_sets(ctx.opts[v]) for v in variants_of(:double))
+    G, C = sets[(:global, 0)], sets[(:cellwise, 0)]
+    both = [p for p in keys(G) if haskey(C, p)]
+    ratio(p) = length(G[p]) / length(C[p])
     println("double pendulum: $(length(both)) pairs are enabled by both growth bounds")
     # Least: no difference, among the pairs with a good number of successors; most: the largest ratio.
-    equal = [p for p in both if length(sets[:global][p]) == length(sets[:cellwise][p])]
+    equal = [p for p in both if length(G[p]) == length(C[p])]
     least =
         isempty(equal) ? both[argmin(ratio.(both))] :
-        equal[argmax([length(sets[:global][p]) for p in equal])]
+        equal[argmax([length(G[p]) for p in equal])]
     most = both[argmax(ratio.(both))]
     panels = []
+    largest = nothing
     for (name, (q, input)) in (("smallest gain", least), ("largest gain", most))
         u = SY.get_concrete_input(sym, input)
         cell = SY.get_concrete_elem(sym, q)
-        counts = join(("$(length(get(sets[m], (q, input), [])))" for m in METHODS), " / ")
+        counts = join(("$(length(get(sets[v], (q, input), [])))" for v in vs), " / ")
         println(
-            "  $name: cell centre $(SY.get_concrete_state(sym, q)), u = $(u[1]); cells listed (global, cell-wise, random, uniform): ",
-            [length(get(sets[m], (q, input), [])) for m in METHODS],
+            "  $name: cell centre $(SY.get_concrete_state(sym, q)), u = $(u[1]); cells listed: ",
+            join(
+                (
+                    "$(short_of(v)): $(length(get(sets[v], (q, input), [])))" for
+                    v in variants_of(:double)
+                ),
+                ", ",
+            ),
         )
         scene13 = scene_of(ctx, cell, input, q, u; plane = (1, 2))
-        scene24 = Scene(
-            (3, 4),
-            scene13.source,
-            scene13.cells,
-            scene13.boxes,
-            scene13.points,
-            scene13.truth,
-            nothing,
-        )
+        scene24 = with_plane(scene13, (3, 4))
+        name == "largest gain" && (largest = scene24)
         push!(
             panels,
             draw_scene(
-                scene13;
+                :double,
+                scene13,
+                vs;
                 title = "$name: angles (cells $counts)",
                 xlabel = "θ1 (rad)",
                 ylabel = "θ2 (rad)",
-                window = window_of(scene13),
+                window = window_of(scene13, vs),
             ),
         )
         push!(
             panels,
             draw_scene(
-                scene24;
+                :double,
+                scene24,
+                vs;
                 title = "$name: velocities",
                 xlabel = "ω1 (rad/s)",
                 ylabel = "ω2 (rad/s)",
-                window = window_of(scene24),
+                window = window_of(scene24, vs),
             ),
         )
     end
@@ -1096,12 +1341,20 @@ function overlay_double()
     for (tag, two) in (("small", panels[1:2]), ("large", panels[3:4]))
         fig = Plots.plot(
             two...,
-            overlay_legend();
+            overlay_legend(:double);
             layout = Plots.@layout([grid(1, 2); l{0.2h}]),
             size = (1400, 640),
         )
         Plots.savefig(fig, joinpath(OUT, "sm_overlay_double_$tag.png"))
     end
+    # The same pair, in the velocity plane, for every N.
+    overlay_N_figure(
+        :double,
+        largest,
+        "sm_overlayN_double.png";
+        xlabel = "ω1 (rad/s)",
+        ylabel = "ω2 (rad/s)",
+    )
 
     # The distribution of the ratio global / cell-wise over the pairs that both enable.
     r = ratio.(both)
@@ -1112,7 +1365,7 @@ function overlay_double()
     p = Plots.bar(
         keep,
         counts[keep] ./ length(r) .* 100;
-        fillcolor = COLORS[:cellwise],
+        fillcolor = color_of(:double, (:cellwise, 0)),
         linecolor = :black,
         linewidth = 0.4,
         bar_width = 0.9,
@@ -1138,21 +1391,23 @@ end
 # Coverage and tightness, for the reference configuration
 # ------------------------------------------------------------------------------------------
 
-# For pairs that all four methods enable: a fresh, independent sample of the cell is simulated.
-# `covered`: the share of those points whose image goes to a cell that the method lists; `listed`:
-# the cells that the method lists, for each cell that the sample actually reaches.
+# For pairs that all the variants enable: a fresh, independent sample of the cell is simulated.
+# `covered`: the share of those points whose image goes to a cell that the variant lists; `listed`:
+# the cells that the variant lists, for each cell that the sample actually reaches.
 function coverage(system; pairs_used = 1500, fresh = 300)
     ctx = reference_abstractions(system)
-    sym = abstraction_of(ctx.opts[:global])
-    sets = Dict(m => successor_sets(ctx.opts[m]) for m in METHODS)
-    common = collect(intersect((keys(sets[m]) for m in METHODS)...))
+    vs = variants_of(system)
+    sym = abstraction_of(ctx.opts[(:global, 0)])
+    sets = Dict(v => successor_sets(ctx.opts[v]) for v in vs)
+    common = collect(intersect((keys(sets[v]) for v in vs)...))
     sort!(common)
     shuffle!(MersenneTwister(3), common)
+    n_common = length(common)
     common = common[1:min(pairs_used, length(common))]
     approx = SampledSimulation(ctx.study.system, ctx.tau; nsamples = 1)
     F = ST.get_system_map(approx)
-    covered = Dict(m => Float64[] for m in METHODS)
-    listed = Dict(m => Float64[] for m in METHODS)
+    covered = Dict(v => Float64[] for v in vs)
+    listed = Dict(v => Float64[] for v in vs)
     for (q, input) in common
         cell = SY.get_concrete_elem(sym, q)
         u = SY.get_concrete_input(sym, input)
@@ -1167,13 +1422,145 @@ function coverage(system; pairs_used = 1500, fresh = 300)
         end
         isempty(reached) && continue
         distinct = length(unique(reached))
-        for m in METHODS
-            s = sets[m][(q, input)]
-            push!(covered[m], count(t -> t in s, reached) / length(reached))
-            push!(listed[m], length(s) / distinct)
+        for v in vs
+            s = sets[v][(q, input)]
+            push!(covered[v], count(t -> t in s, reached) / length(reached))
+            push!(listed[v], length(s) / distinct)
         end
     end
-    return (; used = length(covered[:global]), covered, listed, common = length(common))
+    return (;
+        used = length(covered[(:global, 0)]),
+        covered,
+        listed,
+        common = length(common),
+        n_common,
+    )
+end
+
+# The figure: the two statistics against N, one panel per system and statistic; the two growth bounds
+# are the horizontal dashed lines.
+function coverage_figure(results)
+    panels = []
+    for (row, (field, ylabel)) in
+        enumerate(((:covered, "points covered (%)"), (:listed, "listed / reached")))
+        for (col, system) in enumerate((:simple, :double))
+            study = study_of(system)
+            Ns = collect(study.Ns)
+            scale = field === :covered ? 100 : 1
+            value(v) = scale * mean(getfield(results[system], field)[v])
+            ys = [value((m, N)) for m in SAMPLED for N in Ns]
+            lo, hi = extrema(vcat(ys, [value((g, 0)) for g in (:global, :cellwise)]))
+            p = Plots.plot(;
+                title = row == 1 ? SYSTEM_TITLES[system] : "",
+                xlabel = row == 2 ? "points per cell N" : "",
+                ylabel = col == 1 ? ylabel : "",
+                xscale = :log10,
+                xticks = (Ns, string.(Ns)),
+                xlims = (Ns[1] / 1.5, Ns[end] * 1.5),
+                yscale = field === :covered ? :identity : :log10,
+                ylims = field === :covered ? (max(0, 5 * floor(lo / 5) - 5), 103) :
+                        (lo / 2.2, hi * 1.8),
+                yticks = field === :covered ? :auto :
+                         (
+                    log_ticks(lo / 2.2, hi * 1.8),
+                    [tick_label(t, :plain) for t in log_ticks(lo / 2.2, hi * 1.8)],
+                ),
+                legend = false,
+                left_margin = 11Plots.mm,
+                bottom_margin = 7Plots.mm,
+            )
+            for g in (:global, :cellwise)
+                Plots.hline!(
+                    p,
+                    [value((g, 0))];
+                    color = color_of(system, (g, 0)),
+                    linestyle = :dash,
+                    linewidth = 3.5,
+                    label = "",
+                )
+            end
+            for m in SAMPLED
+                y = [value((m, N)) for N in Ns]
+                Plots.plot!(p, Ns, y; color = shade(m, 2), linewidth = 3.5, label = "")
+                Plots.scatter!(
+                    p,
+                    Ns,
+                    y;
+                    markercolor = [shade(m, k) for k in eachindex(Ns)],
+                    markerstrokecolor = :black,
+                    markersize = 12,
+                    label = "",
+                )
+            end
+            # The values: at each N, the higher of the two series above its marker, the lower below.
+            for N in Ns
+                r, u = value((:random, N)), value((:uniform, N))
+                for (m, y, other) in ((:random, r, u), (:uniform, u, r))
+                    above = y > other || (y == other && m === :uniform)
+                    label =
+                        field === :covered ? (y > 99.95 ? "100" : @sprintf("%.1f", y)) :
+                        (y < 10 ? @sprintf("%.2f", y) : @sprintf("%.1f", y))
+                    Plots.annotate!(
+                        p,
+                        N,
+                        field === :covered ? y + (above ? 3.4 : -3.4) :
+                        y * (above ? 1.5 : 1 / 1.5),
+                        Plots.text(label, 12, shade(m, 3)),
+                    )
+                end
+            end
+            push!(panels, p)
+        end
+    end
+    legend = Plots.plot(;
+        framestyle = :none,
+        legend = :top,
+        legend_columns = 2,
+        legendfontsize = 14,
+        foreground_color_legend = nothing,
+    )
+    Plots.plot!(
+        legend,
+        [NaN],
+        [NaN];
+        color = shade(:random, 2),
+        linewidth = 5,
+        label = "random points",
+    )
+    Plots.plot!(
+        legend,
+        [NaN],
+        [NaN];
+        color = shade(:uniform, 2),
+        linewidth = 5,
+        label = "uniform points",
+    )
+    Plots.plot!(
+        legend,
+        [NaN],
+        [NaN];
+        color = rgb(GROWTH_RGB[:global]...),
+        linestyle = :dash,
+        linewidth = 5,
+        label = "global growth bound",
+    )
+    Plots.plot!(
+        legend,
+        [NaN],
+        [NaN];
+        color = rgb(GROWTH_RGB[:cellwise]...),
+        linestyle = :dash,
+        linewidth = 5,
+        label = "cell-wise growth bound",
+    )
+    fig = Plots.plot(
+        legend,
+        panels...;
+        layout = Plots.@layout([l{0.12h}; grid(2, 2)]),
+        size = (1250, 700),
+    )
+    Plots.savefig(fig, joinpath(OUT, "sm_coverage.png"))
+    return nothing
 end
 
 function coverage_outputs()
@@ -1187,11 +1574,11 @@ function coverage_outputs()
     )
     println(io, "\\midrule")
     for s in (:simple, :double)
-        for (k, m) in enumerate(METHODS)
+        for (k, v) in enumerate(variants_of(s))
             name = k == 1 ? SYSTEM_TITLES[s] : ""
             println(
                 io,
-                "$name & \\textcolor{$(m == :global ? "cbelow" : m == :cellwise ? "cacross" : m == :random ? "cabove" : "cgood")}{$(LABELS[m])} & $(@sprintf("%.1f\\%%", 100 * mean(results[s].covered[m]))) & $(@sprintf("%.2f", mean(results[s].listed[m]))) \\\\",
+                "$name & $(tex_label(s, v)) & $(@sprintf("%.1f\\%%", 100 * mean(results[s].covered[v]))) & $(@sprintf("%.2f", mean(results[s].listed[v]))) \\\\",
             )
         end
         s == :simple && println(io, "\\midrule")
@@ -1199,71 +1586,36 @@ function coverage_outputs()
     println(io, "\\bottomrule")
     println(io, "\\end{tabular}")
     write(joinpath(OUT, "sm_coverage.tex"), String(take!(io)))
-    systems = (:simple, :double)
-    configs = [(1, nothing), (2, nothing)]
-    group_label = (k, _) -> k == 1 ? "simple" : "double"
-    covered =
-        Dict(m => [100 * mean(results[s].covered[m]) for s in systems] for m in METHODS)
-    listed = Dict(m => [mean(results[s].listed[m]) for s in systems] for m in METHODS)
-    panels = [
-        bar_panel(
-            :simple,
-            covered,
-            "fresh points covered (%)";
-            configs,
-            labelf = group_label,
-            logscale = false,
-            annotate = v -> v > 99.95 ? "100" : @sprintf("%.1f", v),
-            ymax = 118,
-        ),
-        bar_panel(
-            :simple,
-            listed,
-            "cells listed / cells reached";
-            configs,
-            labelf = group_label,
-            logscale = true,
-            annotate = v -> @sprintf("%.2g", v),
-            ymax = 60,
-        ),
-    ]
-    fig = Plots.plot(
-        legend_strip(; fontsize = 12),
-        panels...;
-        layout = Plots.@layout([l{0.13h}; grid(1, 2)]),
-        size = (1000, 480),
-    )
-    Plots.savefig(fig, joinpath(OUT, "sm_coverage.png"))
+    coverage_figure(results)
     for s in (:simple, :double)
         println(
-            "coverage $s ($(results[s].used) pairs): ",
-            join(
-                (
-                    "$(m): $(round(100 * mean(results[s].covered[m]); digits = 1))% / $(round(mean(results[s].listed[m]); digits = 2))"
-                    for m in METHODS
-                ),
-                ", ",
-            ),
+            "coverage $s ($(results[s].used) pairs used, $(results[s].n_common) enabled by all variants): ",
         )
+        for v in variants_of(s)
+            println(
+                "    $(rpad(short_of(v), 12)) $(round(100 * mean(results[s].covered[v]); digits = 1))% / $(round(mean(results[s].listed[v]); digits = 2))",
+            )
+        end
     end
     return nothing
 end
 
 # ------------------------------------------------------------------------------------------
 
-function main_plots()
-    for system in (:simple, :double)
-        bars_figure(system)
-        ref_figure(system)
-        sensitivity_figure(system)
-        histogram_figure(system)
-        write_tables(system)
-    end
-    overlay_simple()
-    overlay_double()
-    coverage_outputs()
+# The colors and the numbers of points, for the LaTeX of the decks.
+function write_setup()
     open(joinpath(OUT, "sm_setup.tex"), "w") do io
         println(io, "% generated by plot_successor_methods.jl")
+        for m in SAMPLED, (k, rank) in enumerate(RANKS)
+            c = SHADE_RGB[m][k]
+            println(
+                io,
+                "\\definecolor{$(m === :random ? "crand" : "cunif")$rank}{RGB}{$(c[1]),$(c[2]),$(c[3])}",
+            )
+        end
+        for system in (:simple, :double), (k, rank) in enumerate(RANKS)
+            println(io, "\\newcommand{\\smN$system$rank}{$(study_of(system).Ns[k])}")
+        end
         println(
             io,
             "\\newcommand{\\smsetupsimple}{$(@sprintf("%.2f", INFO.setups[:simple]))}",
@@ -1278,6 +1630,37 @@ function main_plots()
             "\\newcommand{\\smmachine}{$(replace(INFO.cpu, "_" => "\\_")), Julia $(INFO.julia)}",
         )
     end
+    return nothing
+end
+
+const PARTS = (
+    "bars",
+    "ref",
+    "sens",
+    "hist",
+    "tables",
+    "overlay_simple",
+    "overlay_double",
+    "coverage",
+)
+
+# All the figures and tables, or only the parts named on the command line (`PARTS`), e.g.
+# `julia --project=<env> tests/plot_successor_methods.jl coverage ref`.
+function main_plots(parts = ARGS)
+    unknown = setdiff(parts, PARTS)
+    isempty(unknown) || error("unknown parts $unknown; the parts are $(join(PARTS, ", "))")
+    run(part) = isempty(parts) || part in parts
+    for system in (:simple, :double)
+        run("bars") && bars_figure(system)
+        run("ref") && ref_figure(system)
+        run("sens") && sensitivity_figure(system)
+        run("hist") && histogram_figure(system)
+        run("tables") && write_tables(system)
+    end
+    run("overlay_simple") && overlay_simple()
+    run("overlay_double") && overlay_double()
+    run("coverage") && coverage_outputs()
+    write_setup()
     println("written to $(abspath(OUT))")
     return nothing
 end

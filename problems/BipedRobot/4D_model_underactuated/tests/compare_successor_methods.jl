@@ -6,12 +6,14 @@
 # * `N` points of every cell chosen at random, simulated (`SampledAbstraction`, `sampling = :random`);
 # * `N` points of every cell on a regular design (center, corners, ...), simulated (`sampling = :uniform`).
 #
-# For every system, sampling time and cell size it builds the four abstractions with the Dionysos
-# optimizer and records the total and the average (per cell and input) number of transitions, the
-# total and the average computation time, the share of (cell, input) pairs that keep a transition, and
-# the histogram of the number of successors per pair. It also times the one-off symbolic setup of the
-# cell-wise bound. The results go to `successor_methods_results/` (a Julia serialization and a CSV);
-# `plot_successor_methods.jl` turns them into the figures and tables of the presentation.
+# The two sampled methods are run for three values of `N` per system (`study.Ns`: the middle one,
+# `study.N`, is the reference), so that every system, sampling time and cell size gives eight
+# abstractions. They are built with the Dionysos optimizer, and the script records the total and the
+# average (per cell and input) number of transitions, the total and the average computation time,
+# the share of (cell, input) pairs that keep a transition, and the histogram of the number of
+# successors per pair. It also times the one-off symbolic setup of the cell-wise bound. The results go
+# to `successor_methods_results/` (a Julia serialization and a CSV); `plot_successor_methods.jl` turns
+# them into the figures and tables of the presentation.
 #
 # Timing: one thread, the build of the abstraction only (without the compilation: every method is run
 # once on a small problem first, and a run shorter than a few seconds is repeated and the fastest taken).
@@ -48,17 +50,24 @@ using .SampledAbstraction
 const BA = BipedAbstraction
 
 const METHODS = (:global, :cellwise, :random, :uniform)
+const SAMPLED = (:random, :uniform)
 
-# The studies: the system, its constant bound of the Jacobian, the number `N` of points of the sampled
-# methods, and the sampling times and cell sizes to try. The double pendulum is taken on a box around
-# the hanging-down equilibrium, so that the number of cells stays manageable (the Jacobian bound of the
-# problem file holds on a larger box, hence on this one).
+# The studies: the system, its constant bound of the Jacobian, the numbers `Ns` of points of the sampled
+# methods (`N`: the reference one, the middle one), and the sampling times and cell sizes to try. The
+# double pendulum is taken on a box around the hanging-down equilibrium, so that the number of cells
+# stays manageable (the Jacobian bound of the problem file holds on a larger box, hence on this one).
+#
+# `Ns`: the uniform design is the center, then the 2ⁿ corners, then the 3ⁿ lattice, then the 5ⁿ one.
+# Simple pendulum: 5 (center and corners), 9 (3 × 3 lattice, the reference), 25 (5 × 5 lattice).
+# Double pendulum: 9 (center and half of the 16 corners), 17 (center and corners, the reference), 81 (the
+# 3⁴ lattice; the 5⁴ lattice, 625 points, is out of reach for the largest grid).
 function studies()
     simple = (
         name = :simple,
         system = SimplePendulum.system(),
         jacobian_bound = SimplePendulum.jacobian_bound(),
-        N = 9,                                   # 3 × 3 lattice
+        N = 9,
+        Ns = (5, 9, 25),
         taus = [0.05, 0.1, 0.2],
         sizes = [[0.2, 0.4], [0.1, 0.2], [0.05, 0.1]],
         input_step = 1.5,
@@ -73,7 +82,8 @@ function studies()
         name = :double,
         system = DoublePendulum.system(; _X_ = box),
         jacobian_bound = DoublePendulum.jacobian_bound(),
-        N = 17,                                  # the center and the 16 corners
+        N = 17,
+        Ns = (9, 17, 81),
         taus = [0.01, 0.02, 0.05],
         sizes = [[0.4, 0.4, 0.8, 0.8], [0.3, 0.3, 0.6, 0.6], [0.2, 0.2, 0.4, 0.4]],
         input_step = 11.0,
@@ -83,6 +93,14 @@ function studies()
     return [simple, double]
 end
 
+# The runs of a study, in the order of the figures: a variant is `(method, N)`, with `N = 0` for the
+# growth bounds.
+variants(study) = vcat(
+    [(:global, 0), (:cellwise, 0)],
+    [(:random, N) for N in study.Ns],
+    [(:uniform, N) for N in study.Ns],
+)
+
 grids_of(study, size) = (;
     state_grid = MP.GridFree(
         zeros(SVector{length(size), Float64}),
@@ -91,8 +109,9 @@ grids_of(study, size) = (;
     input_grid = MP.GridFree(SVector(0.0), SVector(study.input_step)),
 )
 
-# The abstraction of one method: the optimizer, with the abstraction cached.
-function build(method::Symbol, study, dynamics, grids, tau)
+# The abstraction of one method: the optimizer, with the abstraction cached. `N`: the number of points
+# of the sampled methods (the reference one of the study by default).
+function build(method::Symbol, study, dynamics, grids, tau, N = study.N)
     system = study.system
     if method === :global
         return BA.build_abstraction(
@@ -115,7 +134,7 @@ function build(method::Symbol, study, dynamics, grids, tau)
             system;
             grids...,
             time_step = tau,
-            nsamples = study.N,
+            nsamples = N,
             seed = 1,
         )
     elseif method === :uniform
@@ -123,7 +142,7 @@ function build(method::Symbol, study, dynamics, grids, tau)
             system;
             grids...,
             time_step = tau,
-            nsamples = study.N,
+            nsamples = N,
             sampling = :uniform,
         )
     end
@@ -180,13 +199,20 @@ function run_study(study)
         )
     end
     # Compile every method on a small problem.
-    for method in METHODS
-        build(method, study, dynamics, grids_of(study, study.warm_size), study.warm_tau)
+    for (method, N) in variants(study)
+        build(
+            method,
+            study,
+            dynamics,
+            grids_of(study, study.warm_size),
+            study.warm_tau,
+            N == 0 ? study.N : N,
+        )
     end
     for tau in study.taus, size in study.sizes
         grids = grids_of(study, size)
-        for method in METHODS
-            opt, time = timed(() -> build(method, study, dynamics, grids, tau))
+        for (method, N) in variants(study)
+            opt, time = timed(() -> build(method, study, dynamics, grids, tau, N))
             sym = abstraction_of(opt)
             counts, hist = successor_counts(opt)
             n_cells, n_inputs = SY.get_n_state(sym), SY.get_n_input(sym)
@@ -199,7 +225,7 @@ function run_study(study)
                 n_cells,
                 n_inputs,
                 pairs,
-                N = method in (:random, :uniform) ? study.N : 0,
+                N,
                 transitions = SY.get_n_transitions(sym),
                 enabled_pairs = length(counts),
                 time,
@@ -208,11 +234,12 @@ function run_study(study)
             )
             push!(records, record)
             @printf(
-                "%-7s tau=%-5g h=%-26s %-9s %9d transitions  %7.2f per pair  %5.1f%% enabled  %9.4f s  %8.2f µs/pair\n",
+                "%-7s tau=%-5g h=%-26s %-9s %3d %9d transitions  %7.2f per pair  %5.1f%% enabled  %9.4f s  %8.2f µs/pair\n",
                 study.name,
                 tau,
                 string(size),
                 method,
+                N,
                 record.transitions,
                 record.transitions / pairs,
                 100 * record.enabled_pairs / pairs,
@@ -258,7 +285,8 @@ function main()
         julia = string(VERSION),
         cpu = Sys.cpu_info()[1].model,
         threads = Threads.nthreads(),
-        sampled_points = Dict(s.name => s.N for s in studies()),
+        sampled_points = Dict(s.name => collect(s.Ns) for s in studies()),
+        reference_points = Dict(s.name => s.N for s in studies()),
         setups,
         cold_symbolic = cold,
     )
