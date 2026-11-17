@@ -54,8 +54,9 @@ const SAMPLED = (:random, :uniform)
 
 # The studies: the system, its constant bound of the Jacobian, the numbers `Ns` of points of the sampled
 # methods (`N`: the reference one, the middle one), and the sampling times and cell sizes to try. The
-# double pendulum is taken on a box around the hanging-down equilibrium, so that the number of cells
-# stays manageable (the Jacobian bound of the problem file holds on a larger box, hence on this one).
+# double pendulum is taken on the whole period of both angles, [-π, π]², and on |ω| ≤ 4 (the Jacobian
+# bound of the problem file holds on |ω| ≤ 5, hence on this box). The angles are not wrapped: a successor
+# beyond ±π is outside the domain and is dropped, as for every other state-space boundary.
 #
 # `Ns`: the uniform design is the center, then the 2ⁿ corners, then the 3ⁿ lattice, then the 5ⁿ one.
 # Simple pendulum: 5 (center and corners), 9 (3 × 3 lattice, the reference), 25 (5 × 5 lattice).
@@ -75,8 +76,8 @@ function studies()
         warm_tau = 0.1,
     )
     box = LazySets.Hyperrectangle(;
-        low = SVector(-π / 2, -π / 2, -4.0, -4.0),
-        high = SVector(π / 2, π / 2, 4.0, 4.0),
+        low = SVector(-π, -π, -4.0, -4.0),
+        high = SVector(π, π, 4.0, 4.0),
     )
     double = (
         name = :double,

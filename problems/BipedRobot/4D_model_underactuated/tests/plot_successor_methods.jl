@@ -1071,6 +1071,11 @@ function window_of(scene::Scene, vs)
     i, j = scene.plane
     xs = Float64[]
     ys = Float64[]
+    # The cell itself is always in the window: its image can be far from it (the pendulum at θ ≈ π/2
+    # falls by about 1 rad/s in one period), and without the cell the figure shows only an image.
+    c, r = LazySets.center(scene.source), LazySets.radius_hyperrectangle(scene.source)
+    push!(xs, c[i] - r[i], c[i] + r[i])
+    push!(ys, c[j] - r[j], c[j] + r[j])
     for v in vs, cell in scene.cells[v]
         c, r = LazySets.center(cell), LazySets.radius_hyperrectangle(cell)
         push!(xs, c[i] - r[i], c[i] + r[i])
@@ -1157,8 +1162,9 @@ function overlay_simple()
                 :simple,
                 scene,
                 vs;
-                title = "$name, u = 0: cells " *
-                        join(("$(length(scene.cells[v]))" for v in vs), " / "),
+                title = "cell at $name, u = 0: " *
+                        join(("$(length(scene.cells[v]))" for v in vs), " / ") *
+                        " listed",
                 xlabel = "θ (rad)",
                 ylabel = k == 1 ? "ω (rad/s)" : "",
                 window = window_of(scene, vs),
@@ -1450,6 +1456,10 @@ function coverage_figure(results)
             value(v) = scale * mean(getfield(results[system], field)[v])
             ys = [value((m, N)) for m in SAMPLED for N in Ns]
             lo, hi = extrema(vcat(ys, [value((g, 0)) for g in (:global, :cellwise)]))
+            # On a log axis the labels sit a fixed fraction of the panel above or below their marker:
+            # the wider the range, the larger the factor (1.5 on a range of one decade).
+            offset = max(1.5, (hi * 1.8 / (lo / 2.2))^0.15)
+            ylo = lo / max(2.2, 1.5 * offset)
             p = Plots.plot(;
                 title = row == 1 ? SYSTEM_TITLES[system] : "",
                 xlabel = row == 2 ? "points per cell N" : "",
@@ -1459,11 +1469,11 @@ function coverage_figure(results)
                 xlims = (Ns[1] / 1.5, Ns[end] * 1.5),
                 yscale = field === :covered ? :identity : :log10,
                 ylims = field === :covered ? (max(0, 5 * floor(lo / 5) - 5), 103) :
-                        (lo / 2.2, hi * 1.8),
+                        (ylo, hi * 1.8),
                 yticks = field === :covered ? :auto :
                          (
-                    log_ticks(lo / 2.2, hi * 1.8),
-                    [tick_label(t, :plain) for t in log_ticks(lo / 2.2, hi * 1.8)],
+                    log_ticks(ylo, hi * 1.8),
+                    [tick_label(t, :plain) for t in log_ticks(ylo, hi * 1.8)],
                 ),
                 legend = false,
                 left_margin = 11Plots.mm,
@@ -1504,7 +1514,7 @@ function coverage_figure(results)
                         p,
                         N,
                         field === :covered ? y + (above ? 3.4 : -3.4) :
-                        y * (above ? 1.5 : 1 / 1.5),
+                        y * (above ? offset : 1 / offset),
                         Plots.text(label, 12, shade(m, 3)),
                     )
                 end
