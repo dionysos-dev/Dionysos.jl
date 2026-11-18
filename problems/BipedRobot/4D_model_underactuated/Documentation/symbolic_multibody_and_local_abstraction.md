@@ -837,12 +837,38 @@ sym  = MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 The state is `x = [ankle, q₁, q₂, q₃, q₄]`, where `ankle` is `q̇₁` or `p₁`. Constraints and targets
 are Cartesian conditions on the swing foot, pulled back to the grid.
 
-#### `infeasible_cells(X, state_grid, obstacle, geometry; obstacle_name = "obstacle") -> Carving`
+#### `infeasible_cells(X, state_grid, obstacle, geometry; obstacle_name = "obstacle", foot_bound = :second_order_cell, ground_ambiguous = :keep) -> Carving`
 
 *Description.* The cells of the 5-D box `X` to exclude: cells where the swing foot *might* touch the
-Cartesian `obstacle` (a `LazySet` or a vector of them; sound, by a Lipschitz bound on the swing-foot
-map, see `swing_foot_deviation_bound`) and cells where the swing foot is surely below the ground
-(tolerant, so footholds on the ground stay). The decision is taken on the 4-D angle cells and lifted
+Cartesian `obstacle` (a `LazySet` of the `(x, z)` plane or a vector of them; sound) and cells where the
+swing foot is below the ground in the whole cell (tolerant, so footholds on the ground stay). Both
+tests use, for every cell, a box `[x_min, x_max] × [z_min, z_max]` enclosing the swing foot over the
+cell: an obstacle removes the cells whose box meets it, the ground the cells with `z_max < 0`. Each
+coordinate `c ∈ {x, z}` is bounded by `foot_bound`, one of `RP.FOOT_BOUNDS`:
+
+| `foot_bound` | range of `c` over the cell | certified |
+| :--- | :--- | :--- |
+| `:linear` | `c_c ± Σᵢ \|gᵢ\| rᵢ`, the linearization at the centre | no |
+| `:second_order_global` | the linear range `± R`, `R = ½ Σᵢⱼ G_max(i,j) rᵢ rⱼ` the worst-case second-order remainder | yes |
+| `:second_order_cell` (default) | the exact extremes of the quadratic model `g ⋅ δ + ½ δᵀ H δ` of the cell, `± R₃`, `R₃ = ⅙ Σᵢⱼₖ G_max(i,j,k) rᵢ rⱼ rₖ` | yes, the tightest |
+| `:corners` | the extremes of `c` over the 16 corners of the cell | no |
+
+`g` and `H` are the gradient and the Hessian of the coordinate at the centre, lever arms of the joints
+(`∂z/∂qᵢ = x_foot - x_joint i`, `∂x/∂qᵢ = -(z_foot - z_joint i)`,
+`∂²z/∂qᵢ∂qⱼ = -(z_foot - z_joint max(i,j))`, `∂²x/∂qᵢ∂qⱼ = -(x_foot - x_joint max(i,j))`), `G` the
+gradient bound of the swing foot. For cells of 0.1 rad, `R = 6.9` mm and `R₃ = 0.38` mm; the per-cell
+range costs about 0.1 µs per cell and coordinate. `swing_foot_range(q, radius, geometry; foot_bound)`
+returns the box `(; x = (x_min, x_max), z = (z_min, z_max))` of one cell, and
+`swing_foot_height_range` its `z` range alone.
+
+The cells **across** the ground (`lo < 0 ≤ hi`) are ambiguous. `ground_ambiguous = :keep` (default)
+keeps them: no configuration with the foot above the ground is discarded, so footholds on the ground
+stay. `ground_ambiguous = :remove` removes them: no kept cell has the foot below the ground, but the
+cells where the foot reaches the ground, the target cells among them, are lost. The `Carving` records
+the choice (`carving.ground_ambiguous`). With `:keep`, a kept cell may put the foot down to its `z_min`
+below the ground; a low rectangle obstacle on the ground between the footholds removes the ambiguous
+cells under it (their box has `z_max ≥ 0`, so it meets the rectangle), which keeps the foot from
+dragging there; `tests/step_guard_sizing.jl` sizes it so that the footholds stay. The decision is taken on the 4-D angle cells and lifted
 along the ankle axis. Only the cells lying entirely inside `X` (`MP.INNER`, the default of the
 abstraction) are examined.
 
@@ -864,7 +890,7 @@ first.(carving.causes)                      # ["ground", "lift constraint"]
 
 `swing_foot_gradient_bound(geometry)` and `swing_foot_deviation_bound(geometry, radius)` are the
 per-coordinate Lipschitz constants of the swing-foot map and the displacement they allow within a
-cell of half-widths `radius`; the latter is the "Lipschitz carving margin" printed by the examples.
+cell of half-widths `radius` (the former also bounds the higher derivatives in the remainders above).
 
 #### `target_cells(state_grid, foothold, geometry, X; nsub = 3, velocity = nothing, tolerance = 0.0)`, `target_set(…)`
 
@@ -954,7 +980,7 @@ work from **every cell of the first coordinate the range touches** (Dionysos lif
 the `OUTER` mode: a range `(-0.011, 0.011)` on cells of width `0.02` touches three cells, and
 `(-0.031, 0.031)` five). The target is the set of cells lying **entirely** inside the target range
 (`INNER` mode). It throws an error if the cell of
-`q0` is outside the domain or carved out by the obstacle/ground margin (the initial set would be
+`q0` is outside the domain or carved out, the swing foot touching an obstacle or below the ground (the initial set would be
 empty, which the synthesis can only report as a failure without saying why), or if a range is
 reversed, outside the domain, or contains no whole cell.
 
@@ -980,13 +1006,14 @@ run starts where the abstraction does. With `removed` (the `Carving` of `infeasi
 violates it:
 
 ```
-the start cell is carved out by "lift constraint" (the swing foot is within 7.5 cm of it): the swing foot
-at the start is at (x, z) = (0.0, 0.0) m; choose another q0 or refine the grid (the margin scales with the
-cell sizes)
+the start cell is carved out by "lift constraint" (the swing foot can touch it in this cell): the swing
+foot at the start is at (x, z) = (0.0, 0.0) m; choose another q0 or refine the grid (the cells reach
+farther when larger)
 ```
 
-For the ground the reason is "the swing foot is more than 7.5 cm below the ground", and a cell removed
-by both constraints names both. (7.5 cm is the Lipschitz carving margin of the grid.) With only the
+For the ground the reason is "the swing foot is below the ground in the whole cell" ("in part of the
+cell at least" with `ground_ambiguous = :remove`), and a cell removed
+by both constraints names both. With only the
 cells, the message is the generic one without the names.
 
 *Use case.*

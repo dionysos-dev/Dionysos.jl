@@ -1,7 +1,7 @@
 # Tests for robot_problem.jl: the symbolic biped, its kinematics, its two 5-D design models and the
-# footstep scenario. Run with an environment that has Dionysos, Symbolics, IntervalArithmetic,
-# Plots, MathematicalSystems, LazySets, StaticArrays and MathOptInterface:
-#   julia --project=<env> tests/test_robot_problem.jl
+# footstep scenario. Run with the environment of `problems/BipedRobot` (instantiate it once: its
+# Manifest is not tracked), from the root of the repository:
+#   julia --project=problems/BipedRobot problems/BipedRobot/4D_model_underactuated/tests/test_robot_problem.jl
 using Test
 using Random
 using LinearAlgebra
@@ -396,6 +396,152 @@ end
               5 * 1 * 1 * 1 * 1
     end
 
+    @testset "range of the swing-foot position over a cell" begin
+        geometry = RP.Geometry(MODEL, VALUES)
+        rng = MersenneTwister(3)
+        r = SVector(0.05, 0.05, 0.05, 0.05)
+        corners =
+            [r .* SVector(s) for s in Iterators.product(ntuple(_ -> (-1.0, 1.0), 4)...)]
+        for _ in 1:200
+            q = SVector(ntuple(_ -> 2 * rand(rng) - 1, 4))
+            range = Dict(
+                b => RP.swing_foot_height_range(q, r, geometry; foot_bound = b) for
+                b in RP.FOOT_BOUNDS
+            )
+            heights = [
+                RP.swing_foot_position(q + δ, geometry)[2] for δ in [
+                    vec(corners)
+                    [r .* SVector(ntuple(_ -> 2 * rand(rng) - 1, 4)) for _ in 1:100]
+                ]
+            ]
+            # The certified ranges contain every height of the cell.
+            for b in (:second_order_global, :second_order_cell)
+                lo, hi = range[b]
+                @test lo - 1e-12 <= minimum(heights) && maximum(heights) <= hi + 1e-12
+            end
+            # The corner values are heights of the cell, the per-cell range is inside the global one,
+            # and the global one widens the linear one.
+            @test range[:corners] == extrema(heights[1:16])
+            @test range[:second_order_global][1] <= range[:second_order_cell][1]
+            @test range[:second_order_cell][2] <= range[:second_order_global][2]
+            @test range[:second_order_global][1] < range[:linear][1]
+            # The same for the box of the foot, `x` and `z`: the certified boxes contain every foot
+            # position of the cell, and their `z` range is the height range.
+            feet = [
+                RP.swing_foot_position(q + δ, geometry) for δ in [
+                    vec(corners)
+                    [r .* SVector(ntuple(_ -> 2 * rand(rng) - 1, 4)) for _ in 1:100]
+                ]
+            ]
+            xs = first.(feet)
+            box = Dict(
+                b => RP.swing_foot_range(q, r, geometry; foot_bound = b) for
+                b in RP.FOOT_BOUNDS
+            )
+            for b in (:second_order_global, :second_order_cell)
+                @test box[b].x[1] - 1e-12 <= minimum(xs) &&
+                      maximum(xs) <= box[b].x[2] + 1e-12
+                @test box[b].z == range[b]
+            end
+            @test box[:corners].x == extrema(xs[1:16])
+            @test box[:second_order_global].x[1] <= box[:second_order_cell].x[1]
+            @test box[:second_order_cell].x[2] <= box[:second_order_global].x[2]
+        end
+        # The cell is a point when the radius is zero, for every bound.
+        q = SVector(0.1, 0.5, -0.3, -0.6)
+        z = RP.swing_foot_position(q, geometry)[2]
+        for b in RP.FOOT_BOUNDS
+            @test all(RP.swing_foot_height_range(q, zero(r), geometry; foot_bound = b) .≈ z)
+        end
+        @test_throws ErrorException RP.swing_foot_height_range(
+            q,
+            r,
+            geometry;
+            foot_bound = :margin,
+        )
+
+        # The ground carving with each bound: on a box of bent postures, the certified bounds remove
+        # only cells wholly below the ground, the per-cell one more than the global one.
+        grid =
+            MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0, 0.0), SVector(0.1, 0.1, 0.1, 0.1, 0.1))
+        X = LazySets.Hyperrectangle(;
+            low = SVector(-0.05, -0.5, 0.0, -0.8, -1.0),
+            high = SVector(0.05, 0.5, 1.0, 0.8, 0.0),
+        )
+        ground = Dict(
+            b => last(
+                RP.infeasible_cells(X, grid, nothing, geometry; foot_bound = b).causes[1],
+            ) for b in RP.FOOT_BOUNDS
+        )
+        @test ground[:second_order_global] ⊆ ground[:second_order_cell]
+        @test length(ground[:second_order_cell]) > length(ground[:second_order_global]) > 0
+        above = 0
+        for pos in ground[:second_order_cell], _ in 1:5
+            qc = SVector(MP.get_coord_by_pos(grid, (0, pos...))[2:5]...)
+            δ = r .* SVector(ntuple(_ -> 2 * rand(rng) - 1, 4))
+            above += RP.swing_foot_position(qc + δ, geometry)[2] >= 0
+        end
+        @test above == 0
+        # The ambiguous cells: removed too with `ground_ambiguous = :remove`, and those are exactly the
+        # cells whose range crosses the ground.
+        carving_remove =
+            RP.infeasible_cells(X, grid, nothing, geometry; ground_ambiguous = :remove)
+        @test carving_remove.ground_ambiguous == :remove
+        across = setdiff(last(carving_remove.causes[1]), ground[:second_order_cell])
+        @test !isempty(across)
+        range_of(pos) = RP.swing_foot_height_range(
+            SVector(MP.get_coord_by_pos(grid, (0, pos...))[2:5]...),
+            r,
+            geometry,
+        )
+        @test all(pos -> range_of(pos)[1] < 0 <= range_of(pos)[2], across)
+        @test RP.infeasible_cells(X, grid, nothing, geometry).ground_ambiguous == :keep
+        @test_throws ErrorException RP.infeasible_cells(
+            X,
+            grid,
+            nothing,
+            geometry;
+            ground_ambiguous = :maybe,
+        )
+
+        # A low rectangle on the ground between the footholds: no kept cell puts the foot in it
+        # (sampled), and it removes the ambiguous cells under it although they are kept by the ground
+        # constraint (their box meets it, since `z_max ≥ 0`).
+        rectangle =
+            LazySets.Hyperrectangle(; low = SVector(-0.1, -0.05), high = SVector(0.1, 0.02))
+        guarded =
+            RP.infeasible_cells(X, grid, [rectangle], geometry; obstacle_name = "guard")
+        @test first.(guarded.causes) == ["ground", "guard"]
+        guard = last(guarded.causes[2])
+        @test !isempty(guard)
+        kept = [
+            pos for pos in MP.get_pos_from_set(grid, X, MP.INNER) if !(pos in guarded.cells)
+        ]
+        inside_rectangle = 0
+        for _ in 1:20000
+            qc = SVector(MP.get_coord_by_pos(grid, rand(rng, kept))[2:5]...)
+            q = qc .+ r .* SVector(ntuple(_ -> 2 * rand(rng) - 1, 4))
+            inside_rectangle += RP.swing_foot_position(q, geometry) ∈ rectangle
+        end
+        @test inside_rectangle == 0
+        under = filter(across) do pos
+            x = RP.swing_foot_range(
+                SVector(MP.get_coord_by_pos(grid, (0, pos...))[2:5]...),
+                r,
+                geometry,
+            ).x
+            return x[1] <= 0.1 && -0.1 <= x[2]
+        end
+        @test !isempty(under) && all(in(guard), under)
+        @test_throws ErrorException RP.infeasible_cells(
+            X,
+            grid,
+            nothing,
+            geometry;
+            foot_bound = :margin,
+        )
+    end
+
     @testset "footstep scenario: carving, target, step problem" begin
         geometry = RP.Geometry(MODEL, VALUES)
         triangle =
@@ -453,7 +599,16 @@ end
         @test first.(carving.causes) == ["ground", "lift constraint"]
         ground, lift = last.(carving.causes)
         @test !isempty(lift)
-        @test isempty(ground)       # no posture of this box puts the foot surely below the ground
+        # The bent postures of the box put the swing foot below the ground in whole cells (the
+        # former rule, a centre more than one Lipschitz margin below the ground, removed none).
+        @test !isempty(ground)
+        @test all(
+            RP.swing_foot_height_range(
+                SVector(MP.get_coord_by_pos(disc.state_grid, (0, p...))[2:5]...),
+                MP.get_h(disc.state_grid)[2:5] ./ 2,
+                geometry,
+            )[2] < 0 for p in ground
+        )
         @test all(
             !isempty(RP.carved_by(carving, p)) for
             p in Iterators.take(removed.positions, 500)
@@ -503,10 +658,10 @@ end
                 geometry,
             )
         end
-        only_lift = first(lift)
+        only_lift = first(setdiff(lift, ground))
         msg = start_in(only_lift)
         @test occursin("carved out by \"lift constraint\"", msg) && !occursin("ground", msg)
-        @test occursin("within 7.5 cm", msg) && occursin("(x, z) = (", msg)
+        @test occursin("can touch it in this cell", msg) && occursin("(x, z) = (", msg)
         # The ground constraint, in a box of strongly bent postures (the stance knee bent by 1 rad with
         # the swing femur vertical: the foot is 9 cm below the ground), on a finer grid.
         fine = RP.default_discretization(; dx = 0.05, dq1 = 0.05, dq̇1 = 0.1, tstep = 0.05)

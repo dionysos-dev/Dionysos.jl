@@ -106,11 +106,15 @@ the "adversary" picks, at every step. This is what makes the problem hard (§5).
   what makes the problem solvable (§5, §6): with `0.0` the foot has to land exactly on the foothold,
   a thin sliver of the angle space.
 
-Both carvings are *sound*: they use a Lipschitz bound of the swing-foot map over a cell (the
-"Lipschitz carving margin", 7.5 cm with the default grid), so they remove more than strictly
-necessary. The target is the opposite, *optimistic*: it is made of the cells that **contain** a
-configuration with the foot at the foothold (within the tolerance), so the concrete foot can end up to
-one margin away from it (§6).
+Both carvings use, for every cell, a box `[x_min, x_max] × [z_min, z_max]` enclosing the swing foot
+over the cell, bounded per cell by a second-order Taylor model (`foot_bound = :second_order_cell`,
+within a fraction of a millimetre of the true range). The obstacle carving removes the cells whose box
+meets the obstacle; it is *sound*, and removes little more than necessary. The ground carving removes
+the cells whose box is below `z = 0`. (Until 2026-11, both used one Lipschitz margin for all cells, the
+"Lipschitz carving margin", 7.5 cm with the default grid; the runs recorded below predate the change.)
+The target is the opposite, *optimistic*: it is made of the cells that **contain** a configuration
+with the foot at the foothold (within the tolerance), so the concrete foot can end up to a cell's
+reach away from it (§6).
 
 ---
 
@@ -260,7 +264,7 @@ The defaults below are those of the file at the time of writing; the file is the
 | Parameter | Default | Meaning | Effect and constraints |
 | :--- | :--- | :--- | :--- |
 | `dx` | `0.1` rad | cell size of `q₂, q₃, q₄` | with `tstep·du = dx` every command moves a motor joint by *exactly one cell* per step (the lattice trick): the three motor coordinates are then exact and the abstraction only has uncertainty in `(q₁, p₁)` |
-| `dq1` | `0.1` rad | cell size of the ankle angle `q₁` | finer = tighter ankle model, more cells; also sets the carving margin |
+| `dq1` | `0.1` rad | cell size of the ankle angle `q₁` | finer = tighter ankle model, more cells; also sets how far the foot moves within a cell, hence the carving |
 | `dq̇1` | `0.04` N m s | cell size of the ankle momentum `p₁` | finer = better, more cells (`0.04 ≈ 0.3 rad/s`) |
 | `tstep` | `1/60` s | sampling period (input held constant) | must be short enough for the flow enclosure to exist: `tstep · ‖∂f/∂x‖ ≲ 1`, and here `‖∂f/∂x‖ ≈ 9`; `0.1 s` is marginal. **Shorter is better for a long step** (§6); shorter steps also make `du` larger |
 | `du` | `dx/tstep` (`6 rad/s` for `dx = 0.1`) | unit of the commanded joint speed | every command is an integer multiple of `du` (the lattice trick). 6 rad/s is fast: it is what the lattice trick implies for a period of 1/60 s |
@@ -301,9 +305,9 @@ and the estimated cost, and the experiment prints them (§2.3). Enlarging the an
 
 Constraints to keep in mind:
 
-* the cell of `Q0` must be in the domain and **not carved out**: with an obstacle, the swing foot at `Q0`
-  must be farther than the **Lipschitz carving margin** from it (7.5 cm with the default grid; it
-  scales with the cell sizes), and above the ground. `RP.start_state` checks it **before the abstraction** and
+* the cell of `Q0` must be in the domain and **not carved out**: with an obstacle, the swing foot must
+  not be able to touch it anywhere in the cell of `Q0` (the box enclosing the foot over the cell must
+  miss it; the box grows with the cell sizes), and must not be below the ground in the whole cell. `RP.start_state` checks it **before the abstraction** and
   stops with an error that names the constraint responsible (§5);
 * the foothold must be reachable with `(q₃, q₄)` inside `X_BOUNDS`, otherwise `target_set` reports "no
   reachable target configuration";
@@ -323,7 +327,9 @@ These have no override variable; each is one line in `biped_4d_normal_form.jl` u
 | closed-loop horizon | `400` steps | `horizon` keyword of `RP.closed_loop(…)` | maximum number of steps of the concrete run |
 | closed-loop start | `q0` with `p₁` at the middle of the initial range, snapped to the grid | `x0 = RP.start_state(…)` | the concrete run starts here (it does not sample the initial set) |
 | plot window, files, animation | `xlims = (-0.6, 0.6)`, `ylims = (-0.05, 0.55)`, `snapshot_every = 5`; `subframes = 10` (the example), `fps` chosen for about 4 s; `…_<scenario>.png / .gif / _ankle.png` next to the script | the call `RP.plot_footstep(…)` in the visualization section | add or change them as keywords |
-| ground constraint | foot below `z = -margin` is removed; named `"ground"` | `RP.infeasible_cells` | the margin makes the ground constraint tolerant so that footholds on the ground stay |
+| ground constraint | a cell whose foot height is below `z = 0` in the whole cell is removed; named `"ground"` | `RP.infeasible_cells` | tolerant: a cell that reaches the ground stays, so do the footholds on it |
+| foot bound | `:second_order_cell` | `FOOT_BOUND` before the `include`; `foot_bound` keyword of `RP.infeasible_cells(…)` | how the box enclosing the swing foot over a cell (for the ground and the obstacles) is bounded: `:linear`, `:second_order_global`, `:second_order_cell` (certified, the tightest certified one) or `:corners` (see `RP.FOOT_BOUNDS`) |
+| ambiguous ground cells | `:keep` | `GROUND_AMBIGUOUS` before the `include`; `ground_ambiguous` keyword of `RP.infeasible_cells(…)` | the cells whose foot-height range contains `z = 0`: `:keep` them (footholds on the ground stay) or `:remove` them (no kept cell goes below the ground, but the target cells are lost) |
 | obstacle constraint name | `"lift constraint"` | `obstacle_name` keyword of `RP.infeasible_cells(…)` | the name shown when this constraint carves the start cell; a string for all obstacles or one per obstacle |
 
 The `CertifiedRK4GrowthBound` option that matters: `nsystem` is the number of RK4 substeps per sampling
@@ -428,7 +434,6 @@ X_box = LazySets.Hyperrectangle(; low = x_lb, high = x_ub)
 U_box = LazySets.Hyperrectangle(; low = SVector(-disc.u_max, …), high = SVector(disc.u_max, …))
 @time carving = RP.infeasible_cells(X_box, disc.state_grid, obstacle, geometry; obstacle_name = "lift constraint")
 removed = carving.cells
-margin = RP.swing_foot_deviation_bound(geometry, MP.get_h(disc.state_grid) ./ 2)
 X = UT.set_minus(X_box, removed)
 size = RP.abstraction_size(X_box, disc.state_grid, carving; ninputs = RP.input_count(disc; one_joint_per_step))
 println("State space: ", size.cells, " cells (", size.cells_in_box, " before carving), ", size.pairs, …)
@@ -437,17 +442,16 @@ println("State space: ", size.cells, " cells (", size.cells_in_box, " before car
 * `X_box` and `U_box` are the state and input boxes.
 * `RP.infeasible_cells` returns a `Carving`: the **cells to remove** (`carving.cells`, an
   `MP.CellUnion`) and which constraint removed which. The swing foot does not depend on the ankle
-  momentum, so it decides on the 4-D configuration cells once and lifts the result along `p₁`. A cell
-  is removed if
-  * the swing foot of its centre lies below `z = -margin` (it is *surely* below the ground): the
-    constraint named `"ground"`, or
-  * the swing foot of its centre is within `margin` of the obstacle (it *might* touch it): the
-    constraint named by `obstacle_name`, here `"lift constraint"`, because the obstacle at the origin
-    is what forces the swing foot to lift.
-* `margin` is the **Lipschitz margin** `Σᵢ gradᵢ · rᵢ`: the bound on how far the swing foot can move
-  within a cell (per-joint gradient bounds `(0, 0.748, 0.576, 0.374, 0.172)` m/rad times the cell
-  half-sizes), 7.5 cm by default. It is why the carving is sound, and why the start must be
-  farther than this from the obstacle.
+  momentum, so it decides on the 4-D configuration cells once and lifts the result along `p₁`. For
+  every cell it bounds a box `[x_min, x_max] × [z_min, z_max]` enclosing the swing foot over the cell
+  (`foot_bound`, see `RP.FOOT_BOUNDS`), and the cell is removed if
+  * the swing foot is below the ground in the whole cell (the range of its height over the cell,
+    bounded by `foot_bound`, is below `z = 0`), or in part of it with `ground_ambiguous = :remove`:
+    the constraint named `"ground"`, or
+  * the box meets the obstacle (the swing foot *might* touch it): the constraint named by
+    `obstacle_name`, here `"lift constraint"`, because the obstacle at the origin is what forces the
+    swing foot to lift. This is why the carving is sound, and why the foot must not be able to touch
+    the obstacle anywhere in the start cell.
 * `X = UT.set_minus(X_box, removed)` is the **state domain used by the abstraction**: the box minus
   the removed cells.
 * `RP.abstraction_size` counts the cells the abstraction will keep and prints the number of pairs, an
@@ -478,7 +482,7 @@ println("x0 = ", x0, …); println("swing foot at x0: ", RP.swing_foot_position(
 middle of the initial range (clipped to the domain), snapped to the centre of its grid cell, and
 **stops with an error if the start cell was carved out**, *before* the expensive abstraction. Given the
 `Carving`, the error says which constraint did it, e.g.
-`the start cell is carved out by "lift constraint" (the swing foot is within 7.5 cm of it): the swing foot at the start is at (x, z) = (0.0, 0.0) m; choose another q0 or refine the grid`.
+`the start cell is carved out by "lift constraint" (the swing foot can touch it in this cell): the swing foot at the start is at (x, z) = (0.0, 0.0) m; choose another q0 or refine the grid`.
 The script then prints `x0`, the ankle acceleration `ṗ₁` there and the swing-foot position.
 
 ```julia
@@ -610,8 +614,8 @@ instants for the ankle plot and the animation, and the gif lasts about four seco
 | Symptom | Cause | What to try |
 | :--- | :--- | :--- |
 | nothing printed for minutes after `Number of forward images` | the abstraction is being computed, and the box is big | read the `State space:` line: pairs × 0.9 ms of CPU / threads is the minimum time, and the memory is ≈ 4 transitions per pair (§2.3). Narrower `X_BOUNDS`, a coarser grid, or `ONE_JOINT_PER_STEP = true` |
-| `error: the start cell is carved out by "lift constraint" (…)` | the swing foot at `Q0` is within the Lipschitz margin of the obstacle | the message gives the swing-foot position and the margin (obstacle on, `OBSTACLE = :bump`): move the swing foot farther from the obstacle (a larger swing-hip angle `q₃`, or a bent knee `q₄ < 0`), refine the grid (the margin scales with the cell size), or set `OBSTACLE = nothing` |
-| `error: the start cell is carved out by "ground" (…)` | the swing foot at `Q0` is more than the margin below the ground | change the posture so that the swing foot is above the ground |
+| `error: the start cell is carved out by "lift constraint" (…)` | the swing foot can touch the obstacle in the cell of `Q0` | the message gives the swing-foot position (obstacle on, `OBSTACLE = :bump`): move the swing foot farther from the obstacle (a larger swing-hip angle `q₃`, or a bent knee `q₄ < 0`), refine the grid (the foot moves less within a smaller cell), or set `OBSTACLE = nothing` |
+| `error: the start cell is carved out by "ground" (…)` | the swing foot is below the ground in the whole cell of `Q0` | change the posture so that the swing foot is above the ground |
 | `error: the cell of the initial configuration q0 = … is not in the state domain` | `Q0` outside `X_BOUNDS` | widen `X_BOUNDS` or change `Q0` |
 | `error: no reachable target configuration for foothold …` | no `(q₃, q₄)` inside `X_BOUNDS` puts the foot on the foothold | widen `X_BOUNDS` (`q₃ ≥ …`, `q₄ ≤ …`) or move the foothold |
 | `enclosure_failures` large in the statistics | `tstep` too long for the dynamics (`tstep·‖∂f/∂x‖ ≳ 1`): those cells use the global bound | shorter `tstep` |

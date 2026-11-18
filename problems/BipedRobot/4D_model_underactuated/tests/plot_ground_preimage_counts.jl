@@ -11,29 +11,29 @@
 #
 # For each pixel `p` of the plane, this script sweeps `(q₁, q₂)` over the state domain, computes
 # `(q₃, q₄)` for both knee branches, and collects the 4-D cells that the points `(q₁, q₂, q₃, q₄)`
-# fall in (the sweep is in `foot_preimage_sweep.jl`). The cells are split by the ground test of
-# `RP.infeasible_cells` (same margin, same test, as in `plot_ground_cells.jl`):
+# fall in (the sweep is in `foot_preimage_sweep.jl`). The cells are split by the `"ground"`
+# constraint of `RP.infeasible_cells` (with the bound `FOOT_BOUND` and the choice `GROUND_AMBIGUOUS`
+# for the cells across the ground, as in `plot_ground_cells.jl`):
 #
 # * left: the number of **admitted** cells crossed by the pre-image;
-# * right: the number of cells that the ground test **removes** that it crosses, i.e. the exact
-#   counterpart of the overlap plotted by `plot_ground_cells.jl`, which draws a square of half-width
-#   `dev` for each removed cell instead of its image.
+# * right: the number of cells that the ground constraint **removes** that it crosses, i.e. the exact
+#   counterpart of the overlap plotted by `plot_ground_cells.jl`, which draws an enclosing rectangle
+#   for each removed cell instead of its image.
 #
 # The count is exact up to the sweep: it is a lower bound that converges as `sweep_step` decreases
 # (a cell that the pre-image only grazes needs a fine sweep), and the script re-counts a few pixels at
 # half the step to show how far it has converged. The kinematics are the ones of `RP`: the
 # pre-image points are checked to map back to the pixel with `RP.swing_foot_position`.
 #
-# The two parameters of the problem are the cell size and the state bounds, in 4-D, as in
-# `plot_ground_cells.jl`. Set `CELL_SIZE` and `STATE_BOUNDS = (q_lb, q_ub)` before including this
-# file to change them (or edit the defaults). Angles must lie in `[-π, π]`.
+# The parameters are the cell size and the state bounds, in 4-D, and the options of the ground
+# constraint, as in `plot_ground_cells.jl`. Set `CELL_SIZE`, `STATE_BOUNDS = (q_lb, q_ub)`,
+# `FOOT_BOUND` and `GROUND_AMBIGUOUS` before including this file to change them (or edit the
+# defaults). Angles must lie in `[-π, π]`.
 #
 # The cost is the number of pixels times the number of `(q₁, q₂)` samples: use threads (the defaults
 # take about two minutes on 10 threads; a larger `pixel_size` or `sweep_step` makes it faster and
 # coarser).
-# Run it with an environment that has Dionysos, Symbolics, Plots, LazySets, StaticArrays and
-# MathOptInterface:
-#   julia -t auto --project=<env> tests/plot_ground_preimage_counts.jl
+#   julia -t auto --project=problems/BipedRobot tests/plot_ground_preimage_counts.jl
 
 using LinearAlgebra
 using Random
@@ -64,6 +64,11 @@ q_lb, q_ub =
     @isdefined(STATE_BOUNDS) ? STATE_BOUNDS :
     (SVector(-0.5, 0.0, -0.8, -1.0), SVector(0.5, 1.0, 0.8, 0.0))
 
+# The options of `RP.infeasible_cells`: how the range of the foot height over a cell is bounded, and
+# what to do with the cells across the ground.
+foot_bound = @isdefined(FOOT_BOUND) ? FOOT_BOUND : :second_order_cell
+ground_ambiguous = @isdefined(GROUND_AMBIGUOUS) ? GROUND_AMBIGUOUS : :keep
+
 # Optional: the size of a pixel of the plane (m), the step of the `(q₁, q₂)` sweep (rad: the smaller,
 # the closer the count to the exact one, the longer the run) and the file of the plot (next to this
 # script by default).
@@ -76,27 +81,30 @@ all(abs.(q_lb) .<= π) && all(abs.(q_ub) .<= π) ||
     error("the angle bounds must lie in [-π, π]: got $q_lb, $q_ub")
 
 # ------------------------------------------------------------
-# The ground test of `RP.infeasible_cells`, on every cell of the box
+# The ground constraint of `RP.infeasible_cells`, on every cell of the box
 # ------------------------------------------------------------
 
-# The cells of the box (`INNER`, like `MP.cells_where`) and the subset `removed` that the ground test
-# of `infeasible_cells` removes (the foot of the centre is below `z = -dev`), with the margin `dev`.
-function classify_cells(q_lb, q_ub, cell_size, geometry)
-    # `infeasible_cells`: `dev = swing_foot_deviation_bound(geometry, h ./ 2)`, with `h` the 5-D cell
-    # size; the ankle has no weight in it (its gradient bound is 0), hence the 0.0 in first place.
-    dev = RP.swing_foot_deviation_bound(geometry, SVector(0.0, (cell_size ./ 2)...))
+# The cells of the box (`INNER`, like `RP.infeasible_cells`) and the subset `removed` that the
+# `"ground"` constraint of `RP.infeasible_cells` removes, on a grid with one cell along the ankle axis
+# (which the ground constraint ignores).
+function classify_cells(q_lb, q_ub, cell_size, geometry; foot_bound, ground_ambiguous)
     q_grid = MP.GridFree(zero(cell_size), cell_size)
     Q = LazySets.Hyperrectangle(; low = q_lb, high = q_ub)
-    q_foot(q) = RP.swing_foot_position(SVector{4}(q), geometry)
-    positions = NTuple{4, Int}[]
-    removed = Set{NTuple{4, Int}}()
-    for pos in MP.get_pos_from_set(q_grid, Q, MP.INNER)
-        pos = NTuple{4, Int}(pos)
-        push!(positions, pos)
-        foot = q_foot(MP.get_coord_by_pos(q_grid, pos))
-        foot[2] < -dev && push!(removed, pos)
-    end
-    return (; positions, removed, dev, q_grid)
+    positions = [NTuple{4, Int}(pos) for pos in MP.get_pos_from_set(q_grid, Q, MP.INNER)]
+    h = SVector(cell_size[1], cell_size...)
+    X = LazySets.Hyperrectangle(;
+        low = SVector(-h[1], q_lb...),
+        high = SVector(h[1], q_ub...),
+    )
+    carving = RP.infeasible_cells(
+        X,
+        MP.GridFree(zero(h), h),
+        nothing,
+        geometry;
+        foot_bound,
+        ground_ambiguous,
+    )
+    return (; positions, removed = carving.causes[1].second, q_grid)
 end
 
 # ------------------------------------------------------------
@@ -106,7 +114,7 @@ end
 println("Building the symbolic model and its kinematics…")
 geometry = RP.default_geometry()
 
-cells = classify_cells(q_lb, q_ub, cell_size, geometry)
+cells = classify_cells(q_lb, q_ub, cell_size, geometry; foot_bound, ground_ambiguous)
 # Class codes: 1 admitted, 2 removed.
 class, kmin, kmax = cell_class_array(
     cells.positions,
@@ -117,24 +125,9 @@ println(
     length(cells.positions),
     " cells, ",
     length(cells.removed),
-    " removed by the ground test (margin dev = ",
-    round(100 * cells.dev; digits = 2),
-    " cm)",
+    " removed by the ground constraint (foot_bound = $(repr(foot_bound)), ",
+    "ground_ambiguous = $(repr(ground_ambiguous)))",
 )
-
-# The ground test above must agree with the real thing: compare with the `"ground"` cells of
-# `RP.infeasible_cells` on the same grid (its ankle axis is one cell, which the ground test ignores).
-let h = SVector(cell_size[1], cell_size...)
-    state_grid = MP.GridFree(zero(h), h)
-    X = LazySets.Hyperrectangle(;
-        low = SVector(-h[1], q_lb...),
-        high = SVector(h[1], q_ub...),
-    )
-    carving = RP.infeasible_cells(X, state_grid, nothing, geometry)
-    same = carving.causes[1].second == cells.removed
-    same ? println("Same removed cells as RP.infeasible_cells: true") :
-    @warn "the removed cells differ from the \"ground\" cells of RP.infeasible_cells"
-end
 
 h = SVector(cell_size)
 sweep = build_sweep(geometry, class, kmin, kmax, h, sweep_step)
@@ -286,7 +279,7 @@ else
             removed,
             "removed cells crossed",
             :Reds,
-            "Removed cells crossed by the pre-image of each point\n$(length(cells.removed)) removed cells (ground test)",
+            "Removed cells crossed by the pre-image of each point\n$(length(cells.removed)) removed cells (ground constraint)",
         );
         layout = (1, 2),
         size = (1600, 620),

@@ -1,24 +1,23 @@
 # Where does the ground constraint of `RP.infeasible_cells` remove cells, seen from the swing foot?
 #
 # The carving decides on the 4-D angle cells `(q₁, q₂, q₃, q₄)` (the swing foot does not depend on
-# the ankle momentum). This script runs the ground test of `infeasible_cells` on every cell of a 4-D
-# box, but removes nothing: a cell that would be removed is mapped to a shape in the Cartesian plane of
-# the swing foot (`x` forwards, `z` up, the stance foot at the origin) and drawn there, filled in red
-# with some transparency. The shapes of different cells overlap, so the opacity of a region tells how
-# many removed cells map to it.
+# the ankle momentum). This script runs `RP.infeasible_cells` on a 4-D box (with no obstacle) and maps
+# every cell of its `"ground"` constraint to a shape in the Cartesian plane of the swing foot (`x`
+# forwards, `z` up, the stance foot at the origin), filled in red with some transparency. The shapes
+# of different cells overlap, so the opacity of a region tells how many removed cells map to it.
 #
-# The shape of a cell is the square the carving itself reasons with: the swing foot of the cell
-# centre, plus or minus the Lipschitz margin `dev` (`RP.swing_foot_deviation_bound`) along `x` and
-# `z`, which encloses the foot of every configuration of the cell. A cell is removed when the foot of
-# its centre is below `z = -dev`, so every shape lies entirely below the ground, `z = 0`. Another
-# shape (e.g. the exact image of the cell) is a change of `foot_shape` only.
+# The shape of a cell encloses the foot of every configuration of the cell: along `z`, the range
+# `[z_min, z_max]` of the foot height over the cell that `infeasible_cells` uses
+# (`RP.swing_foot_height_range`, with the same bound); along `x`, the foot of the cell centre plus or
+# minus the Lipschitz margin `dev` (`RP.swing_foot_deviation_bound`). With a certified bound and the
+# ambiguous cells kept, a cell is removed when `z_max < 0`, so every shape lies entirely below the
+# ground, `z = 0`. Another shape (e.g. the exact image of the cell) is a change of `foot_shape` only.
 #
-# The two parameters are the cell size and the state bounds, in 4-D. Set `CELL_SIZE` and
-# `STATE_BOUNDS = (q_lb, q_ub)` before including this file to change them (or edit the defaults).
+# Set `CELL_SIZE`, `STATE_BOUNDS = (q_lb, q_ub)`, `FOOT_BOUND` (one of `RP.FOOT_BOUNDS`) and
+# `GROUND_AMBIGUOUS` (`:keep` or `:remove`) before including this file to change them (or edit the
+# defaults).
 #
-# Run it with an environment that has Dionysos, Symbolics, Plots, LazySets, StaticArrays and
-# MathOptInterface:
-#   julia --project=<env> tests/plot_ground_cells.jl
+#   julia --project=problems/BipedRobot tests/plot_ground_cells.jl
 
 using StaticArrays
 import Dionysos
@@ -45,6 +44,11 @@ q_lb, q_ub =
     @isdefined(STATE_BOUNDS) ? STATE_BOUNDS :
     (SVector(-0.5, 0.0, -0.8, -1.0), SVector(0.5, 1.0, 0.8, 0.0))
 
+# The options of `RP.infeasible_cells`: how the range of the foot height over a cell is bounded, and
+# what to do with the cells across the ground.
+foot_bound = @isdefined(FOOT_BOUND) ? FOOT_BOUND : :second_order_cell
+ground_ambiguous = @isdefined(GROUND_AMBIGUOUS) ? GROUND_AMBIGUOUS : :keep
+
 # Optional: the opacity of one shape (`nothing`: chosen so that the most overlapped region is nearly
 # opaque, but not below `MIN_ALPHA`) and the file of the plot (next to this script by default).
 fill_alpha = @isdefined(FILL_ALPHA) ? FILL_ALPHA : nothing
@@ -55,15 +59,16 @@ output_file =
     joinpath(@__DIR__, "ground_cells_foot_plane.png")
 
 # ------------------------------------------------------------
-# The ground test of `RP.infeasible_cells`, without the removal
+# The ground constraint of `RP.infeasible_cells`
 # ------------------------------------------------------------
 
-# The shape drawn for a removed cell whose centre has the swing foot at `foot = (x, z)`: the square
-# of half-width `dev` around it, as the vertex coordinates `(xs, zs)`.
-function foot_shape(foot, dev)
+# The shape drawn for a removed cell, from the swing foot `foot = (x, z)` of its centre, the range
+# `(z_min, z_max)` of the foot height over it and the margin `dev`, as the vertex coordinates
+# `(xs, zs)`.
+function foot_shape(foot, range, dev)
     return (
         [foot[1] - dev, foot[1] + dev, foot[1] + dev, foot[1] - dev],
-        [foot[2] - dev, foot[2] - dev, foot[2] + dev, foot[2] + dev],
+        [range[1], range[1], range[2], range[2]],
     )
 end
 
@@ -80,90 +85,85 @@ function nan_separated(shapes)
     return xs, zs
 end
 
-# Run the ground test of `RP.infeasible_cells` (same margin, same cells, same test) on every cell of
-# the box `[q_lb, q_ub]`. Returns the number of cells examined, the positions of the cells that
-# `infeasible_cells` would remove, the swing foot of their centres, and the margin `dev`.
-function ground_cells(q_lb, q_ub, cell_size, geometry)
-    # `infeasible_cells`: `dev = swing_foot_deviation_bound(geometry, h ./ 2)`, with `h` the 5-D cell
-    # size; the ankle has no weight in it (its gradient bound is 0), hence the 0.0 in first place.
-    dev = RP.swing_foot_deviation_bound(geometry, SVector(0.0, (cell_size ./ 2)...))
-    # `infeasible_cells`: the 4-D grid of the angles and its box `Q`.
+# The `"ground"` cells of `RP.infeasible_cells` on the box `[q_lb, q_ub]` (on a grid with one cell
+# along the ankle axis, which the ground constraint ignores). Returns the number of cells examined,
+# the positions of the removed cells, the swing foot of their centres, the range of the foot height
+# over them, and the margin `dev`.
+function ground_cells(q_lb, q_ub, cell_size, geometry; foot_bound, ground_ambiguous)
+    r = cell_size ./ 2
+    # The ankle has no weight in the margin (its gradient bound is 0), hence the 0.0 in first place.
+    dev = RP.swing_foot_deviation_bound(geometry, SVector(0.0, r...))
     q_grid = MP.GridFree(zero(cell_size), cell_size)
     Q = LazySets.Hyperrectangle(; low = q_lb, high = q_ub)
-    q_foot(q) = RP.swing_foot_position(SVector{4}(q), geometry)
-
-    ncells = 0
-    positions = NTuple{4, Int}[]
-    feet = SVector{2, Float64}[]
-    # `MP.cells_where` evaluates its predicate on these cells (`INNER` by default).
-    for pos in MP.get_pos_from_set(q_grid, Q, MP.INNER)
-        ncells += 1
-        foot = q_foot(MP.get_coord_by_pos(q_grid, pos))
-        # The ground test of `infeasible_cells`: the foot of the centre is surely below the ground.
-        foot[2] < -dev || continue
-        # `infeasible_cells` would remove this cell: here it is only recorded.
-        push!(positions, NTuple{4, Int}(pos))
-        push!(feet, foot)
-    end
-    return (; ncells, positions, feet, dev)
+    ncells = length(MP.get_pos_from_set(q_grid, Q, MP.INNER))
+    h = SVector(cell_size[1], cell_size...)
+    X = LazySets.Hyperrectangle(;
+        low = SVector(-h[1], q_lb...),
+        high = SVector(h[1], q_ub...),
+    )
+    carving = RP.infeasible_cells(
+        X,
+        MP.GridFree(zero(h), h),
+        nothing,
+        geometry;
+        foot_bound,
+        ground_ambiguous,
+    )
+    positions = sort!(collect(carving.causes[1].second))
+    centres = [SVector{4}(MP.get_coord_by_pos(q_grid, pos)) for pos in positions]
+    feet = [RP.swing_foot_position(q, geometry) for q in centres]
+    ranges = [RP.swing_foot_height_range(q, r, geometry; foot_bound) for q in centres]
+    return (; ncells, positions, feet, ranges, dev)
 end
 
-# Largest number of squares of half-width `dev`, centred on `feet`, that cover a common point,
-# measured on a raster of step `dev / 10` (a difference array, so linear in the number of squares).
-function max_overlap(feet, dev; step = dev / 10)
-    side = round(Int, 2 * dev / step)
-    xmin, zmin = minimum(first, feet) - dev, minimum(last, feet) - dev
-    nx = floor(Int, (maximum(first, feet) - minimum(first, feet)) / step) + side + 2
-    nz = floor(Int, (maximum(last, feet) - minimum(last, feet)) / step) + side + 2
+# Largest number of rectangles `[xlo, xhi] × [zlo, zhi]` that cover a common point, measured on a
+# raster of step `step` (a difference array, so linear in the number of rectangles).
+function max_overlap(rectangles, step)
+    xmin = minimum(b -> b[1], rectangles)
+    zmin = minimum(b -> b[3], rectangles)
+    index(v, vmin) = floor(Int, (v - vmin) / step) + 1
+    nx = index(maximum(b -> b[2], rectangles), xmin) + 1
+    nz = index(maximum(b -> b[4], rectangles), zmin) + 1
     diff = zeros(Int, nx, nz)
-    for foot in feet
-        i = floor(Int, (foot[1] - dev - xmin) / step) + 1
-        j = floor(Int, (foot[2] - dev - zmin) / step) + 1
-        diff[i, j] += 1
-        diff[i + side, j] -= 1
-        diff[i, j + side] -= 1
-        diff[i + side, j + side] += 1
+    for (xlo, xhi, zlo, zhi) in rectangles
+        i0, i1 = index(xlo, xmin), index(xhi, xmin) + 1
+        j0, j1 = index(zlo, zmin), index(zhi, zmin) + 1
+        diff[i0, j0] += 1
+        diff[i1, j0] -= 1
+        diff[i0, j1] -= 1
+        diff[i1, j1] += 1
     end
     return maximum(cumsum(cumsum(diff; dims = 1); dims = 2))
 end
 
 # ------------------------------------------------------------
-# Run, check against `infeasible_cells`, plot
+# Run, plot
 # ------------------------------------------------------------
 
 println("Building the symbolic model and its kinematics…")
 geometry = RP.default_geometry()
 
-removed = ground_cells(q_lb, q_ub, cell_size, geometry)
+removed = ground_cells(q_lb, q_ub, cell_size, geometry; foot_bound, ground_ambiguous)
 println(
-    "Ground constraint: ",
+    "Ground constraint (foot_bound = $(repr(foot_bound)), ground_ambiguous = ",
+    "$(repr(ground_ambiguous))): ",
     length(removed.positions),
     " of ",
     removed.ncells,
-    " cells removed (margin dev = ",
-    round(100 * removed.dev; digits = 2),
-    " cm)",
+    " cells removed",
 )
-
-# The copy above must agree with the real thing: compare with the `"ground"` cells of
-# `RP.infeasible_cells` on the same grid (its ankle axis is one cell, which the ground test ignores).
-let h = SVector(cell_size[1], cell_size...)
-    state_grid = MP.GridFree(zero(h), h)
-    X = LazySets.Hyperrectangle(;
-        low = SVector(-h[1], q_lb...),
-        high = SVector(h[1], q_ub...),
-    )
-    carving = RP.infeasible_cells(X, state_grid, nothing, geometry)
-    same = carving.causes[1].second == Set(removed.positions)
-    same ? println("Same cells as RP.infeasible_cells: true") :
-    @warn "the removed cells differ from the \"ground\" cells of RP.infeasible_cells"
-end
 
 if isempty(removed.positions)
     println("No cell is removed: nothing to plot (a finer grid or a wider box?).")
 else
-    shapes = [foot_shape(foot, removed.dev) for foot in removed.feet]
-    n_max = max_overlap(removed.feet, removed.dev)
+    shapes = [foot_shape(f, z, removed.dev) for (f, z) in zip(removed.feet, removed.ranges)]
+    n_max = max_overlap(
+        [
+            (f[1] - removed.dev, f[1] + removed.dev, z[1], z[2]) for
+            (f, z) in zip(removed.feet, removed.ranges)
+        ],
+        removed.dev / 10,
+    )
     # `n` overlapping shapes of opacity α give 1 - (1 - α)ⁿ: choose α so that `n_max` give 90%.
     α = fill_alpha === nothing ? max(1 - 0.1^(1 / n_max), MIN_ALPHA) : fill_alpha
     # The number of overlaps from which the region looks 90% opaque.
@@ -199,17 +199,10 @@ else
         fillalpha = α,
         linealpha = 0,
         linewidth = 0,
-        label = "removed cell: foot of the centre ± $(round(100 * removed.dev; digits = 1)) cm " *
-                "(opacity $(round(α; sigdigits = 2)) each)",
+        label = "removed cell: x of the centre ± $(round(100 * removed.dev; digits = 1)) cm, " *
+                "z over its range (opacity $(round(α; sigdigits = 2)) each)",
     )
     Plots.hline!(fig, [0.0]; color = :black, label = "ground, z = 0")
-    Plots.hline!(
-        fig,
-        [-removed.dev];
-        color = :gray,
-        linestyle = :dash,
-        label = "z = -dev: removal threshold of the centre",
-    )
     Plots.scatter!(
         fig,
         [0.0],

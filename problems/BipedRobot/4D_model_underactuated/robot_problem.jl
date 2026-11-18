@@ -221,6 +221,246 @@ swing_foot_deviation_bound(geometry::Geometry, radius::AbstractVector) =
     sum(swing_foot_gradient_bound(geometry) .* abs.(radius))
 
 # ============================================================
+# The range of the swing-foot position over a cell
+# ============================================================
+
+"""
+    FOOT_BOUNDS
+
+The ways to bound the position `(x, z)` of the swing foot over a 4-D angle cell of centre `q_c` and
+half-widths `r` (`foot_bound` keyword of [`infeasible_cells`](@ref), [`swing_foot_range`](@ref) and
+[`swing_foot_height_range`](@ref)). Each coordinate `c ∈ {x, z}` is bounded on its own, so the
+result is a box `[x_min, x_max] × [z_min, z_max]` that encloses the image of the cell (for the
+certified bounds). With `δ = q - q_c` and `g`, `H` the gradient and the Hessian of `c` at `q_c` (a
+joint rotates the rest of the chain about itself, so they are lever arms: `∂z/∂qᵢ = x_foot - x_joint i`,
+`∂x/∂qᵢ = -(z_foot - z_joint i)`, `∂²z/∂qᵢ∂qⱼ = -(z_foot - z_joint max(i,j))`,
+`∂²x/∂qᵢ∂qⱼ = -(x_foot - x_joint max(i,j))`), and `G` the gradient bound of the swing foot
+([`swing_foot_gradient_bound`](@ref), which also bounds every higher derivative of `x` and `z`):
+
+* `:linear`: `c_c ± Σᵢ |gᵢ| rᵢ`, the range of the linearization. Not certified: the curvature can
+  take the foot out of it.
+* `:second_order_global`: the linear range widened by the bound `R = ½ Σᵢⱼ G_max(i,j) rᵢ rⱼ` of the
+  second-order remainder, the same for every cell. Certified, but `R` is a worst case over the whole
+  state space (6.9 mm for cells of 0.1 rad).
+* `:second_order_cell` (the default): the exact extremes over the cell of the quadratic model
+  `g ⋅ δ + ½ δᵀ H δ` of the cell, widened by the bound `R₃ = ⅙ Σᵢⱼₖ G_max(i,j,k) rᵢ rⱼ rₖ` of the
+  third-order remainder (0.38 mm for cells of 0.1 rad). Certified, and within a fraction of a
+  millimetre of the true range: the tightest certified bound, for about 0.1 µs per cell and
+  coordinate.
+* `:corners`: the extremes of the foot coordinates over the 16 corners of the cell. Not certified: an
+  extreme can lie inside the cell.
+"""
+const FOOT_BOUNDS = (:linear, :second_order_global, :second_order_cell, :corners)
+
+# The joint positions, with their type asserted: the compiled kinematics are not inferred, and the
+# range is computed for millions of cells.
+_joints(q::SVector{4}, geometry::Geometry)::NTuple{5, SVector{2, Float64}} =
+    cartesian_coordinates(q, geometry)
+
+# The remainder bounds of the second-order ranges for cells of half-widths `r`: `R`, of the
+# linearization (`:second_order_global`), and `R₃`, of the quadratic model (`:second_order_cell`).
+# `|∂ᵏc/∂q_i…∂q_j| ≤ G_max(i,…,j)` for `c = x, z`: every derivative of a coordinate of the foot is a
+# lever arm of the last joint involved.
+function _foot_remainders(geometry::Geometry, r::SVector{4})
+    G = swing_foot_gradient_bound(geometry)[IDX_Q]
+    R2 = sum(G[max(i, j)] * r[i] * r[j] for i in 1:4, j in 1:4) / 2
+    R3 = sum(G[max(i, j, k)] * r[i] * r[j] * r[k] for i in 1:4, j in 1:4, k in 1:4) / 6
+    return R2, R3
+end
+
+# The coordinates of a maximizer of `q(δ) = g ⋅ δ + ½ δᵀ H δ` over the box `|δᵢ| ≤ rᵢ` are each at a
+# bound or stationary (`gᵢ + (H δ)ᵢ = 0`). Coordinate `i` is at the upper (lower) bound whenever
+# `gᵢ > τᵢ = Σⱼ |Hᵢⱼ| rⱼ` (`gᵢ < -τᵢ`), since `∂q/∂δᵢ` cannot change sign: only the undecided ones
+# have three cases to try, `-1`, `+1` and `0` (stationary).
+@inline function _quadratic_cases(gi, τi)
+    return gi > τi ? (SVector(1, 0, 0), 1) :
+           gi < -τi ? (SVector(-1, 0, 0), 1) : (SVector(-1, 0, 1), 3)
+end
+
+# The value of `q` at the point of the box whose coordinates are fixed at `±rᵢ` (`pᵢ = ±1`) or
+# stationary given the fixed ones (`pᵢ = 0`), `-Inf` if that point is not in the box. The stationary
+# coordinates `F` solve `H[F, F] x_F = -(g_F + H[F, fixed] x_fixed)`, written as a 4 × 4 system whose
+# fixed rows are those of the identity (its determinant is that of `H[F, F]`).
+@inline function _quadratic_candidate(g, H, r, p)
+    corner = SVector(ntuple(i -> p[i] * r[i], 4))
+    all(!=(0), p) && return _quadratic_value(g, H, corner)
+    M = SMatrix{4, 4, Float64}(
+        ntuple(Val(16)) do k
+            i, j = mod1(k, 4), cld(k, 4)
+            return p[i] != 0 ? Float64(i == j) : (p[j] != 0 ? 0.0 : H[i, j])
+        end,
+    )
+    b = SVector(
+        ntuple(4) do i
+            p[i] != 0 && return corner[i]
+            return -g[i] - sum(ntuple(j -> p[j] != 0 ? H[i, j] * corner[j] : 0.0, 4))
+        end,
+    )
+    # A singular `H[F, F]` makes `q` constant along its null directions through a stationary point,
+    # so its value is reached with fewer stationary coordinates: skip it.
+    abs(StaticArrays.det(M)) < 1e-12 && return -Inf
+    x = M \ b
+    all(abs.(x) .<= r .* (1 + 1e-9)) || return -Inf
+    return _quadratic_value(g, H, x)
+end
+
+_quadratic_value(g, H, x) = sum(g .* x) + sum(x .* (H * x)) / 2
+
+# The largest value of `g ⋅ δ + ½ δᵀ H δ` over the box `|δᵢ| ≤ rᵢ`, exactly (the smallest one is
+# `-_max_quadratic(-g, -H, r)`). Every candidate is a point of the box, so only a missed maximizer
+# could make the value too small, and none is missed.
+function _max_quadratic(g::SVector{4}, H::SMatrix{4, 4}, r::SVector{4})
+    τ = abs.(H) * r
+    o1, n1 = _quadratic_cases(g[1], τ[1])
+    o2, n2 = _quadratic_cases(g[2], τ[2])
+    o3, n3 = _quadratic_cases(g[3], τ[3])
+    o4, n4 = _quadratic_cases(g[4], τ[4])
+    best = 0.0  # δ = 0
+    for a in 1:n1, b in 1:n2, c in 1:n3, d in 1:n4
+        best = max(best, _quadratic_candidate(g, H, r, SVector(o1[a], o2[b], o3[c], o4[d])))
+    end
+    return best
+end
+
+# The range `(lo, hi)` of a coordinate of the foot over the cell `|δᵢ| ≤ rᵢ`, from its value `c` at the
+# centre, its gradient `g` and its Hessian `H` there, by the bound `foot_bound` (not `:corners`).
+@inline function _coordinate_range(c, g, H, r, foot_bound, R2, R3)
+    if foot_bound == :second_order_cell
+        return c - _max_quadratic(-g, -H, r) - R3, c + _max_quadratic(g, H, r) + R3
+    end
+    half = sum(abs.(g) .* r) + (foot_bound == :second_order_global ? R2 : 0.0)
+    return c - half, c + half
+end
+
+# The Hessian `Hᵢⱼ = -lever[max(i, j)]` of a coordinate of the foot, from the lever arms `lever`.
+@inline _lever_hessian(lever) =
+    SMatrix{4, 4, Float64}(ntuple(k -> -lever[max(mod1(k, 4), cld(k, 4))], Val(16)))
+
+# The range `(lo, hi)` of the foot height over the cell of centre `q` and half-widths `r`, by the
+# bound `foot_bound` (one of `FOOT_BOUNDS`), with the remainder bounds of `_foot_remainders`.
+function _height_range(
+    q::SVector{4},
+    r::SVector{4},
+    geometry::Geometry,
+    foot_bound::Symbol,
+    R2,
+    R3,
+)
+    foot_bound == :corners && return _corner_box(q, r, geometry)[2]
+    joints = _joints(q, geometry)
+    foot = joints[5]
+    g = SVector(ntuple(i -> foot[1] - joints[i][1], 4))
+    H = _lever_hessian(SVector(ntuple(i -> foot[2] - joints[i][2], 4)))
+    return _coordinate_range(foot[2], g, H, r, foot_bound, R2, R3)
+end
+
+# The box `((x_min, x_max), (z_min, z_max))` of the foot over the cell of centre `q` and half-widths
+# `r`, by the bound `foot_bound`.
+function _foot_box(
+    q::SVector{4},
+    r::SVector{4},
+    geometry::Geometry,
+    foot_bound::Symbol,
+    R2,
+    R3,
+)
+    foot_bound == :corners && return _corner_box(q, r, geometry)
+    joints = _joints(q, geometry)
+    foot = joints[5]
+    # `∂x/∂qᵢ = -(z_foot - z_joint i)`, `∂z/∂qᵢ = x_foot - x_joint i`.
+    vertical = SVector(ntuple(i -> foot[2] - joints[i][2], 4))
+    horizontal = SVector(ntuple(i -> foot[1] - joints[i][1], 4))
+    x = _coordinate_range(
+        foot[1],
+        -vertical,
+        _lever_hessian(horizontal),
+        r,
+        foot_bound,
+        R2,
+        R3,
+    )
+    z = _coordinate_range(
+        foot[2],
+        horizontal,
+        _lever_hessian(vertical),
+        r,
+        foot_bound,
+        R2,
+        R3,
+    )
+    return x, z
+end
+
+# The extremes of the foot coordinates over the 16 corners `q ± r` of the cell.
+function _corner_box(q::SVector{4}, r::SVector{4}, geometry::Geometry)
+    xlo, xhi, zlo, zhi = Inf, -Inf, Inf, -Inf
+    for k in 0:15
+        corner = q .+ r .* SVector(ntuple(i -> isodd(k >> (i - 1)) ? 1.0 : -1.0, 4))
+        foot = _joints(corner, geometry)[5]
+        xlo, xhi = min(xlo, foot[1]), max(xhi, foot[1])
+        zlo, zhi = min(zlo, foot[2]), max(zhi, foot[2])
+    end
+    return (xlo, xhi), (zlo, zhi)
+end
+
+function _check_foot_bound(foot_bound)
+    foot_bound in FOOT_BOUNDS || error(
+        "`foot_bound` must be one of $(join(repr.(FOOT_BOUNDS), ", ")), " *
+        "got $(repr(foot_bound))",
+    )
+    return nothing
+end
+
+"""
+    swing_foot_range(q, radius, geometry; foot_bound = :second_order_cell) -> (; x, z)
+
+A box enclosing the swing foot over the 4-D angle cell of centre `q = [q₁, q₂, q₃, q₄]` and
+half-widths `radius`: `x = (x_min, x_max)` and `z = (z_min, z_max)`, by one of the bounds of
+[`FOOT_BOUNDS`](@ref). The certified bounds (`:second_order_global`, `:second_order_cell`) contain
+every foot position reached in the cell; the others are estimates.
+"""
+function swing_foot_range(
+    q::AbstractVector,
+    radius::AbstractVector,
+    geometry::Geometry;
+    foot_bound::Symbol = :second_order_cell,
+)
+    _check_foot_bound(foot_bound)
+    r = SVector{4, Float64}(abs.(radius))
+    x, z = _foot_box(
+        SVector{4, Float64}(q),
+        r,
+        geometry,
+        foot_bound,
+        _foot_remainders(geometry, r)...,
+    )
+    return (; x, z)
+end
+
+"""
+    swing_foot_height_range(q, radius, geometry; foot_bound = :second_order_cell) -> (lo, hi)
+
+The `z` range of [`swing_foot_range`](@ref) alone (half the cost): a range of the height of the swing
+foot over the 4-D angle cell of centre `q` and half-widths `radius`.
+"""
+function swing_foot_height_range(
+    q::AbstractVector,
+    radius::AbstractVector,
+    geometry::Geometry;
+    foot_bound::Symbol = :second_order_cell,
+)
+    _check_foot_bound(foot_bound)
+    r = SVector{4, Float64}(abs.(radius))
+    return _height_range(
+        SVector{4, Float64}(q),
+        r,
+        geometry,
+        foot_bound,
+        _foot_remainders(geometry, r)...,
+    )
+end
+
+# ============================================================
 # The design model, in normal form
 # ============================================================
 
@@ -275,11 +515,16 @@ the state domain, and `causes`, the same cells grouped by the constraint that re
 `name => positions` pairs (`"ground"` first, then the obstacles by their `obstacle_name`). A cell can
 be removed by several constraints. The positions are those of the 4-D angle cells
 `(q₁, q₂, q₃, q₄)`: the swing foot, hence the carving, does not depend on the ankle coordinate.
+`ground_ambiguous` records what was done with the cells across the ground (`:keep`, the default,
+or `:remove`; see [`infeasible_cells`](@ref)).
 """
 struct Carving
     cells::MP.CellUnion
     causes::Vector{Pair{String, Set{NTuple{4, Int}}}}
+    ground_ambiguous::Symbol
 end
+
+Carving(cells, causes) = Carving(cells, causes, :keep)
 
 """
     carved_by(carving, pos) -> Vector{String}
@@ -314,16 +559,65 @@ function _obstacle_groups(obstacles, names::AbstractVector)
     return groups
 end
 
+# The obstacles of a group, ready for the test of a box of the foot against them: their bounding boxes
+# (a cheap rejection), and whether they are boxes themselves (then the rejection test is exact).
+struct _ObstacleTest{S}
+    obstacles::Vector{S}
+    low::Vector{SVector{2, Float64}}
+    high::Vector{SVector{2, Float64}}
+    is_box::Vector{Bool}
+end
+
+function _ObstacleTest(obstacles::AbstractVector)
+    boxes = [UT._outer_box(o) for o in obstacles]
+    return _ObstacleTest(
+        collect(obstacles),
+        [SVector{2, Float64}(LazySets.low(b)) for b in boxes],
+        [SVector{2, Float64}(LazySets.high(b)) for b in boxes],
+        [o isa LazySets.AbstractHyperrectangle for o in obstacles],
+    )
+end
+
+# Whether the box `x × z` of the foot meets one of the obstacles of `test`.
+function _meets(test::_ObstacleTest, x, z)
+    for k in eachindex(test.obstacles)
+        lo, hi = test.low[k], test.high[k]
+        (x[1] <= hi[1] && lo[1] <= x[2] && z[1] <= hi[2] && lo[2] <= z[2]) || continue
+        test.is_box[k] && return true
+        box =
+            LazySets.Hyperrectangle(; low = SVector(x[1], z[1]), high = SVector(x[2], z[2]))
+        UT.is_disjoint(box, test.obstacles[k]) || return true
+    end
+    return false
+end
+
 """
-    infeasible_cells(X, state_grid, obstacle, geometry; obstacle_name = "obstacle") -> Carving
+    infeasible_cells(X, state_grid, obstacle, geometry; obstacle_name = "obstacle",
+                     foot_bound = :second_order_cell, ground_ambiguous = :keep) -> Carving
 
-The cells of `X` (a 5-D hyperrectangle) to exclude, as in the fully actuated model: cells where the
-swing foot *might* touch the Cartesian `obstacle` (a `LazySet` or a vector of them; sound,
-`MP.image_blocked_cells`), and cells where the swing foot is surely below the ground (tolerant, so
-the footholds on the ground stay). Returns a [`Carving`](@ref): the `cells` to remove (what
-[`system`](@ref) and `UT.set_minus` take), and which constraint removed which, so that
-[`start_state`](@ref) can say what carved the start cell.
+The cells of `X` (a 5-D hyperrectangle) to exclude: cells where the swing foot *might* touch the
+Cartesian `obstacle` (a `LazySet` in the `(x, z)` plane, or a vector of them), and cells where the
+swing foot is below the ground. Both tests use, for every cell, a box
+`[x_min, x_max] × [z_min, z_max]` enclosing the swing foot over the cell ([`swing_foot_range`](@ref)),
+bounded by `foot_bound`, one of [`FOOT_BOUNDS`](@ref): `:linear`, `:second_order_global`,
+`:second_order_cell` (the default; certified, and the tightest certified one) or `:corners`.
 
+* **Obstacles**: a cell is removed when its box meets an obstacle. With a certified bound this is
+  sound: no kept cell has a configuration with the foot in an obstacle.
+* **Ground**: a cell is removed when `z_max < 0` (the foot is below the ground in the whole cell).
+  The cells across the ground (`z_min < 0 ≤ z_max`) are ambiguous: `ground_ambiguous = :keep` (the
+  default) keeps them, so that no configuration with the foot above the ground is discarded and the
+  footholds on the ground stay, but kept cells may then put the foot down to `z_min` below the ground;
+  `ground_ambiguous = :remove` removes them too, so that no kept cell has a configuration with the
+  foot below the ground, but the cells where the foot reaches the ground are lost, the target cells
+  with them. An obstacle lying on the ground (e.g. a low rectangle between the footholds) removes the
+  ambiguous cells under it, whatever `ground_ambiguous`: their box meets it, since `z_max ≥ 0`.
+
+With a bound that is not certified (`:linear`, `:corners`), a kept cell may still touch an obstacle,
+and a removed cell may still reach the ground.
+
+Returns a [`Carving`](@ref): the `cells` to remove (what [`system`](@ref) and `UT.set_minus` take),
+and which constraint removed which, so that [`start_state`](@ref) can say what carved the start cell.
 The constraints are named: the ground constraint `"ground"` ([`GROUND_NAME`](@ref)), and the
 obstacles by `obstacle_name`, a string for all of them (the default `"obstacle"`) or one string per
 obstacle, e.g. `"lift constraint"` for the obstacle at the origin that forces the swing foot to lift.
@@ -334,24 +628,42 @@ function infeasible_cells(
     obstacle,
     geometry::Geometry;
     obstacle_name = "obstacle",
+    foot_bound::Symbol = :second_order_cell,
+    ground_ambiguous::Symbol = :keep,
 )
-    grad = swing_foot_gradient_bound(geometry)
-    dev = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2)
+    _check_foot_bound(foot_bound)
+    ground_ambiguous in (:keep, :remove) || error(
+        "`ground_ambiguous` must be `:keep` or `:remove`, got $(repr(ground_ambiguous))",
+    )
+    groups = _obstacle_groups(_obstacle_list(obstacle), obstacle_name)
+    tests = [_ObstacleTest(last(group)) for group in groups]
 
-    # The swing foot does not depend on the ankle velocity/momentum: decide on the 4-D angle cells once.
+    # The swing foot does not depend on the ankle velocity/momentum: decide on the 4-D angle cells once,
+    # in one pass that computes the box of the foot of every cell (only its `z` range without obstacles).
     q_grid = MP.GridFree(MP.get_origin(state_grid)[IDX_Q], MP.get_h(state_grid)[IDX_Q])
     Q = LazySets.Hyperrectangle(;
         low = LazySets.low(X)[IDX_Q],
         high = LazySets.high(X)[IDX_Q],
     )
-    q_foot(q) = swing_foot_position(SVector{4}(q), geometry)
-    below_ground = MP.cells_where(q_grid, Q) do pos
-        return q_foot(MP.get_coord_by_pos(q_grid, pos))[2] < -dev
+    r = SVector{4, Float64}(MP.get_h(q_grid) ./ 2)
+    R2, R3 = _foot_remainders(geometry, r)
+    below_ground = Set{NTuple{4, Int}}()
+    blocked = [Set{NTuple{4, Int}}() for _ in groups]
+    for pos in MP.get_pos_from_set(q_grid, Q, MP.INNER)
+        q = SVector{4, Float64}(MP.get_coord_by_pos(q_grid, pos))
+        x, z =
+            isempty(tests) ?
+            ((0.0, 0.0), _height_range(q, r, geometry, foot_bound, R2, R3)) :
+            _foot_box(q, r, geometry, foot_bound, R2, R3)
+        # Below the ground: `z_max < 0`, or `z_min < 0` when the ambiguous cells go too.
+        (ground_ambiguous == :remove ? z[1] : z[2]) < 0 && push!(below_ground, pos)
+        for (test, cells) in zip(tests, blocked)
+            _meets(test, x, z) && push!(cells, pos)
+        end
     end
-    causes = Pair{String, Set{NTuple{4, Int}}}[GROUND_NAME => below_ground.positions]
-    for (name, group) in _obstacle_groups(_obstacle_list(obstacle), obstacle_name)
-        blocked = MP.image_blocked_cells(q_foot, grad[IDX_Q], q_grid, Q, group)
-        push!(causes, name => blocked.positions)
+    causes = Pair{String, Set{NTuple{4, Int}}}[GROUND_NAME => below_ground]
+    for (group, cells) in zip(groups, blocked)
+        push!(causes, first(group) => cells)
     end
     removed_q = reduce(union, last.(causes))
 
@@ -370,7 +682,7 @@ function infeasible_cells(
     for pos in removed_q, k in k_lo:k_hi
         push!(removed, (k, pos...))
     end
-    return Carving(MP.CellUnion(state_grid, removed), causes)
+    return Carving(MP.CellUnion(state_grid, removed), causes, ground_ambiguous)
 end
 
 # ============================================================
@@ -603,7 +915,8 @@ function step_problem(
     )
     SVector((v_init[1] + v_init[2]) / 2, qc...) in concrete_system.X || error(
         "the cell of the initial configuration q0 = $q0 is not in the state domain (outside " *
-        "its bounds, or carved out: the swing foot is within the obstacle/ground margin); " *
+        "its bounds, or carved out: the swing foot can touch the obstacle or is below the " *
+        "ground); " *
         "choose another configuration or refine the grid",
     )
 
@@ -716,27 +1029,26 @@ function start_state(
     pos = MP.get_pos_by_coord(state_grid, x0)
     cells = removed isa Carving ? removed.cells : removed
     if cells !== nothing && pos in cells
-        margin = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2)
         foot = swing_foot_position(SVector{4}(x0[2:5]), geometry)
-        error(_carved_start_message(removed, pos, foot, margin))
+        error(_carved_start_message(removed, pos, foot))
     end
     return x0
 end
 
-function _carved_start_message(removed, pos, foot, margin)
-    cm = round(100 * margin; digits = 1)
+function _carved_start_message(removed, pos, foot)
     where_ =
         "the swing foot at the start is at (x, z) = ($(round(foot[1]; digits = 3)), " *
         "$(round(foot[2]; digits = 3))) m"
-    advice = "choose another q0 or refine the grid (the margin scales with the cell sizes)"
+    advice = "choose another q0 or refine the grid (the cells reach farther when larger)"
     removed isa Carving ||
-        return "the start cell is carved out (the swing foot at x0 is within " *
-               "the $cm cm margin of the obstacle or below the ground): " *
-               "refine the grid"
+        return "the start cell is carved out (the swing foot can touch an obstacle in it, or " *
+               "is below the ground): refine the grid"
     reasons = map(carved_by(removed, pos)) do name
         return name == GROUND_NAME ?
-               "\"$name\" (the swing foot is more than $cm cm below the ground)" :
-               "\"$name\" (the swing foot is within $cm cm of it)"
+               "\"$name\" (the swing foot is below the ground in " * (
+            removed.ground_ambiguous == :remove ? "part of the cell at least)" :
+            "the whole cell)"
+        ) : "\"$name\" (the swing foot can touch it in this cell)"
     end
     return "the start cell is carved out by " *
            join(reasons, " and ") *

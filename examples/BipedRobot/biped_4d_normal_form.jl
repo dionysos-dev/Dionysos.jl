@@ -27,9 +27,13 @@
 #   nondeterministic, so the controller is synthesized against the worst case.
 #
 # The constraints: the swing-foot height is bounded below by the ground (cells where the foot is
-# surely below `z = 0` are removed, the constraint named `"ground"`), the ankle momentum is bounded
-# above by `0` (a forward step: the state box stops there), and, with `OBSTACLE = :bump`, a triangular
-# obstacle at the stance foot is carved out, which forces the foot to lift (`"lift constraint"`).
+# below `z = 0` in the whole cell are removed, the constraint named `"ground"`; `GROUND_AMBIGUOUS =
+# :remove` removes the cells across the ground too, which are kept by default), the ankle momentum is
+# bounded above by `0` (a forward step: the state box stops there), and, with `OBSTACLE = :bump`, a
+# triangular obstacle at the stance foot is carved out, which forces the foot to lift (`"lift
+# constraint"`). Both use a box enclosing the swing foot over every cell; set `FOOT_BOUND` before
+# including this file to choose how it is bounded, one of `RP.FOOT_BOUNDS` (`:second_order_cell` by
+# default).
 #
 # Other experiments are drivers of this file: a variable defined before the `include` replaces the
 # default of the same name.
@@ -106,7 +110,9 @@ _triangle(cx, hw, h) =
     LazySets.VPolygon([SVector(cx - hw, 0.0), SVector(cx, h), SVector(cx + hw, 0.0)])
 
 # `SCENARIO_NAME` only changes the names of the output files. `OBSTACLE` is `nothing` (none, the
-# default), `:bump` (the triangle above) or a vector of `LazySets` polygons.
+# default), `:bump` (the triangle above) or a vector of `LazySets` sets of the `(x, z)` plane, e.g.
+# `[LazySets.Hyperrectangle(; low = SVector(-0.1, -0.05), high = SVector(0.1, 0.06))]` for a low
+# rectangle between the footholds that keeps the swing foot from dragging along the ground.
 scenario_name = @isdefined(SCENARIO_NAME) ? SCENARIO_NAME : :symmetric_step
 obstacle = @isdefined(OBSTACLE) ? OBSTACLE : nothing
 obstacle === :bump && (obstacle = [_triangle(0.0, 0.04, 0.03)])
@@ -173,8 +179,8 @@ x_lb, x_ub =
 # including this file to change them, e.g. `INITIAL_VELOCITY = (-0.44, -0.36)`.
 #
 # With an obstacle, the swing foot has to start **outside** its carved neighbourhood: the carving is
-# sound, so it removes every cell whose swing foot is within the Lipschitz margin (printed below) of
-# the obstacle.
+# sound, so it removes every cell where the box enclosing the swing foot over the cell meets the
+# obstacle.
 q0 = @isdefined(Q0) ? Q0 : SVector(0.0, 0.5, -0.4, -0.9)
 initial_velocity = @isdefined(INITIAL_VELOCITY) ? INITIAL_VELOCITY : (-0.4, -0.4)
 target_velocity = @isdefined(TARGET_VELOCITY) ? TARGET_VELOCITY : nothing
@@ -199,10 +205,10 @@ U_box = LazySets.Hyperrectangle(;
     obstacle,
     geometry;
     obstacle_name = "lift constraint",
+    foot_bound = @isdefined(FOOT_BOUND) ? FOOT_BOUND : :second_order_cell,
+    ground_ambiguous = @isdefined(GROUND_AMBIGUOUS) ? GROUND_AMBIGUOUS : :keep,
 )
 removed = carving.cells
-margin = RP.swing_foot_deviation_bound(geometry, MP.get_h(disc.state_grid) ./ 2)
-println("Lipschitz carving margin: ", round(100 * margin; digits = 1), " cm")
 X = UT.set_minus(X_box, removed)
 
 # How big the abstraction will be, before it is computed: its cost is linear in the number of

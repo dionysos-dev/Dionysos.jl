@@ -1,7 +1,7 @@
 # The pre-image of a point of the swing-foot plane, and the cells of each class that it crosses.
 #
 # Not a script: it only defines functions, shared by `plot_ground_preimage_counts.jl` (which explains
-# the maths) and `ground_cells_linearized.jl`. Include it after defining `MP` (`Dionysos.Mapping`) and
+# the maths) and `ground_cells_common.jl`. Include it after defining `MP` (`Dionysos.Mapping`) and
 # `RP` (the robot problem module), with `StaticArrays` loaded. The cells are given as an array indexed
 # by position whose entries are class codes `1, 2, …, K` (see `cell_class_array`).
 

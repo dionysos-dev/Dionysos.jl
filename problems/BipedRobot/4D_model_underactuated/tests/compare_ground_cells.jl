@@ -1,15 +1,15 @@
-# Comparison of the runs of `run_ground_cells_matrix.sh` (`ground_cells_linearized.jl` on several cell
+# Comparison of the runs of `run_ground_cells_matrix.sh` (`ground_cells_classify.jl` on several cell
 # sizes and state boxes, with five ranges of the foot height).
 #
 # Reads the results files of `ground_cells_plots/` and writes, in the same folder (or `OUTPUT_DIR`):
 #
 # * `<configuration>_grid.png`: one figure per configuration, three rows (the cells below the ground,
-#   across it, above it) by five columns (the current rule, the first-order range, the first order plus
+#   across it, above it) by five columns (the former rule, the first-order range, the first order plus
 #   the worst-case second-order remainder, the per-cell second order, the corner values): for every point
 #   of the swing-foot plane, the number of cells of the class whose pre-image contains it. Pixels with
 #   exactly one cell are grey, the outline of each region is black, and the colour scale is shared along
 #   a row, so the methods can be compared by eye;
-# * `old_rule.png`: the current rule alone, removed against admitted cells, for the first configuration;
+# * `old_rule.png`: the former rule alone, removed against admitted cells, for the first configuration;
 # * bar charts of the numbers: `bars_classes.png` (the share of removed / ambiguous / kept cells of
 #   every method, for every configuration), `bars_removed.png` and `bars_ambiguous.png` (the removed
 #   and the ambiguous shares), each for the first three boxes and, with the suffix `_knee`, for the knee
@@ -82,7 +82,7 @@ box_of(name) = BOXES[findfirst(b -> endswith(name, b.key), BOXES)]
 cell_of(name) = CELLS[findfirst(c -> startswith(name, c[1]), CELLS)][2]
 # Method name, its label, a label on two lines (for the plots), and its colour in the bar charts.
 METHODS = [
-    ("margin", "current rule", "current\nrule", Plots.RGB(0.55, 0.55, 0.55)),
+    ("margin", "former rule", "former\nrule", Plots.RGB(0.55, 0.55, 0.55)),
     ("first_order", "first order", "first\norder", Plots.RGB(0.72, 0.64, 0.85)),
     (
         "second_order",
@@ -247,7 +247,7 @@ function grid_figure(results)
     )
 end
 
-# The current rule alone: the cells it removes against the ones it admits (the `:across` and `:above`
+# The former rule alone: the cells it removes against the ones it admits (the `:across` and `:above`
 # cells together), with a colorbar each.
 function old_rule_figure(results)
     r = results["margin"]
@@ -271,7 +271,7 @@ function old_rule_figure(results)
             below,
             :Reds,
             (2, max(maximum(below), 3));
-            title = "Removed by the current rule: $n_removed cells ($(round(100 * n_removed / r.ncells; digits = 1))%)",
+            title = "Removed by the former rule: $n_removed cells ($(round(100 * n_removed / r.ncells; digits = 1))%)",
             common...,
         ),
         panel_of_counts(
@@ -758,7 +758,7 @@ end
 # (`check_ground_cells_extremes.jl`), in % of the cells, for the configurations that have it: the number
 # of cells the method classifies as `:below` (`:above`) minus the number of cells that really are. A
 # positive bar is a class that is too large (the first order removes cells that touch the feasible
-# side), a negative bar are cells that could be removed (kept) and are left as ambiguous. The current
+# side), a negative bar are cells that could be removed (kept) and are left as ambiguous. The former
 # rule (about 17 points below the true range) is left out.
 function truth_figure(extremes_by_config)
     names = [n for (n, _) in CONFIGS if haskey(extremes_by_config, n)]
@@ -990,7 +990,7 @@ open(joinpath(out_dir, "overview.txt"), "w") do io
         r = res["first_order"]
         println(
             io,
-            "  current rule removed: $(r.old_removed); not :below under first order: $(r.old_not_below)",
+            "  former rule removed: $(r.old_removed); not :below under first order: $(r.old_not_below)",
         )
         if haskey(extremes_by_config, name)
             e = extremes_by_config[name]

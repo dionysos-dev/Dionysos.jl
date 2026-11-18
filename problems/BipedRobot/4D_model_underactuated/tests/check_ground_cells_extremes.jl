@@ -1,6 +1,7 @@
-# Accuracy of the classes of `ground_cells_linearized.jl` against the true range of the foot height,
-# for the current rule and the four ranges (first order, first order plus the worst-case second-order
-# remainder, the per-cell second order, the corner values).
+# Accuracy of the classes of `ground_cells_common.jl` against the true range of the foot height, for
+# the former rule of `RP.infeasible_cells` (`:margin`) and its four bounds (`RP.FOOT_BOUNDS`: the
+# linear range, the linear range plus the worst-case second-order remainder, the per-cell second order,
+# the corner values).
 #
 # The true extremes of `z` over a cell are searched, cell by cell, by a multi-start local search that is
 # exact along each axis: `z`, as a function of one joint angle `qᵢ` (the others fixed), is a sinusoid
@@ -19,19 +20,20 @@
 # are saved with `Serialization` in `ground_cells_plots/extremes_<name>.jls` (read by
 # `compare_ground_cells.jl`).
 #
-# The cell size and the state bounds are those of `ground_cells_linearized.jl` (`CELL_SIZE`,
-# `STATE_BOUNDS`; the default box and 0.1 rad here); `NAME` names the output file. The classification
-# script runs once, at a coarse resolution of the plot (not needed here), when it is included.
+# Set `CELL_SIZE` and `STATE_BOUNDS = (q_lb, q_ub)` before including this file (the step box and
+# 0.1 rad by default, as in `ground_cells_classify.jl`); `NAME` names the output file.
 #
-#   julia -t auto --project=<env> tests/check_ground_cells_extremes.jl
+#   julia -t auto --project=problems/BipedRobot tests/check_ground_cells_extremes.jl
 
 using Serialization
-using StaticArrays
 
-const PIXEL_SIZE = 0.05
-const SWEEP_STEP = 0.05
-const OUTPUT_FILE = joinpath(mktempdir(), "unused.png")
-include(joinpath(@__DIR__, "ground_cells_linearized.jl"))
+include(joinpath(@__DIR__, "ground_cells_common.jl"))
+
+cell_size = @isdefined(CELL_SIZE) ? CELL_SIZE : SVector(0.1, 0.1, 0.1, 0.1)
+q_lb, q_ub =
+    @isdefined(STATE_BOUNDS) ? STATE_BOUNDS :
+    (SVector(-0.5, 0.0, -0.8, -1.0), SVector(0.5, 1.0, 0.8, 0.0))
+geometry = RP.default_geometry()
 
 name = @isdefined(NAME) ? NAME : "c010_box"
 extremes_file =
@@ -65,22 +67,17 @@ function extremum(q, r, sign, geometry; sweeps = 5)
     return sign * best
 end
 
+# The labels of the presentation and the ground bounds.
 methods = [
-    ("margin", :margin, :none),
-    ("first_order", :linearized, :none),
-    ("second_order", :linearized, :global),
-    ("second_order_cell", :linearized, :cell),
-    ("corners", :corners, :none),
+    ("margin", :margin),
+    ("first_order", :linear),
+    ("second_order", :second_order_global),
+    ("second_order_cell", :second_order_cell),
+    ("corners", :corners),
 ]
 classes = Dict(
-    m => ground_cells_by_range(
-        q_lb,
-        q_ub,
-        cell_size,
-        geometry;
-        range_method = method,
-        second_order = order,
-    ) for (m, method, order) in methods
+    m => ground_cells_by_bound(q_lb, q_ub, cell_size, geometry; foot_bound = bound) for
+    (m, bound) in methods
 )
 class0 = classes["margin"]
 ncells = length(class0.class)
@@ -111,7 +108,7 @@ println(
     ncells - true_below - true_above,
 )
 results = Dict{String, Any}()
-for (m, _, _) in methods
+for (m, _) in methods
     code = vec(classes[m].class)
     below = findall(==(0x01), code)
     above = findall(==(0x03), code)
