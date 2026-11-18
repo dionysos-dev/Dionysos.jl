@@ -41,6 +41,7 @@ const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
+const SY = DI.Symbolic
 
 # Only what is unambiguous is imported (`Multibody2D` exports `position`, `mass_matrix`, … which
 # clash with other packages): the rest is qualified (`Multibody2D.position`, …).
@@ -1053,6 +1054,194 @@ function _carved_start_message(removed, pos, foot)
     return "the start cell is carved out by " *
            join(reasons, " and ") *
            ": $where_; $advice"
+end
+
+# ============================================================
+# What the synthesis found
+# ============================================================
+
+"""
+    synthesis_report(optimizer, state_grid, x0; geometry, ankle_name = "ankle") -> NamedTuple
+
+What the reachability synthesis of `optimizer` found, printed, whether or not it has a controller at
+`x0`; meant for a run that failed, to tell why:
+
+- **target** and **initial set** of the abstract problem: their number of cells, of distinct angle
+  cells `(q₁, …, q₄)`, and the range of the ankle coordinate (named `ankle_name`) over them;
+- the **controller's domain**, the cells from which the target is reached *whatever the successor*
+  (the worst case of the abstraction): its size, the number of cells for each worst-case number of
+  steps (how far back from the target the backward search went), and the ranges of the coordinates
+  and of the swing foot (at the cell centres) over the part outside the target;
+- the cells from which the target is reached **for some successors** (an optimistic backward search on
+  the same automaton, which ignores the nondeterminism, and the inputs that can leave the domain):
+  the same numbers, and whether the cell of `x0` is among them. If it is not, no controller exists on
+  this abstraction whatever the tolerance of the worst case: the state box, the carving or the
+  dynamics cut the start off. If it is, the nondeterminism of the abstraction is the cause;
+- the cell of each set closest to `x0` (in grid steps along each coordinate).
+
+The domain is complete only if the synthesis ran to its fixed point (`early_stop = false`, the default).
+Returns the numbers printed: `target`, `initial`, `domain`, `optimistic` (cell counts), the depths
+`domain_steps` and `optimistic_steps` (`count[k + 1]` cells need `k` steps), and `x0_in_domain`,
+`x0_in_optimistic`.
+"""
+function synthesis_report(
+    optimizer,
+    state_grid,
+    x0;
+    geometry::Geometry = default_geometry(),
+    ankle_name = "ankle",
+)
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+    value = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_fun_tab"))
+    autom = problem.system
+    n = length(value)
+    h = MP.get_h(state_grid)
+    center(q) = SY.get_concrete_state(abstract_system, q)
+    names = (ankle_name, "q₁", "q₂", "q₃", "q₄")
+
+    # The abstract states are the cells of the box: the carved ones are states too, but no transition
+    # leads to them (an input whose image meets one is dropped), so they are left out here.
+    allowed = BitVector(SY.is_allowed_state(abstract_system, q) for q in 1:n)
+    is_target = falses(n)
+    carved_targets = 0
+    for q in problem.target_set
+        allowed[q] ? (is_target[q] = true) : (carved_targets += 1)
+    end
+    initial = collect(problem.initial_set)
+
+    # The optimistic backward search: breadth first along the predecessors, any input, any successor.
+    optimistic = fill(-1, n)
+    frontier = Int[]
+    for q in 1:n
+        is_target[q] || continue
+        optimistic[q] = 0
+        push!(frontier, q)
+    end
+    step = 0
+    next = Int[]
+    while !isempty(frontier)
+        step += 1
+        empty!(next)
+        for target in frontier, (source, _) in SY.pre(autom, target)
+            optimistic[source] < 0 || continue
+            optimistic[source] = step
+            push!(next, source)
+        end
+        frontier, next = next, frontier
+    end
+
+    domain_steps =
+        _step_counts(q -> allowed[q] && isfinite(value[q]) ? round(Int, value[q]) : -1, n)
+    optimistic_steps = _step_counts(q -> optimistic[q], n)
+    q_x0 = SY.get_abstract_state(abstract_system, x0)
+    x0_in_domain =
+        q_x0 !== nothing && 1 <= q_x0 <= n && allowed[q_x0] && isfinite(value[q_x0])
+    x0_in_optimistic = q_x0 !== nothing && 1 <= q_x0 <= n && optimistic[q_x0] >= 0
+
+    fmt(x) = string(round(x; digits = 3))
+    fmt(r::Tuple) = "[" * fmt(r[1]) * ", " * fmt(r[2]) * "]"
+    function describe(label, states)
+        isempty(states) && return println("  ", label, ": none")
+        cs = [center(q) for q in states]
+        feet = [swing_foot_position(SVector{4}(c[2:5]), geometry) for c in cs]
+        angle_cells = length(unique(MP.get_pos_by_coord(state_grid, c)[2:5] for c in cs))
+        ranges =
+            join([names[i] * " ∈ " * fmt(extrema(c[i] for c in cs)) for i in 1:5], ", ")
+        println("  ", label, ": ", length(states), " cells (", angle_cells, " angle cells)")
+        println("    ", ranges)
+        println(
+            "    swing foot (cell centres): x ∈ ",
+            fmt(extrema(f[1] for f in feet)),
+            ", z ∈ ",
+            fmt(extrema(f[2] for f in feet)),
+        )
+        return
+    end
+    steps_line(counts) =
+        isempty(counts) ? "none" :
+        join(["$(k - 1) => $(c)" for (k, c) in enumerate(counts)], ", ")
+    function closest(label, in_set)
+        best, best_d = 0, typemax(Int)
+        for q in 1:n
+            in_set(q) || continue
+            d = maximum(round.(Int, abs.((center(q) .- x0) ./ h)))
+            d < best_d && ((best, best_d) = (q, d))
+        end
+        best == 0 && return println("  closest to x0 in the ", label, ": none")
+        offsets = round.(Int, (center(best) .- x0) ./ h)
+        return println(
+            "  closest to x0 in the ",
+            label,
+            ": ",
+            best_d,
+            " cell(s) away, offsets (cells) ",
+            Tuple(offsets),
+            " along (",
+            join(names, ", "),
+            "), at ",
+            fmt.(Tuple(center(best))),
+        )
+    end
+
+    println(
+        "Synthesis report (",
+        count(allowed),
+        " cells in the domain, ",
+        n,
+        " in the box):",
+    )
+    describe("target", findall(is_target))
+    carved_targets > 0 && println(
+        "    (and ",
+        carved_targets,
+        " cells of the target carved out of the domain)",
+    )
+    describe("initial set", initial)
+    describe(
+        "domain outside the target",
+        findall(q -> allowed[q] && isfinite(value[q]) && !is_target[q], 1:n),
+    )
+    println("    worst-case steps to the target: ", steps_line(domain_steps))
+    describe(
+        "optimistic set outside the target",
+        findall(q -> optimistic[q] >= 0 && !is_target[q], 1:n),
+    )
+    println("    fewest steps to the target: ", steps_line(optimistic_steps))
+    println(
+        "  x0 (cell ",
+        q_x0,
+        "): in the domain: ",
+        x0_in_domain,
+        ", in the optimistic set: ",
+        x0_in_optimistic,
+        x0_in_optimistic ? " ($(optimistic[q_x0]) steps at best)" : "",
+    )
+    x0_in_domain || closest("domain", q -> allowed[q] && isfinite(value[q]))
+    x0_in_optimistic || closest("optimistic set", q -> optimistic[q] >= 0)
+    return (;
+        target = count(is_target),
+        carved_targets,
+        initial = length(initial),
+        domain = sum(domain_steps; init = 0),
+        optimistic = sum(optimistic_steps; init = 0),
+        domain_steps,
+        optimistic_steps,
+        x0_in_domain,
+        x0_in_optimistic,
+    )
+end
+
+# `counts[k + 1]` = the number of cells `q` with `steps(q) == k` (`-1`: not reached).
+function _step_counts(steps, n)
+    counts = Int[]
+    for q in 1:n
+        k = steps(q)
+        k < 0 && continue
+        length(counts) <= k && append!(counts, zeros(Int, k + 1 - length(counts)))
+        counts[k + 1] += 1
+    end
+    return counts
 end
 
 """

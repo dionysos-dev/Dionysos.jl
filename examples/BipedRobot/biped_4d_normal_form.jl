@@ -347,6 +347,17 @@ if !abstraction_only
     @time MOI.optimize!(optimizer)
     println("footstep success: ", MOI.get(optimizer, MOI.RawOptimizerAttribute("success")))
 
+    # What the synthesis found: the size and depth of the controller's domain, and whether `x0` can
+    # reach the target at all on this abstraction (an optimistic search that ignores the
+    # nondeterminism), to tell why a run has no controller at `x0`. A few minutes at most.
+    @time report = RP.synthesis_report(
+        optimizer,
+        disc.state_grid,
+        x0;
+        geometry = geometry,
+        ankle_name = "p₁",
+    )
+
     # Synthesis accounts for all successors listed by the abstraction. The concrete closed loop
     # below checks the resulting controller on one RK4 trajectory.
     traj = RP.closed_loop(optimizer, step_pb, x0; ankle_name = "p₁")
