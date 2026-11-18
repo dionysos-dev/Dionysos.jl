@@ -106,6 +106,30 @@ Set the discretization and the box in the example, e.g. a finer grid:
 disc = RP.default_discretization(; dx = 0.1, dq1 = 0.05, dq̇1 = 0.02, tstep = 1 / 60)
 ```
 
+or, without editing the example, put them in a **parameter file** and give it to every job with
+`DIONYSOS_PARAMS` (`submit_all.sh` passes it to the chunks, the merge and the solve job; the solve job
+copies it next to its outputs as `…_experiment.jl`). The file is included before the example, so it sets
+the variables the example reads; the discretization is given by the keywords of
+`RP.default_discretization`, since `RP` is not loaded yet when the file is read:
+
+```julia
+# experiments/my_experiment.jl
+using StaticArrays
+import LazySets
+DISC_KWARGS = (; dx = 0.1, dq1 = 0.1, dq̇1 = 0.04, tstep = 1 / 60, input_steps = 2)
+X_BOUNDS = (SVector(-0.6, -1.5, 0.0, -1.5, -1.5), SVector(-0.08, 1.5, 1.5, 1.5, 0.0))
+OBSTACLE = [LazySets.Hyperrectangle(; low = SVector(-0.135, -0.15), high = SVector(0.139, 0.0))]
+FOOTHOLD_TOLERANCE = 0.0
+```
+
+```
+DIONYSOS_PARAMS=problems/BipedRobot/4D_model_underactuated/slurm_array/experiments/my_experiment.jl \
+    problems/BipedRobot/4D_model_underactuated/slurm_array/submit_all.sh 200
+```
+
+Run the merge or the solve job alone with the same `DIONYSOS_PARAMS`: the abstraction file is refused if
+the parameters differ. [`experiments/`](experiments/) holds the files of the runs made so far.
+
 Running the example locally prints the size of the abstraction before computing it, so the run can be
 interrupted right after that line:
 

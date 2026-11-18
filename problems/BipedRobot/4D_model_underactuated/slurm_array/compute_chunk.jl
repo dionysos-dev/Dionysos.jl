@@ -12,6 +12,8 @@
 #   DIONYSOS_TRANSITION_OUTDIR   directory of the chunk files (default: slurm_array/out/transitions)
 #   DIONYSOS_NCHUNKS             number of chunks (default: SLURM_ARRAY_TASK_COUNT, the size of the array)
 #   SLURM_ARRAY_TASK_ID          chunk, from 1 to the number of chunks (outside Slurm: DIONYSOS_CHUNK_ID)
+#   DIONYSOS_PARAMS              optional Julia file setting the variables the example reads (`DISC_KWARGS`,
+#                                `X_BOUNDS`, `OBSTACLE`, ...), included before it; the same for every job
 
 # A task does not build the precompilation cache: with 300 tasks at once it would take all of them an hour,
 # waiting for each other's lock files. If the cache is not valid on this node (another kind of CPU than the one
@@ -72,7 +74,11 @@ EXECUTION_BACKEND = SY.SlurmArrayBackend(
 )
 ABSTRACTION_ONLY = true
 
-@info "Abstraction chunk" chunk_id nchunks outdir
+# The parameters of the experiment, if they are not the example's defaults: the same file for every job.
+params = get(ENV, "DIONYSOS_PARAMS", "")
+isempty(params) || include(abspath(params))
+
+@info "Abstraction chunk" chunk_id nchunks outdir params
 t = @elapsed include(EXAMPLE)
 file = SY.slurm_chunk_file(outdir, chunk_id, nchunks)
 @info "Chunk written" file seconds = round(t; digits = 1) size_MB =

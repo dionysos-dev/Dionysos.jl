@@ -18,6 +18,7 @@
 #   DIONYSOS_TRANSITION_OUTDIR   directory of the chunk files (default: slurm_array/out/transitions)
 #   DIONYSOS_NCHUNKS             number of chunks (default: read from the names of the chunk files)
 #   DIONYSOS_ABSTRACTION_FILE    output file (default: slurm_array/out/normal_form_abstraction.jld2)
+#   DIONYSOS_PARAMS              the parameter file of the chunks, if any (see compute_chunk.jl)
 
 # `instantiate` must not precompile the whole project (MeshCat, RigidBodyDynamics, ... that the experiment
 # never loads): the precompilation is the job of `precompile.jl`, once, before the array.
@@ -103,6 +104,9 @@ try
     )
     global MERGE_CHUNKS = (; outdir, nchunks)
     global ABSTRACTION_ONLY = true
+    # The parameters of the experiment: the file the chunks were computed with.
+    params = get(ENV, "DIONYSOS_PARAMS", "")
+    isempty(params) || include(abspath(params))
 
     isfile(ABSTRACTION_FILE) &&
         @warn "$ABSTRACTION_FILE exists: it is loaded and nothing is merged. Delete it to merge again."

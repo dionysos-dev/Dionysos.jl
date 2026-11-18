@@ -21,6 +21,8 @@
 #
 # Environment:
 #   DIONYSOS_ABSTRACTION_FILE   the saved abstraction (default: slurm_array/out/normal_form_abstraction.jld2)
+#   DIONYSOS_PARAMS             the parameter file of the chunks, if any (see compute_chunk.jl), included
+#                               first
 #   DIONYSOS_SOLVE_PARAMS       optional Julia file with the variables above
 #   DIONYSOS_SCENARIO           name of the outputs (default: job<SLURM_JOB_ID>)
 #   DIONYSOS_OUTPUT_DIR         directory of the outputs (default: slurm_array/out/results)
@@ -86,6 +88,13 @@ try
         abspath(get(ENV, "DIONYSOS_OUTPUT_DIR", joinpath(@__DIR__, "out", "results")))
     global RUN_PLOTS = true
 
+    # The parameters of the experiment (those of the chunks), then the ones of this solve, which may
+    # override them.
+    experiment = get(ENV, "DIONYSOS_PARAMS", "")
+    if !isempty(experiment)
+        isfile(experiment) || error("DIONYSOS_PARAMS = $experiment does not exist")
+        include(abspath(experiment))
+    end
     params = get(ENV, "DIONYSOS_SOLVE_PARAMS", "")
     if !isempty(params)
         isfile(params) || error("DIONYSOS_SOLVE_PARAMS = $params does not exist")
@@ -94,7 +103,9 @@ try
 
     mkpath(OUTPUT_DIR)
     prefix = joinpath(OUTPUT_DIR, "biped_4d_normal_form_$(SCENARIO_NAME)")
-    isempty(params) || cp(params, prefix * "_params.jl"; force = true)   # a record of what produced it
+    # A record of what produced it.
+    isempty(experiment) || cp(experiment, prefix * "_experiment.jl"; force = true)
+    isempty(params) || cp(params, prefix * "_params.jl"; force = true)
 
     stamp(
         "setting up the model, then loading the abstraction; scenario $SCENARIO_NAME, " *

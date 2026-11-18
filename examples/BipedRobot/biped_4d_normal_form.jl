@@ -140,14 +140,17 @@ foothold_tolerance = @isdefined(FOOTHOLD_TOLERANCE) ? FOOTHOLD_TOLERANCE : 0.05
 # for `k = 1`, 125 for `k = 2`, 343 for `k = 3`), so a joint moves by up to `k` cells per step. The cost of the
 # abstraction is proportional to the number of inputs, and the ankle momentum changes more per step
 # with the larger commands.
+#
+# `DISC_KWARGS`, the keywords of `RP.default_discretization` (e.g. `(; dx = 0.1, dq1 = 0.1, dq̇1 = 0.04,
+# tstep = 1 / 60, input_steps = 2)`), replaces the default keywords below: it can be set by a file read
+# before `RP` exists, such as the parameter file of the Slurm pipeline (`DIONYSOS_PARAMS`).
 disc =
     @isdefined(DISC) ? DISC :
     RP.default_discretization(;
-        dx = 0.05,
-        dq1 = 0.05,
-        dq̇1 = 0.04,
-        tstep = 1 / 60,
-        input_steps = 3,
+        (
+            @isdefined(DISC_KWARGS) ? DISC_KWARGS :
+            (; dx = 0.05, dq1 = 0.05, dq̇1 = 0.04, tstep = 1 / 60, input_steps = 3)
+        )...,
     )
 
 # State box `[p₁, q₁, q₂, q₃, q₄]`. **Its size is the cost of the run**: the number of cells is the

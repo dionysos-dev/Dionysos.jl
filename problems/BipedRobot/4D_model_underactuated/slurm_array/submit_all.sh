@@ -8,7 +8,8 @@
 # from the root of the repository. NCHUNKS is the single place where the number of chunks is chosen
 # (the array size and the merge both use it); MAX_PARALLEL limits the tasks running at once.
 # DIONYSOS_TRANSITION_OUTDIR, DIONYSOS_ABSTRACTION_FILE and DIONYSOS_OUTPUT_DIR (environment) choose the
-# directories; DIONYSOS_SOLVE_PARAMS and DIONYSOS_SCENARIO are passed to the last job (see solve.jl).
+# directories; DIONYSOS_PARAMS is the parameter file of the experiment, read by every job;
+# DIONYSOS_SOLVE_PARAMS and DIONYSOS_SCENARIO are passed to the last job (see solve.jl).
 # With DIONYSOS_SKIP_SOLVE=1 only the chunks and the merge are submitted: the abstraction file is saved,
 # and `sbatch submit_solve.sbatch` runs the synthesis (again) later, with other starts or tolerances.
 
@@ -44,6 +45,14 @@ if [[ " ${DIONYSOS_SBATCH_ARGS:-} " != *" --constraint"* && " ${DIONYSOS_SBATCH_
         echo "(or export a portable JULIA_CPU_TARGET, or DIONYSOS_ANY_NODE=1 to submit anyway: README section 1)." >&2
         exit 1
     fi
+fi
+
+# The parameter file of the experiment (README §2), the same for every job: an absolute path, checked now.
+if [ -n "${DIONYSOS_PARAMS:-}" ]; then
+    [ -f "$DIONYSOS_PARAMS" ] || { echo "DIONYSOS_PARAMS = $DIONYSOS_PARAMS does not exist" >&2; exit 1; }
+    DIONYSOS_PARAMS="$(realpath "$DIONYSOS_PARAMS")"
+    export DIONYSOS_PARAMS
+    echo "parameters of the experiment: $DIONYSOS_PARAMS"
 fi
 
 export DIONYSOS_NCHUNKS="$NCHUNKS"
