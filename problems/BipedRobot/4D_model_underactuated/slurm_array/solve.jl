@@ -40,6 +40,70 @@ import JLD2
 stamp(msg) = @info "[solve $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))] $msg"
 peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
 
+# The data of the figures of a report, saved by every solve, with or without a controller (the globals
+# are those of the example): the numbers of `RP.synthesis_report`, the cells of the domain with their
+# worst-case number of steps, the optimistic path from `x0` (cell centres and inputs) and its replay on
+# the RK4 map from `x0` with the same inputs, and the closed loops from the deepest cell of the domain
+# (most steps to the target, the swing foot farthest back among them) and from the cell with the swing
+# foot farthest back. Plotted by `tests/plot_step_diagnostics.jl`.
+function save_diagnostics(file)
+    path = report.optimistic_path
+    replay = nothing
+    if path !== nothing
+        replay = [SVector{5}(x0)]
+        for u in path.inputs
+            push!(replay, concrete_system.f(replay[end], u))
+        end
+    end
+    foot_x(c) = RP.swing_foot_position(SVector{4}(c[2:5]), geometry)[1]
+    outside = [c for c in report.domain_cells if c[2] > 0]
+    runs = Dict{String, Any}()
+    if !isempty(outside)
+        deepest_steps = maximum(last, outside)
+        starts = (
+            "deepest" => argmin(
+                c -> foot_x(c[1]),
+                [c for c in outside if c[2] == deepest_steps],
+            ),
+            "farthest_back" => argmin(c -> foot_x(c[1]), outside),
+        )
+        for (name, (start, steps)) in starts
+            any(r -> r.start == start, values(runs)) && continue   # the same cell twice
+            traj = RP.closed_loop(optimizer, step_pb, start; ankle_name = "p₁")
+            us = ST.inputs(traj)
+            runs[name] = (;
+                start,
+                steps,
+                states = collect(ST.states(traj)),
+                inputs = us === nothing ? SVector{3, Float64}[] : collect(us),
+            )
+        end
+    end
+    JLD2.jldsave(
+        file;
+        counts = (;
+            report.target,
+            report.carved_targets,
+            report.domain,
+            report.optimistic,
+            report.x0_in_domain,
+            report.x0_in_optimistic,
+        ),
+        domain_steps = report.domain_steps,
+        optimistic_steps = report.optimistic_steps,
+        domain_cells = report.domain_cells,
+        optimistic_path = path,
+        replay,
+        runs,
+        x0 = SVector{5}(x0),
+        tstep = disc.tstep,
+        x_lb = SVector{5}(x_lb),
+        x_ub = SVector{5}(x_ub),
+        foothold_tolerance,
+    )
+    return file
+end
+
 const EXAMPLE = abspath(
     joinpath(
         @__DIR__,
@@ -115,6 +179,11 @@ try
     stamp(
         "synthesis and closed loop done in $(round(t; digits = 1)) s (peak memory $(peak_gb()) GB)",
     )
+    try
+        stamp("diagnostics saved to $(save_diagnostics(prefix * "_diagnostics.jld2"))")
+    catch e
+        @warn "the diagnostics were not saved" exception = (e, catch_backtrace())
+    end
 
     if isfile(prefix * ".gif")
         stamp("SOLVE OK: $(prefix * ".gif")")

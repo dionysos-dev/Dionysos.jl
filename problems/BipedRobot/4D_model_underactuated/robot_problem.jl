@@ -1081,8 +1081,10 @@ What the reachability synthesis of `optimizer` found, printed, whether or not it
 
 The domain is complete only if the synthesis ran to its fixed point (`early_stop = false`, the default).
 Returns the numbers printed: `target`, `initial`, `domain`, `optimistic` (cell counts), the depths
-`domain_steps` and `optimistic_steps` (`count[k + 1]` cells need `k` steps), and `x0_in_domain`,
-`x0_in_optimistic`.
+`domain_steps` and `optimistic_steps` (`count[k + 1]` cells need `k` steps), `x0_in_domain`,
+`x0_in_optimistic`, and, for figures: `optimistic_path`, the cell centres and the inputs of a shortest
+optimistic path from `x0` to the target (`(; states, inputs)`, `nothing` if there is none), and
+`domain_cells`, the `(centre, worst-case steps)` of every cell of the domain (the target included).
 """
 function synthesis_report(
     optimizer,
@@ -1111,7 +1113,9 @@ function synthesis_report(
     initial = collect(problem.initial_set)
 
     # The optimistic backward search: breadth first along the predecessors, any input, any successor.
+    # `towards[q] = (q′, u)`: a transition of `q` to a cell one step closer to the target.
     optimistic = fill(-1, n)
+    towards = fill((0, 0), n)
     frontier = Int[]
     for q in 1:n
         is_target[q] || continue
@@ -1123,9 +1127,10 @@ function synthesis_report(
     while !isempty(frontier)
         step += 1
         empty!(next)
-        for target in frontier, (source, _) in SY.pre(autom, target)
+        for target in frontier, (source, symbol) in SY.pre(autom, target)
             optimistic[source] < 0 || continue
             optimistic[source] = step
+            towards[source] = (target, symbol)
             push!(next, source)
         end
         frontier, next = next, frontier
@@ -1229,7 +1234,25 @@ function synthesis_report(
         optimistic_steps,
         x0_in_domain,
         x0_in_optimistic,
+        optimistic_path = x0_in_optimistic ?
+                          _follow(towards, q_x0, center, abstract_system) : nothing,
+        domain_cells = [
+            (center(q), round(Int, value[q])) for
+            q in 1:n if allowed[q] && isfinite(value[q])
+        ],
     )
+end
+
+# The optimistic path from `q`: the cell centres and the inputs, down to the target.
+function _follow(towards, q, center, abstract_system)
+    states = [center(q)]
+    inputs = typeof(SY.get_concrete_input(abstract_system, 1))[]
+    while towards[q] != (0, 0)
+        q, symbol = towards[q]
+        push!(states, center(q))
+        push!(inputs, SY.get_concrete_input(abstract_system, symbol))
+    end
+    return (; states, inputs)
 end
 
 # `counts[k + 1]` = the number of cells `q` with `steps(q) == k` (`-1`: not reached).
