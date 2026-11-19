@@ -68,7 +68,8 @@ function save_diagnostics(file)
             "farthest_back" => argmin(c -> foot_x(c[1]), outside),
         )
         for (name, (start, steps)) in starts
-            any(r -> r.start == start, values(runs)) && continue   # the same cell twice
+            # The same cell twice (`Base.`: `values` is the example's parameters).
+            any(r -> r.start == start, Base.values(runs)) && continue
             traj = RP.closed_loop(optimizer, step_pb, start; ankle_name = "p₁")
             us = ST.inputs(traj)
             runs[name] = (;
