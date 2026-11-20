@@ -244,6 +244,40 @@ const PCLF = UT.PathCompleteFramework
     x0_gap = find_point(gap)
     @test x0_gap !== nothing
 
+    # Projection onto the plant: a point is certified for synthesis when one of its augmented copies
+    # is, and for verification when all of them are.
+    nodes = collect(pclf_poly.graph.verts)
+    @test PCQ.certified_at(bisimulation, controllable_set, x0, nodes; quantifier = :exists)
+    @test PCQ.certified_at(bisimulation, controllable_set, x0, nodes; quantifier = :forall)
+    @test !PCQ.certified_at(bisimulation, verified_set, x0_gap, nodes; quantifier = :forall)
+    @test !PCQ.certified_at(
+        bisimulation,
+        controllable_set,
+        [100.0, 100.0],
+        nodes;
+        quantifier = :exists,
+    )
+    grid = [
+        [a, b] for a in range(-2.0, 2.0; length = 21) for b in range(-2.0, 2.0; length = 21)
+    ]
+    @test all(grid) do pt
+        !PCQ.certified_at(bisimulation, verified_set, pt, nodes; quantifier = :forall) ||
+            PCQ.certified_at(
+                bisimulation,
+                controllable_set,
+                pt,
+                nodes;
+                quantifier = :exists,
+            )
+    end
+    @test_throws ArgumentError PCQ.certified_at(
+        bisimulation,
+        controllable_set,
+        x0,
+        nodes;
+        quantifier = :some,
+    )
+
     cex = PCQ.verification_counterexample(verification_optimizer, x0_gap)
     @test !isempty(cex.modes)
     @test all(m -> m in 1:2, cex.modes)

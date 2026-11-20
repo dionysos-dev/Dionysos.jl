@@ -499,6 +499,34 @@ function states_at_nodes(quotient::PCBisimulationQuotient, state_ids, nodes)
     return [id for id in state_ids if quotient.states[id].node in wanted]
 end
 
+"""
+    certified_at(quotient, certified_ids, x, initial_nodes; quantifier) -> Bool
+
+Whether the plant state `x`, at a constraint state whose initial nodes are `initial_nodes`, belongs to
+the set certified by the quotient states `certified_ids`.
+
+A plant state `x` at constraint state `c` corresponds to the augmented states `(x, s)`, `s ∈ S(c)`.
+Synthesis needs one of them to be certified (`quantifier = :exists`), verification all of them
+(`quantifier = :forall`), and a node whose cells do not contain `x` certifies nothing. Whether the
+answer then transfers to the plant, exactly or as an under-approximation, depends on whether the graph
+respects and covers the constraint; see `PathCompleteFramework.respects_constraint` and
+`PathCompleteFramework.covers_constraint`.
+"""
+function certified_at(
+    quotient::PCBisimulationQuotient,
+    certified_ids,
+    x,
+    initial_nodes;
+    quantifier::Symbol,
+)
+    quantifier in (:exists, :forall) ||
+        throw(ArgumentError("quantifier must be :exists or :forall, got :$quantifier"))
+    certified = certified_ids isa AbstractSet ? certified_ids : Set(certified_ids)
+    holds(node) =
+        (qid = _find_qid_in_node(quotient, node, x); qid !== nothing && qid in certified)
+    return quantifier === :exists ? any(holds, initial_nodes) : all(holds, initial_nodes)
+end
+
 # ============================================================
 # Build quotient AP labeling from obs
 # ============================================================
