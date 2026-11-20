@@ -177,6 +177,61 @@ end
     @test PCLF._drop_redundant_supersets([Set([1, 2])]) == [Set([1, 2])]
 end
 
+@testset "constraint graphs: products, respect and cover" begin
+    # Mode 1 never twice in a row, and the free constraint graph over the same two modes.
+    no11 = PCLF.edgeList_to_LabDigraph([(:c0, :c0, 2), (:c0, :c1, 1), (:c1, :c0, 2)])
+    free = PCLF.common_lyapunov_graph([1, 2])
+    everywhere(G) = Dict(:clf => collect(G.verts))
+    primal, dual = de_bruijn(2, 1), de_bruijn(2, 1; dual = true)
+
+    # The product keeps the constraint's memory and the certificate's, and represents the constraint.
+    P = PCLF.product_graph(no11, primal)
+    @test length(P.verts) == 4
+    @test length(P.edges) == 6
+    init = PCLF.initial_nodes_by_constraint(P)
+    @test sort(collect(keys(init))) == [:c0, :c1]
+    @test PCLF.respects_constraint(P, init, no11)
+    @test PCLF.covers_constraint(P, init, no11)
+    @test PCLF.respects_constraint(
+        PCLF.product_graph(no11, dual),
+        Dict(:c0 => [(:c0, 1), (:c0, 2)]),
+        no11,
+    )
+
+    # The constraint graph itself, from its own nodes.
+    own = Dict(:c0 => [:c0], :c1 => [:c1])
+    @test PCLF.respects_constraint(no11, own, no11)
+    @test PCLF.covers_constraint(no11, own, no11)
+
+    # A certificate for arbitrary switching, used on the constrained plant, covers it without
+    # respecting it: verification transfers, synthesis does not.
+    ignore = Dict(c => collect(primal.verts) for c in (:c0, :c1))
+    @test PCLF.covers_constraint(primal, ignore, no11)
+    @test !PCLF.respects_constraint(primal, ignore, no11)
+
+    # A self-imposed restriction of an unconstrained plant respects it without covering it:
+    # synthesis transfers, verification does not.
+    @test PCLF.respects_constraint(no11, Dict(:clf => [:c0]), free)
+    @test !PCLF.covers_constraint(no11, Dict(:clf => [:c0, :c1]), free)
+
+    # For the free constraint graph, covering from every node is path-completeness. A dual node
+    # commits to its next mode, so a single initial node does not cover.
+    @test PCLF.covers_constraint(primal, everywhere(primal), free)
+    @test PCLF.covers_constraint(dual, everywhere(dual), free)
+    @test !PCLF.covers_constraint(dual, Dict(:clf => [(1,)]), free)
+
+    # Dead ends start no infinite path and are trimmed, with the edges into them.
+    G = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (1, 2, 2), (2, 3, 1)])
+    T = PCLF.trim_dead_ends(G)
+    @test T.verts == Set([1])
+    @test T.edges == [(1, 1, 1)]
+
+    # The constraint graph must be deterministic and free of dead ends.
+    nondet = PCLF.edgeList_to_LabDigraph([(:a, :a, 1), (:a, :b, 1), (:b, :a, 2)])
+    @test_throws ArgumentError PCLF.respects_constraint(no11, own, nondet)
+    @test_throws ArgumentError PCLF.covers_constraint(no11, own, G)
+end
+
 @testset "mode_matrices accepts both resetmap shapes" begin
     A1, A2 = [0.5 0.0; 0.0 0.4], [0.3 0.1; 0.0 0.2]
     f = HybridSystems.discreteswitchedsystem([A1, A2])

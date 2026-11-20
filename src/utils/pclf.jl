@@ -123,6 +123,146 @@ function restricts_future(G::LabDigraph)
     return any(!=(reference), values(enabled))
 end
 
+"""
+    trim_dead_ends(G::LabDigraph) -> LabDigraph
+
+`G` restricted to the nodes that start an infinite path.
+
+Nodes without an outgoing edge are removed, with the edges into them, until none is left. Every
+infinite path of `G` survives, so the infinite words generated from each remaining node are
+unchanged, and the result has no dead end: every finite path extends to an infinite one, which is
+what makes the language checks of [`respects_constraint`](@ref) and [`covers_constraint`](@ref)
+exact.
+"""
+function trim_dead_ends(G::LabDigraph{T, U}) where {T, U}
+    alive = copy(G.verts)
+    while true
+        has_out = Set{U}(e[1] for e in G.edges if e[1] in alive && e[2] in alive)
+        dead = setdiff(alive, has_out)
+        isempty(dead) && break
+        setdiff!(alive, dead)
+    end
+    return LabDigraph{T, U}([e for e in G.edges if e[1] in alive && e[2] in alive], alive)
+end
+
+"""
+    product_graph(Gc::LabDigraph, Gp::LabDigraph) -> LabDigraph
+
+The product `Gc ⊗ Gp`, trimmed of its dead ends: nodes `(c, p)`, and an edge
+`((c, p), (c′, p′), m)` for every edge `(c, c′, m)` of `Gc` and `(p, p′, m)` of `Gp` with the same
+label.
+
+With `Gc` a constraint graph and `Gp` path-complete, the product represents the constraint from the
+initial nodes [`initial_nodes_by_constraint`](@ref): it respects and covers `Gc` in the sense of
+[`respects_constraint`](@ref) and [`covers_constraint`](@ref), so the quotient built on it answers
+synthesis and verification exactly. `Gc` keeps the memory the plant requires, `Gp` the memory the
+certificate is given.
+"""
+function product_graph(Gc::LabDigraph{T, C}, Gp::LabDigraph{T, P}) where {T, C, P}
+    edges = Tuple{Tuple{C, P}, Tuple{C, P}, T}[]
+    for (c, c2, m) in Gc.edges, (p, p2, m2) in Gp.edges
+        m == m2 && push!(edges, ((c, p), (c2, p2), m))
+    end
+    return trim_dead_ends(edgeList_to_LabDigraph(edges))
+end
+
+"""
+    initial_nodes_by_constraint(G::LabDigraph) -> Dict
+
+For a product graph, whose nodes are pairs `(c, p)`, the nodes grouped by constraint state:
+`c => [(c, p) for every p]`. These are the nodes at which a run from constraint state `c` may start.
+"""
+function initial_nodes_by_constraint(G::LabDigraph{T, Tuple{C, P}}) where {T, C, P}
+    groups = Dict{C, Vector{Tuple{C, P}}}()
+    for v in G.verts
+        push!(get!(groups, v[1], Tuple{C, P}[]), v)
+    end
+    foreach(sort!, values(groups))
+    return groups
+end
+
+function _successor(Gc::LabDigraph, c, m)
+    for (u, v, label) in Gc.edges
+        u == c && label == m && return v
+    end
+    return nothing
+end
+
+function _check_constraint_graph(Gc::LabDigraph)
+    labels = unique(e[3] for e in Gc.edges)
+    is_deterministic(Gc, labels) ||
+        throw(ArgumentError("the constraint graph must be deterministic"))
+    trim_dead_ends(Gc).verts == Gc.verts ||
+        throw(ArgumentError("the constraint graph must have no dead end"))
+    return nothing
+end
+
+"""
+    respects_constraint(G, initial_nodes, Gc) -> Bool
+
+Whether every infinite path of `G` from `initial_nodes[c]` is labelled by a switching signal
+admissible from `c` in the constraint graph `Gc`, for every constraint state `c` among the keys of
+`initial_nodes`.
+
+This is the condition under which synthesis on the quotient built on `G` transfers to the plant:
+the synthesised signal is then admissible. It holds when a map from the nodes of `G` to those of
+`Gc` preserves edges and labels, as for [`product_graph`](@ref), and it holds for every graph when
+`Gc` is the free constraint graph. It is decided exactly by following `G` and the deterministic
+`Gc` in lockstep from every initial pair, on `G` trimmed of its dead ends.
+"""
+function respects_constraint(G::LabDigraph, initial_nodes::AbstractDict, Gc::LabDigraph)
+    _check_constraint_graph(Gc)
+    H = trim_dead_ends(G)
+    seen = Set{Any}()
+    queue = Any[(s, c) for (c, nodes) in initial_nodes for s in nodes if s in H.verts]
+    while !isempty(queue)
+        pair = pop!(queue)
+        pair in seen && continue
+        push!(seen, pair)
+        s, c = pair
+        for (u, v, m) in H.edges
+            u == s || continue
+            c2 = _successor(Gc, c, m)
+            c2 === nothing && return false
+            push!(queue, (v, c2))
+        end
+    end
+    return true
+end
+
+"""
+    covers_constraint(G, initial_nodes, Gc) -> Bool
+
+Whether every switching signal admissible from `c` in the constraint graph `Gc` labels an infinite
+path of `G` from `initial_nodes[c]`, for every constraint state `c` among the keys of `initial_nodes`.
+
+This is the condition under which verification on the quotient built on `G` transfers to the plant:
+every behaviour of the plant is then one of the augmented system. For the free constraint graph and
+all nodes initial, it is path-completeness. It is decided exactly by a subset construction: from
+`(c, initial_nodes[c])`, every admissible mode must lead to a nonempty set of nodes of `G` trimmed
+of its dead ends, which by König's lemma extends to the infinite words.
+"""
+function covers_constraint(G::LabDigraph, initial_nodes::AbstractDict, Gc::LabDigraph)
+    _check_constraint_graph(Gc)
+    H = trim_dead_ends(G)
+    seen = Set{Any}()
+    queue = Any[(c, Set(s for s in nodes if s in H.verts)) for (c, nodes) in initial_nodes]
+    while !isempty(queue)
+        c, current = pop!(queue)
+        isempty(current) && return false
+        (c, current) in seen && continue
+        push!(seen, (c, current))
+        for (u, c2, m) in Gc.edges
+            u == c || continue
+            push!(
+                queue,
+                (c2, Set(v for (s, v, label) in H.edges if s in current && label == m)),
+            )
+        end
+    end
+    return true
+end
+
 abstract type AbstractPiece end
 
 function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
