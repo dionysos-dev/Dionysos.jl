@@ -12,12 +12,17 @@
 # so it sets the variables the example reads, e.g.
 #
 #     FOOTHOLD_TOLERANCE = 0.03
-#     INITIAL_VELOCITY = (-0.44, -0.36)
+#     INITIAL_VELOCITY = (-0.44, -0.36)       # default: any start momentum
 #     Q0 = SVector(0.0, 0.5, -0.4, -0.9)      # StaticArrays is loaded for it
-#     TARGET_VELOCITY = (-0.3, -0.1)
+#     TARGET_VELOCITY = (-0.3, -0.1)          # default: any end momentum
 #
 # (`FOOTHOLD_TOLERANCE`, `Q0`, `INITIAL_VELOCITY`, `TARGET_VELOCITY`.) What defines the abstraction
 # (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, `OBSTACLE`) is the example's: the file is refused if it differs.
+#
+# The start is the configuration `Q0` with any momentum of `INITIAL_VELOCITY`: the solve succeeds if
+# one of its momentum cells is in the controller's domain. The closed loop runs from each of them, and
+# the one with the fewest worst-case steps is animated. (The solver's own `success` asks for all of
+# them.)
 #
 # Environment:
 #   DIONYSOS_ABSTRACTION_FILE   the saved abstraction (default: slurm_array/out/normal_form_abstraction.jld2)
@@ -42,15 +47,24 @@ peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
 
 # The data of the figures of a report, saved by every solve, with or without a controller (the globals
 # are those of the example): the numbers of `RP.synthesis_report`, the cells of the domain with their
-# worst-case number of steps, the optimistic path from `x0` (cell centres and inputs) and its replay on
-# the RK4 map from `x0` with the same inputs, and the closed loops from the deepest cell of the domain
+# worst-case number of steps, the start cells (the momentum cells of the start configuration, with
+# their worst-case steps, `-1` outside the domain) and the closed loops from those in the domain, the
+# optimistic path from `x_start` (the start of the animated run; cell centres and inputs) and its
+# replay on the RK4 map with the same inputs, and the closed loops from the deepest cell of the domain
 # (most steps to the target, the swing foot farthest back among them) and from the cell with the swing
 # foot farthest back. Plotted by `tests/plot_step_diagnostics.jl`.
 function save_diagnostics(file)
+    as_run(start, steps, traj) = (;
+        start,
+        steps,
+        states = collect(ST.states(traj)),
+        inputs = ST.inputs(traj) === nothing ? SVector{3, Float64}[] :
+                 collect(ST.inputs(traj)),
+    )
     path = report.optimistic_path
     replay = nothing
     if path !== nothing
-        replay = [SVector{5}(x0)]
+        replay = [SVector{5}(x_start)]
         for u in path.inputs
             push!(replay, concrete_system.f(replay[end], u))
         end
@@ -60,24 +74,19 @@ function save_diagnostics(file)
     runs = Dict{String, Any}()
     if !isempty(outside)
         deepest_steps = maximum(last, outside)
-        starts = (
+        # (Not `starts`: that is the example's start cells, read below.)
+        extremes = (
             "deepest" => argmin(
                 c -> foot_x(c[1]),
                 [c for c in outside if c[2] == deepest_steps],
             ),
             "farthest_back" => argmin(c -> foot_x(c[1]), outside),
         )
-        for (name, (start, steps)) in starts
+        for (name, (start, steps)) in extremes
             # The same cell twice (`Base.`: `values` is the example's parameters).
             any(r -> r.start == start, Base.values(runs)) && continue
             traj = RP.closed_loop(optimizer, step_pb, start; ankle_name = "p₁")
-            us = ST.inputs(traj)
-            runs[name] = (;
-                start,
-                steps,
-                states = collect(ST.states(traj)),
-                inputs = us === nothing ? SVector{3, Float64}[] : collect(us),
-            )
+            runs[name] = as_run(start, steps, traj)
         end
     end
     JLD2.jldsave(
@@ -96,7 +105,10 @@ function save_diagnostics(file)
         optimistic_path = path,
         replay,
         runs,
-        x0 = SVector{5}(x0),
+        start_cells = [(SVector{5}(c.state), c.steps) for c in starts.cells],
+        start_runs = [as_run(SVector{5}(r.state), r.steps, r.traj) for r in starts.runs],
+        x0 = SVector{5}(x_start),   # the start of the report and of the animated run
+        x0_reference = SVector{5}(x0),
         tstep = disc.tstep,
         x_lb = SVector{5}(x_lb),
         x_ub = SVector{5}(x_ub),
@@ -187,12 +199,21 @@ try
     end
 
     if isfile(prefix * ".gif")
-        stamp("SOLVE OK: $(prefix * ".gif")")
+        reached = count(r -> last(ST.states(r.traj)) ∈ step_pb.target_set, starts.runs)
+        stamp(
+            "SOLVE OK: $(length(starts.runs)) of $(length(starts.cells)) start cells in the " *
+            "domain, $reached closed loops reach the target; the run from " *
+            "p₁ = $(round(x_start[1]; digits = 4)): $(prefix * ".gif")",
+        )
     else
         stamp(
-            "SOLVE FAILED: no animation was written: the controller has no action at the start " *
-            "state, or the closed loop did not run (see the lines above). Try a larger " *
-            "FOOTHOLD_TOLERANCE or another start.",
+            "SOLVE FAILED: no animation was written: " * (
+                isempty(starts.runs) ?
+                "no start cell (the configuration Q0 with the momenta of INITIAL_VELOCITY) is " *
+                "in the controller's domain. Try a larger FOOTHOLD_TOLERANCE or another start." :
+                "the run from the start has no step (its cell is in the target already, or " *
+                "the closed loop did not run: see the lines above)."
+            ),
         )
         exit(2)
     end

@@ -881,9 +881,11 @@ coordinate and default to `nothing`, the whole interval of definition of the sta
 `foothold_tolerance` (metres) lets the foot land near the foothold instead of exactly on it, see
 [`target_cells`](@ref).
 The initial set is the box around the cell of `q0` (snapped to the grid, the box lies
-strictly inside the cell) times the initial range: the controller must work from
-**every** cell of the first coordinate the range touches. The target is the set of cells lying
-entirely inside the target range.
+strictly inside the cell) times the cells of the first coordinate that the initial range touches and
+that lie inside the state box (the abstraction keeps only the cells inside its bounds; the box runs
+from a quarter cell below the centre of the first of them to a quarter cell above the last). The
+solver asks for a controller from **every** one of them; see [`start_runs`](@ref) for a step from
+any. The target is the set of cells lying entirely inside the target range.
 
 Errors if the cell of `q0` is not in the state domain (outside its bounds or carved out): the
 initial set would be empty, which the synthesis can only report as a failure, without saying why.
@@ -910,11 +912,27 @@ function step_problem(
     )
     qc = snapped[IDX_Q]
     r = 0.25 .* h[IDX_Q]
-    _I_ = LazySets.Hyperrectangle(;
-        low = SVector(v_init[1], (qc .- r)...),
-        high = SVector(v_init[2], (qc .+ r)...),
+    # The momentum cells: those the range touches, among those inside the box. A range reaching a
+    # bound of the box would otherwise touch the cell across it, which is not a state.
+    touched = MP.get_pos_lims_outer(
+        state_grid,
+        LazySets.Hyperrectangle(;
+            low = SVector(v_init[1], qc...),
+            high = SVector(v_init[2], qc...),
+        ),
+    )[IDX_ANKLE]
+    kept = intersect(touched, MP.get_pos_lims_inner(state_grid, X_box)[IDX_ANKLE])
+    isempty(kept) && error(
+        "no cell of the first coordinate touched by `initial_velocity` = $initial_velocity " *
+        "lies inside the state box",
     )
-    SVector((v_init[1] + v_init[2]) / 2, qc...) in concrete_system.X || error(
+    o1, h1 = MP.get_origin(state_grid)[IDX_ANKLE], h[IDX_ANKLE]
+    p_lo, p_hi = o1 + first(kept) * h1, o1 + last(kept) * h1
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(p_lo - 0.25 * h1, (qc .- r)...),
+        high = SVector(p_hi + 0.25 * h1, (qc .+ r)...),
+    )
+    SVector((p_lo + p_hi) / 2, qc...) in concrete_system.X || error(
         "the cell of the initial configuration q0 = $q0 is not in the state domain (outside " *
         "its bounds, or carved out: the swing foot can touch the obstacle or is below the " *
         "ground); " *
@@ -1077,7 +1095,8 @@ What the reachability synthesis of `optimizer` found, printed, whether or not it
   the same numbers, and whether the cell of `x0` is among them. If it is not, no controller exists on
   this abstraction whatever the tolerance of the worst case: the state box, the carving or the
   dynamics cut the start off. If it is, the nondeterminism of the abstraction is the cause;
-- the cell of each set closest to `x0` (in grid steps along each coordinate).
+- the cell of each set closest to `x0` (in grid steps: the largest offset along a coordinate, ties
+  broken by the sum of the offsets, so that a cell one step off along one coordinate comes first).
 
 The domain is complete only if the synthesis ran to its fixed point (`early_stop = false`, the default).
 Returns the numbers printed: `target`, `initial`, `domain`, `optimistic` (cell counts), the depths
@@ -1167,10 +1186,11 @@ function synthesis_report(
         isempty(counts) ? "none" :
         join(["$(k - 1) => $(c)" for (k, c) in enumerate(counts)], ", ")
     function closest(label, in_set)
-        best, best_d = 0, typemax(Int)
+        best, best_d = 0, (typemax(Int), typemax(Int))
         for q in 1:n
             in_set(q) || continue
-            d = maximum(round.(Int, abs.((center(q) .- x0) ./ h)))
+            off = round.(Int, abs.((center(q) .- x0) ./ h))
+            d = (maximum(off), sum(off))
             d < best_d && ((best, best_d) = (q, d))
         end
         best == 0 && return println("  closest to x0 in the ", label, ": none")
@@ -1179,7 +1199,7 @@ function synthesis_report(
             "  closest to x0 in the ",
             label,
             ": ",
-            best_d,
+            best_d[1],
             " cell(s) away, offsets (cells) ",
             Tuple(offsets),
             " along (",
@@ -1301,6 +1321,75 @@ function closed_loop(optimizer, problem, x0; horizon::Int = 400, ankle_name = "a
         extrema(x[1] for x in xs),
     )
     return traj
+end
+
+"""
+    start_cells(optimizer) -> Vector{NamedTuple}
+
+The cells of the initial set of the abstract problem that `optimizer` solved, as `(; state, steps)`:
+the cell centre and its worst-case number of steps to the target, `-1` if the cell is not in the
+controller's domain. Sorted by the first coordinate (the ankle momentum).
+
+For [`step_problem`](@ref), they are the momentum cells of the start configuration. The solver
+reports success only if all of them are in the domain; a step needs one.
+"""
+function start_cells(optimizer)
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+    value = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_fun_tab"))
+    cells = map(collect(problem.initial_set)) do q
+        # (A cell numbered past the automaton's states has no transition: it is not in the domain.)
+        in_domain =
+            q <= length(value) &&
+            SY.is_allowed_state(abstract_system, q) &&
+            isfinite(value[q])
+        return (;
+            state = SY.get_concrete_state(abstract_system, q),
+            steps = in_domain ? round(Int, value[q]) : -1,
+        )
+    end
+    return sort!(cells; by = c -> c.state[IDX_ANKLE])
+end
+
+"""
+    start_runs(optimizer, problem, x0; horizon = 400, ankle_name = "ankle") -> NamedTuple
+
+A footstep from a configuration with **any** momentum: the closed loops ([`closed_loop`](@ref)) from
+every cell of the initial set of `problem` that is in the controller's domain ([`start_cells`](@ref)).
+The solver asks for a controller from all the momenta of the initial set; the step needs only one.
+
+Returns `(; cells, runs, best)`: `cells` from [`start_cells`](@ref); `runs`, one `(; state, steps,
+traj)` per start cell in the domain; `best`, the run with the fewest worst-case steps (the momentum
+closest to that of `x0` on a tie), or `nothing` if no start cell is in the domain. Prints the start
+cells in the domain, then each closed loop.
+"""
+function start_runs(optimizer, problem, x0; horizon::Int = 400, ankle_name = "ankle")
+    cells = start_cells(optimizer)
+    in_domain = filter(c -> c.steps >= 0, cells)
+    fmt(x) = string(round(x; digits = 4))
+    println(
+        "start cells in the controller's domain: ",
+        length(in_domain),
+        " of ",
+        length(cells),
+        isempty(in_domain) ? "" : ": ",
+        join(
+            [
+                "$ankle_name = $(fmt(c.state[IDX_ANKLE])) ($(c.steps) steps)" for
+                c in in_domain
+            ],
+            ", ",
+        ),
+    )
+    runs = map(in_domain) do c
+        println("closed loop from ", ankle_name, " = ", fmt(c.state[IDX_ANKLE]), ":")
+        traj = closed_loop(optimizer, problem, c.state; horizon, ankle_name)
+        return (; c.state, c.steps, traj)
+    end
+    best =
+        isempty(runs) ? nothing :
+        argmin(r -> (r.steps, abs(r.state[IDX_ANKLE] - x0[IDX_ANKLE])), runs)
+    return (; cells, runs, best)
 end
 
 # ============================================================

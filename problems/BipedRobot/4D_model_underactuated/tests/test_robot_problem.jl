@@ -374,6 +374,36 @@ end
             return RP.closed_loop(optimizer, problem, x0; horizon = 10, ankle_name = "p₁")
         end
         @test length(ST.inputs(traj)) == 1 && last(ST.states(traj)) ∈ target
+
+        # A start configuration with any momentum: every momentum cell of the box is a start cell.
+        # The solver asks for all of them; `start_runs` runs the closed loop from those in the domain.
+        X_lo, X_hi = LazySets.low(X), LazySets.high(X)
+        any_momentum = LazySets.Hyperrectangle(;
+            low = SVector(X_lo[1], (x0[2:5] .- 0.25 .* h[2:5])...),
+            high = SVector(X_hi[1], (x0[2:5] .+ 0.25 .* h[2:5])...),
+        )
+        problem = PR.OptimalControlProblem(
+            problem.system,
+            any_momentum,
+            target,
+            nothing,
+            nothing,
+            PR.Infinity(),
+        )
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
+        MOI.optimize!(optimizer)
+        starts = redirect_stdout(devnull) do
+            return RP.start_runs(optimizer, problem, x0; horizon = 10, ankle_name = "p₁")
+        end
+        @test length(starts.cells) > 1
+        @test all(c -> c.state[2:5] ≈ x0[2:5], starts.cells)
+        @test issorted([c.state[1] for c in starts.cells])
+        @test length(starts.runs) == count(c -> c.steps >= 0, starts.cells)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("success")) ==
+              (length(starts.runs) == length(starts.cells))
+        # The start of `x0` is in the domain (one step): it is the best run.
+        @test starts.best.state ≈ x0 && starts.best.steps == 1
+        @test all(r -> last(ST.states(r.traj)) ∈ target, starts.runs)
     end
 
     @testset "cell counts of the boxes of the experiment" begin
@@ -761,8 +791,10 @@ end
         )
         q0 = SVector(-0.05, 0.0, -0.2, -0.5)         # swing foot 15 cm behind the stance foot
         problem = RP.step_problem(system, disc.state_grid; q0, foothold, geometry)
-        v_init = LazySets.low(problem.initial_set)[1], LazySets.high(problem.initial_set)[1]
-        @test v_init == (lo[1], hi[1])                # whole interval by default
+        v_init(pb) = (LazySets.low(pb.initial_set)[1], LazySets.high(pb.initial_set)[1])
+        # Whole interval by default: the momentum cells inside the box (centres -0.2 to 0.2; those at
+        # ±0.3 straddle its bounds and are not states), a quarter cell beyond the extreme centres.
+        @test all(v_init(problem) .≈ (-0.225, 0.225))
         tolerant = RP.step_problem(
             system,
             disc.state_grid;
@@ -780,10 +812,25 @@ end
             geometry,
             initial_velocity = (-0.1, 0.1),
         )
-        @test (
-            LazySets.low(problem.initial_set)[1],
-            LazySets.high(problem.initial_set)[1],
-        ) == (-0.1, 0.1)
+        @test all(v_init(problem) .≈ (-0.125, 0.125))   # the cells of -0.1, 0 and 0.1
+        # A range that reaches a bound of the box keeps the cells inside it.
+        problem = RP.step_problem(
+            system,
+            disc.state_grid;
+            q0,
+            foothold,
+            geometry,
+            initial_velocity = (0.2, 0.5),
+        )
+        @test all(v_init(problem) .≈ (0.175, 0.225))
+        @test_throws ErrorException RP.step_problem(
+            system,
+            disc.state_grid;
+            q0,
+            foothold,
+            geometry,
+            initial_velocity = (0.28, 0.3),       # only the cell across the bound
+        )
         # The cell of a start configuration with the swing foot inside the obstacle is carved out.
         @test_throws ErrorException RP.step_problem(
             system,

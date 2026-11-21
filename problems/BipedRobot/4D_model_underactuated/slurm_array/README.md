@@ -215,10 +215,14 @@ the merged file exists, the merge job loads it instead of merging: delete it to 
 
 `submit_solve.sbatch` runs the example on the merged file (`solve.jl`): it loads the transitions (nothing
 is computed; if the file is missing the job stops instead of computing the abstraction sequentially),
-synthesizes the controller, simulates the closed loop and writes, in `DIONYSOS_OUTPUT_DIR`,
-`biped_4d_normal_form_<scenario>.gif` (the animation), `….png` (snapshots) and `…_ankle.png`, with the
-log in `logs/solve_<jobid>.out` (`footstep success`, number of steps, ankle range). If there is no
-controller from the start state, the job says so and ends with exit code 2 (no gif).
+synthesizes the controller, simulates the closed loops and writes, in `DIONYSOS_OUTPUT_DIR`,
+`biped_4d_normal_form_<scenario>.gif` (the animation), `….png` (snapshots), `…_ankle.png` and
+`…_diagnostics.jld2` (the data of `tests/plot_step_diagnostics.jl`), with the log in
+`logs/solve_<jobid>.out`. The start is the configuration `Q0` with any momentum (`INITIAL_VELOCITY`, by
+default the whole range of the box): the log lists the start cells in the controller's domain, then the
+closed loop from each (number of steps, ankle range), and the one with the fewest worst-case steps is
+animated. The solver's own `success` asks for every start cell and is usually `false`. If no start cell
+is in the domain, the job says so and ends with exit code 2 (no gif).
 
 **Memory.** The solve job puts the whole abstraction in an automaton: see the estimate of §2
 (`--mem` of `submit_solve.sbatch`, 250 GB as a placeholder; 2 CPUs and 4 h too). Its log says how many

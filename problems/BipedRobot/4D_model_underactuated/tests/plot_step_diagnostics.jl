@@ -4,9 +4,12 @@
 # * `<name>_domain.png`: the controller's domain, (a) as the swing foot at the cell centres, coloured by
 #   the worst-case number of steps to the target, with the ground, the obstacle, the foothold and the
 #   start, and (b) in the ankle plane `(q₁, p₁)`: the cells of the target, those of the rest of the
-#   domain, the start, the optimistic path from the start and its replay on the RK4 map;
+#   domain, the start cells (the momentum cells of the start configuration, in the domain or not), the
+#   start, the optimistic path from the start and its replay on the RK4 map;
 # * `<name>_steps.png`: the number of cells per number of steps to the target, worst case (the domain)
 #   and optimistic (some successors);
+# * `<name>_starts.png`: the closed loops from the start cells in the domain, side by side (swing
+#   foot, ankle angle and momentum);
 # * `<name>_<run>.png`, `_<run>_ankle.png`, `_<run>.gif` (`RP.plot_footstep`) for the closed loops of
 #   the diagnostics file (`deepest`: from the domain cell with the most steps to the target;
 #   `farthest_back`: from the domain cell with the swing foot farthest back);
@@ -154,7 +157,7 @@ pb = Plots.plot(;
     title = "(b) ankle plane",
     xlabel = "q₁ (rad)",
     ylabel = "p₁ (N m s)",
-    legend = :bottomleft,
+    legend = :right,
 )
 ankle(c) = (round(c[2] / h[2]) * h[2], round(c[1] / h[1]) * h[1])
 target_ankle = unique(ankle(c) for (c, k) in cells if k == 0)
@@ -169,14 +172,24 @@ Plots.scatter!(
     color = :lightgreen,
     label = "target",
 )
-isempty(rest_ankle) || Plots.scatter!(
-    pb,
-    first.(rest_ankle),
-    last.(rest_ankle);
-    ms = 3,
-    color = :blue,
-    label = "rest of the domain",
-)
+if isempty(rest_ankle)
+    # Every cell of the domain has the (q₁, p₁) cell of a target cell: the ankle never left the target's.
+    Plots.annotate!(
+        pb,
+        0.7 * x_ub[2],
+        x_lb[1] + 0.06,
+        Plots.text("rest of the domain: no ankle\ncell outside the target's", 8, :blue),
+    )
+else
+    Plots.scatter!(
+        pb,
+        first.(rest_ankle),
+        last.(rest_ankle);
+        ms = 3,
+        color = :blue,
+        label = "rest of the domain",
+    )
+end
 if path !== nothing
     Plots.plot!(
         pb,
@@ -198,6 +211,28 @@ if path !== nothing
         label = "RK4, same inputs",
     )
 end
+start_cells = get(d, "start_cells", nothing)   # saved since the start is a configuration
+if start_cells !== nothing
+    out_cells = [c for (c, k) in start_cells if k < 0]
+    in_cells = [c for (c, k) in start_cells if k >= 0]
+    isempty(out_cells) || Plots.scatter!(
+        pb,
+        [c[2] for c in out_cells],
+        [c[1] for c in out_cells];
+        ms = 3,
+        color = :white,
+        msc = :gray,
+        label = "start cells outside the domain",
+    )
+    isempty(in_cells) || Plots.scatter!(
+        pb,
+        [c[2] for c in in_cells],
+        [c[1] for c in in_cells];
+        ms = 4,
+        color = :red,
+        label = "start cells in the domain",
+    )
+end
 Plots.scatter!(
     pb,
     [x0[2]],
@@ -212,8 +247,10 @@ Plots.savefig(
     Plots.plot(
         pa,
         pb;
-        layout = (1, 2),
-        size = (1300, 520),
+        layout = Plots.grid(1, 2; widths = [0.56, 0.44]),
+        size = (1500, 560),
+        left_margin = 6Plots.mm,
+        bottom_margin = 5Plots.mm,
         plot_title = "Controller's domain ($tlabel)",
     ),
     out("_domain.png"),
@@ -225,21 +262,36 @@ Plots.savefig(
 ds, os = d["domain_steps"], d["optimistic_steps"]
 K = max(length(ds), length(os))
 pad(v) = vcat(v, zeros(Int, K - length(v)))
-Plots.savefig(
-    Plots.bar(
-        0:(K - 1),
-        hcat(pad(os), pad(ds)) .+ 0.5;    # + 0.5: zero counts on a log axis
-        label = ["optimistic (some successors)" "worst case (the domain)"],
-        yscale = :log10,
-        xlabel = "steps to the target",
-        ylabel = "cells",
-        title = "Cells by number of steps to the target ($tlabel)",
-        bar_position = :dodge,
-        color = [:orange :steelblue],
-        size = (800, 450),
-    ),
-    out("_steps.png"),
+nonzero(v) = [c > 0 ? c : NaN for c in v]    # no bar for a zero count on the log axis
+steps_fig = Plots.bar(
+    collect(0:(K - 1)) .- 0.2,
+    nonzero(pad(os));
+    bar_width = 0.4,
+    fillto = 0.8,
+    label = "optimistic (some successors)",
+    color = :orange,
+    yscale = :log10,
+    xlabel = "steps to the target",
+    ylabel = "cells",
+    title = "Cells by number of steps to the target ($tlabel)",
+    legend = :topright,
+    size = (800, 450),
 )
+Plots.bar!(
+    steps_fig,
+    collect(0:(K - 1)) .+ 0.2,
+    nonzero(pad(ds));
+    bar_width = 0.4,
+    fillto = 0.8,
+    label = "worst case (the domain)",
+    color = :steelblue,
+)
+Plots.plot!(
+    steps_fig;
+    ylims = (0.8, 3 * max(maximum(os), maximum(ds))),
+    xticks = 0:(K > 25 ? 5 : 1):(K - 1),
+)
+Plots.savefig(steps_fig, out("_steps.png"))
 
 # ------------------------------------------------------------
 # Closed loops from the deepest cells of the domain
@@ -274,6 +326,74 @@ for (run, r) in d["runs"]
 end
 
 # ------------------------------------------------------------
+# Closed loops from the start cells in the domain, side by side
+# ------------------------------------------------------------
+start_runs = filter(r -> !isempty(r.inputs), get(d, "start_runs", []))
+if !isempty(start_runs)
+    n = length(start_runs)
+    colours = n == 1 ? [:steelblue] : Plots.palette(:viridis, n + 1)[1:n]   # no pale yellow end
+    fa = Plots.plot(;
+        xlabel = "x (m)",
+        ylabel = "z (m)",
+        title = "(a) swing foot",
+        legend = :bottomleft,
+        legendfontsize = 7,
+    )
+    draw_scene!(fa; xlims = (-0.3, 0.3), ylims = (-0.17, 0.12))
+    fq = Plots.plot(;
+        xlabel = "time (s)",
+        ylabel = "q₁ (rad)",
+        title = "(b) ankle angle",
+        legend = false,
+    )
+    fp = Plots.plot(;
+        xlabel = "time (s)",
+        ylabel = "p₁ (N m s)",
+        title = "(c) ankle momentum",
+        legend = false,
+    )
+    for (r, c) in zip(start_runs, colours)
+        fs = foot.(r.states)
+        ts = (0:(length(r.states) - 1)) .* disc.tstep
+        Plots.plot!(
+            fa,
+            first.(fs),
+            last.(fs);
+            color = c,
+            marker = :circle,
+            ms = 2,
+            label = @sprintf("p₁ = %.3f", r.start[1]),
+        )
+        Plots.plot!(fq, ts, [s[2] for s in r.states]; color = c, marker = :circle, ms = 2)
+        Plots.plot!(fp, ts, [s[1] for s in r.states]; color = c, marker = :circle, ms = 2)
+        println(
+            @sprintf(
+                "start run from p₁ = %.4f (%d worst-case steps): %d steps, foot from ",
+                r.start[1],
+                r.steps,
+                length(r.inputs),
+            ),
+            round.(foot(r.states[1]); digits = 3),
+            " to ",
+            round.(foot(r.states[end]); digits = 3),
+        )
+    end
+    Plots.savefig(
+        Plots.plot(
+            fa,
+            fq,
+            fp;
+            layout = Plots.@layout([a{0.45w} [b; c]]),
+            size = (1200, 520),
+            plot_title = "Closed loops from the start configuration ($tlabel)",
+            margin = 4Plots.mm,
+        ),
+        out("_starts.png"),
+    )
+    println("saved ", out("_starts.png"))
+end
+
+# ------------------------------------------------------------
 # The optimistic path from the start, against the RK4 map
 # ------------------------------------------------------------
 if path !== nothing
@@ -302,11 +422,7 @@ if path !== nothing
             RP.draw_robot!(left, path.states[j]; geometry, alpha = 0.15)
         end
         RP.draw_robot!(left, path.states[k]; geometry)
-        right = Plots.plot(;
-            title = "RK4 map, same inputs: step $(k - 1)" *
-                    (k == n ? " ($replay_note)" : ""),
-            titlefontsize = 10,
-        )
+        right = Plots.plot(; title = "RK4 map, same inputs: step $(k - 1)")
         draw_scene!(right)
         for j in 1:(k - 1)
             RP.draw_robot!(right, replay[j]; geometry, alpha = 0.15)
@@ -314,7 +430,7 @@ if path !== nothing
         RP.draw_robot!(right, replay[k]; geometry)
         u = k < n ? path.inputs[k] : nothing
         sub =
-            u === nothing ? "reached the target" :
+            u === nothing ? "the cells reach the target; the RK4 map $replay_note" :
             "next input (v₂, v₃, v₄) = $(Tuple(round.(u; digits = 1))) rad/s"
         return Plots.plot(
             left,
@@ -322,6 +438,7 @@ if path !== nothing
             layout = (1, 2),
             size = (1200, 520),
             plot_title = sub,
+            plot_titlefontsize = 13,
         )
     end
     anim = Plots.@animate for k in 1:n

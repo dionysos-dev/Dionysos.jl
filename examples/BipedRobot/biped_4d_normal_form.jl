@@ -171,21 +171,23 @@ x_lb, x_ub =
     @isdefined(X_BOUNDS) ? X_BOUNDS :
     (SVector(-0.6, -0.4, 0.0, -0.6, -1.0), SVector(-0.08, 0.4, 1.0, 0.6, 0.0))
 
-# The footstep starts from the configuration `q0 = [q₁, q₂, q₃, q₄]` and ends on the foothold. The
-# controller must work from every cell of the ankle momentum `p₁` that `INITIAL_VELOCITY` touches and
-# may end with any value in `TARGET_VELOCITY` (`nothing`, the default: the whole interval of
-# definition, here the negative momenta of the box). Both are `(vlo, vhi)` ranges on `p₁`. The default
-# starts from **a single value**, `p₁ = -0.4` (one cell of width 0.04: the ankle is already falling
-# forwards fast, at about -2.5 rad/s), with the swing foot at `(-0.2, 0.028)` m (stance femur tilted
-# 0.5 rad backwards, swing femur vertical, swing knee bent backwards by 0.9 rad): the step is symmetric,
-# from `x ≈ -0.2` to the foothold at `+0.2`. Set `Q0`, `INITIAL_VELOCITY` or `TARGET_VELOCITY` before
-# including this file to change them, e.g. `INITIAL_VELOCITY = (-0.44, -0.36)`.
+# The footstep starts from the configuration `q0 = [q₁, q₂, q₃, q₄]` and ends on the foothold. Both
+# are configurations: the momentum `p₁` can start anywhere in `INITIAL_VELOCITY` and end anywhere in
+# `TARGET_VELOCITY`, two `(vlo, vhi)` ranges on `p₁` that default to `nothing`, the whole interval of
+# definition (here the negative momenta of the box). The solver asks for a controller from **every**
+# momentum cell of the start and reports a failure otherwise; the step needs only one, so after the
+# synthesis the closed loop runs from each start cell in the controller's domain (`RP.start_runs`).
+# The default configuration has the swing foot at `(-0.2, 0.028)` m (stance femur tilted 0.5 rad
+# backwards, swing femur vertical, swing knee bent backwards by 0.9 rad): the step is symmetric, from
+# `x ≈ -0.2` to the foothold at `+0.2`. `x0` below takes the momentum in the middle of the start range.
+# Set `Q0`, `INITIAL_VELOCITY` or `TARGET_VELOCITY` before including this file to change them, e.g.
+# `INITIAL_VELOCITY = (-0.44, -0.36)`.
 #
 # With an obstacle, the swing foot has to start **outside** its carved neighbourhood: the carving is
 # sound, so it removes every cell where the box enclosing the swing foot over the cell meets the
 # obstacle.
 q0 = @isdefined(Q0) ? Q0 : SVector(0.0, 0.5, -0.4, -0.9)
-initial_velocity = @isdefined(INITIAL_VELOCITY) ? INITIAL_VELOCITY : (-0.4, -0.4)
+initial_velocity = @isdefined(INITIAL_VELOCITY) ? INITIAL_VELOCITY : nothing
 target_velocity = @isdefined(TARGET_VELOCITY) ? TARGET_VELOCITY : nothing
 
 # All combinations of the three velocity commands by default (27 for `input_steps = 1`): keeping the ankle
@@ -251,9 +253,10 @@ println(
 dynamics = certified.f
 concrete_system = ST.get_system(certified)   # discrete-time (RK4) system on the carved domain
 
-# Concrete start of the closed-loop run below: the configuration `q0` with the first coordinate in the
-# middle of the initial range, snapped to the grid so that the run starts where the abstraction does
-# (an error, naming the constraint that did it, if its cell was carved out).
+# A concrete start: the configuration `q0` with the first coordinate in the middle of the initial
+# range, snapped to the grid so that it is where the abstraction starts (an error, naming the
+# constraint that did it, if its cell was carved out). The closed loops below start from the start
+# cells in the controller's domain; `x0` is the reference when there is none.
 x0 = RP.start_state(
     disc.state_grid,
     q0,
@@ -331,7 +334,8 @@ if !abstraction_only
 
     # Reach the foothold from `q0`, with any velocity at the start and at the end (by default): the
     # over-approximation is nondeterministic, so the synthesis works against the worst case (no
-    # deterministic-only cost is given).
+    # deterministic-only cost is given). The synthesis runs to its fixed point (no `early_stop`), so
+    # the domain is complete whatever the start cells.
     step_pb = RP.step_problem(
         concrete_system,
         disc.state_grid;
@@ -345,31 +349,41 @@ if !abstraction_only
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), step_pb)
     @time MOI.optimize!(optimizer)
-    println("footstep success: ", MOI.get(optimizer, MOI.RawOptimizerAttribute("success")))
+    println(
+        "solver success (from every start cell): ",
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("success")),
+    )
 
-    # What the synthesis found: the size and depth of the controller's domain, and whether `x0` can
-    # reach the target at all on this abstraction (an optimistic search that ignores the
-    # nondeterminism), to tell why a run has no controller at `x0`. A few minutes at most.
+    # The step needs one start cell: the closed loops from each start cell in the controller's
+    # domain, on the RK4 model. The synthesis accounts for all the successors that the abstraction
+    # lists; these runs check the controller on concrete trajectories. `x_start` is the start of the
+    # animated run: the start cell with the fewest worst-case steps, or `x0` if none is in the domain.
+    starts = RP.start_runs(optimizer, step_pb, x0; ankle_name = "p₁")
+    x_start = starts.best === nothing ? x0 : starts.best.state
+
+    # What the synthesis found: the size and depth of the controller's domain, and whether `x_start`
+    # can reach the target at all on this abstraction (an optimistic search that ignores the
+    # nondeterminism), to tell why a run has no controller there. A few minutes at most.
     @time report = RP.synthesis_report(
         optimizer,
         disc.state_grid,
-        x0;
+        x_start;
         geometry = geometry,
         ankle_name = "p₁",
     )
 
-    # Synthesis accounts for all successors listed by the abstraction. The concrete closed loop
-    # below checks the resulting controller on one RK4 trajectory.
-    traj = RP.closed_loop(optimizer, step_pb, x0; ankle_name = "p₁")
+    traj =
+        starts.best === nothing ?
+        RP.closed_loop(optimizer, step_pb, x0; ankle_name = "p₁") : starts.best.traj
 
     # ------------------------------------------------------------
     # 5) Visualization
     # ------------------------------------------------------------
 
-    # Define `RUN_PLOTS = false` before including this file to skip it. `RP.plot_footstep` also draws
-    # nothing when the controller has no action at `x0` already (the default outcome of the experiment
-    # without a controller): `traj` has no input then. The figures and the animation go next to this
-    # file, or to the directory `OUTPUT_DIR` if it is defined.
+    # Define `RUN_PLOTS = false` before including this file to skip it. The run drawn is the one from
+    # `x_start`. `RP.plot_footstep` also draws nothing when no start cell is in the domain: `traj`,
+    # from `x0`, has no input then. The figures and the animation go next to this file, or to the
+    # directory `OUTPUT_DIR` if it is defined.
     output_dir = @isdefined(OUTPUT_DIR) ? OUTPUT_DIR : @__DIR__
     mkpath(output_dir)
     if @isdefined(RUN_PLOTS) ? RUN_PLOTS : true
@@ -387,7 +401,7 @@ if !abstraction_only
             ankle_label = "p₁ (N m s)",
             dynamics = (x, u) -> SVector{5}(dynamics(Vector(x), Vector(u))),
             subframes = 10,
-            title = "Biped in normal form — footstep ($(scenario_name))",
+            title = "Biped in normal form — footstep ($(scenario_name), p₁ = $(round(x_start[1]; digits = 3)) at the start)",
         )
     end # run_plots
 end # !abstraction_only
