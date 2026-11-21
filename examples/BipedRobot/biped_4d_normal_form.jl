@@ -186,8 +186,16 @@ x_lb, x_ub =
 # With an obstacle, the swing foot has to start **outside** its carved neighbourhood: the carving is
 # sound, so it removes every cell where the box enclosing the swing foot over the cell meets the
 # obstacle.
+#
+# Instead of one configuration, the step can start from every configuration with the swing foot at one
+# of the points `START_FOOTHOLDS`, e.g. on the ground around `(-0.2, 0)`:
+# `START_FOOTHOLDS = [SVector(x, 0.0) for x in -0.25:0.01:-0.15]`. The start cells are then those of
+# `RP.target_cells` for these points, with the momenta of `INITIAL_VELOCITY`; `q0` only gives `x0`, the
+# reference of the report when no start cell is in the domain, and the animated run is the one with the
+# swing foot closest to the middle of the points.
 q0 = @isdefined(Q0) ? Q0 : SVector(0.0, 0.5, -0.4, -0.9)
 initial_velocity = @isdefined(INITIAL_VELOCITY) ? INITIAL_VELOCITY : nothing
+start_footholds = @isdefined(START_FOOTHOLDS) ? START_FOOTHOLDS : nothing
 target_velocity = @isdefined(TARGET_VELOCITY) ? TARGET_VELOCITY : nothing
 
 # All combinations of the three velocity commands by default (27 for `input_steps = 1`): keeping the ankle
@@ -345,6 +353,7 @@ if !abstraction_only
         initial_velocity = initial_velocity,
         target_velocity = target_velocity,
         foothold_tolerance = foothold_tolerance,
+        start_footholds = start_footholds,
     )
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), step_pb)
@@ -358,7 +367,23 @@ if !abstraction_only
     # domain, on the RK4 model. The synthesis accounts for all the successors that the abstraction
     # lists; these runs check the controller on concrete trajectories. `x_start` is the start of the
     # animated run: the start cell with the fewest worst-case steps, or `x0` if none is in the domain.
-    starts = RP.start_runs(optimizer, step_pb, x0; ankle_name = "p₁")
+    # (With `START_FOOTHOLDS`, the animated run is the one with the swing foot closest to their middle,
+    # to the centimetre.)
+    start_middle =
+        start_footholds === nothing ? nothing :
+        sum(SVector{2}.(start_footholds)) / length(start_footholds)
+    prefer =
+        start_middle === nothing ? (x -> 0) :
+        x -> round(
+            Int,
+            100 * sqrt(
+                sum(
+                    abs2,
+                    RP.swing_foot_position(SVector{4}(x[2:5]), geometry) - start_middle,
+                ),
+            ),
+        )
+    starts = RP.start_runs(optimizer, step_pb, x0; ankle_name = "p₁", prefer)
     x_start = starts.best === nothing ? x0 : starts.best.state
 
     # What the synthesis found: the size and depth of the controller's domain, and whether `x_start`

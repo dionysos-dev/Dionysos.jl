@@ -831,6 +831,23 @@ end
             geometry,
             initial_velocity = (0.28, 0.3),       # only the cell across the bound
         )
+        # A start set of feet on given points: the cells of `target_cells` inside the box.
+        start = SVector(-0.15, 0.0)
+        problem = RP.step_problem(
+            system,
+            disc.state_grid;
+            q0,
+            foothold,
+            geometry,
+            start_footholds = [start],
+        )
+        inner = MP.get_pos_lims_inner(disc.state_grid, X_box)
+        expected = Set(
+            Tuple(p) for
+            p in RP.target_cells(disc.state_grid, start, geometry, X_box) if
+            all(i -> Tuple(p)[i] in inner[i], 1:5)
+        )
+        @test !isempty(expected) && Set(problem.initial_set.positions) == expected
         # The cell of a start configuration with the swing foot inside the obstacle is carved out.
         @test_throws ErrorException RP.step_problem(
             system,

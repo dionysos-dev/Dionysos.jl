@@ -15,14 +15,17 @@
 #     INITIAL_VELOCITY = (-0.44, -0.36)       # default: any start momentum
 #     Q0 = SVector(0.0, 0.5, -0.4, -0.9)      # StaticArrays is loaded for it
 #     TARGET_VELOCITY = (-0.3, -0.1)          # default: any end momentum
+#     START_FOOTHOLDS = [SVector(x, 0.0) for x in -0.25:0.01:-0.15]   # start: foot on these points
 #
-# (`FOOTHOLD_TOLERANCE`, `Q0`, `INITIAL_VELOCITY`, `TARGET_VELOCITY`.) What defines the abstraction
-# (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, `OBSTACLE`) is the example's: the file is refused if it differs.
+# (`FOOTHOLD_TOLERANCE`, `Q0`, `INITIAL_VELOCITY`, `TARGET_VELOCITY`, `START_FOOTHOLDS`.) What defines
+# the abstraction (`DISC`, `X_BOUNDS`, `ONE_JOINT_PER_STEP`, `OBSTACLE`) is the example's: the file is
+# refused if it differs.
 #
-# The start is the configuration `Q0` with any momentum of `INITIAL_VELOCITY`: the solve succeeds if
-# one of its momentum cells is in the controller's domain. The closed loop runs from each of them, and
-# the one with the fewest worst-case steps is animated. (The solver's own `success` asks for all of
-# them.)
+# The start is the configuration `Q0` with any momentum of `INITIAL_VELOCITY`, or, with
+# `START_FOOTHOLDS`, every configuration with the swing foot at one of these points: the solve succeeds
+# if one of the start cells is in the controller's domain. The closed loop runs from each of them, and
+# one is animated (the fewest worst-case steps; with `START_FOOTHOLDS`, the foot closest to their
+# middle first). The solver's own `success` asks for all of them.
 #
 # Environment:
 #   DIONYSOS_ABSTRACTION_FILE   the saved abstraction (default: slurm_array/out/normal_form_abstraction.jld2)
@@ -53,6 +56,31 @@ peak_gb() = round(Sys.maxrss() / 2^30; digits = 1)
 # replay on the RK4 map with the same inputs, and the closed loops from the deepest cell of the domain
 # (most steps to the target, the swing foot farthest back among them) and from the cell with the swing
 # foot farthest back. Plotted by `tests/plot_step_diagnostics.jl`.
+# The synthesized controller, to rerun closed loops without solving again: for every cell of the
+# domain outside the target, its grid position (`state_origin + state_h .* position` is the centre)
+# and its input as multiples of `du` (`input_steps .* du`). About 13 bytes per cell.
+function controller_table()
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    positions = NTuple{5, Int16}[]
+    input_steps = NTuple{3, Int8}[]
+    for q in controller.dom
+        us = controller.controller_map(q)
+        isempty(us) && continue          # a target cell: no input
+        x = SY.get_concrete_state(abstract_system, q)
+        u = SY.get_concrete_input(abstract_system, first(us))
+        push!(positions, Int16.(Tuple(MP.get_pos_by_coord(disc.state_grid, x))))
+        push!(input_steps, Int8.(Tuple(round.(Int, u ./ disc.du))))
+    end
+    return (;
+        positions,
+        input_steps,
+        state_origin = SVector{5}(MP.get_origin(disc.state_grid)),
+        state_h = SVector{5}(MP.get_h(disc.state_grid)),
+        disc.du,
+    )
+end
+
 function save_diagnostics(file)
     as_run(start, steps, traj) = (;
         start,
@@ -107,6 +135,7 @@ function save_diagnostics(file)
         runs,
         start_cells = [(SVector{5}(c.state), c.steps) for c in starts.cells],
         start_runs = [as_run(SVector{5}(r.state), r.steps, r.traj) for r in starts.runs],
+        controller = controller_table(),
         x0 = SVector{5}(x_start),   # the start of the report and of the animated run
         x0_reference = SVector{5}(x0),
         tstep = disc.tstep,
@@ -209,7 +238,7 @@ try
         stamp(
             "SOLVE FAILED: no animation was written: " * (
                 isempty(starts.runs) ?
-                "no start cell (the configuration Q0 with the momenta of INITIAL_VELOCITY) is " *
+                "no start cell (Q0 or START_FOOTHOLDS, with the momenta of INITIAL_VELOCITY) is " *
                 "in the controller's domain. Try a larger FOOTHOLD_TOLERANCE or another start." :
                 "the run from the start has no step (its cell is in the target already, or " *
                 "the closed loop did not run: see the lines above)."

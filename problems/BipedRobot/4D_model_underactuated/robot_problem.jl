@@ -889,6 +889,11 @@ any. The target is the set of cells lying entirely inside the target range.
 
 Errors if the cell of `q0` is not in the state domain (outside its bounds or carved out): the
 initial set would be empty, which the synthesis can only report as a failure, without saying why.
+
+With `start_footholds`, a collection of points `(x, z)`, the initial set is instead every cell
+containing a configuration with the swing foot at one of them ([`target_cells`](@ref) with no
+tolerance), with the momenta of `initial_velocity` (cells entirely inside it), among the cells inside
+the state box; `q0` is then not used. For example, the swing foot on the ground around `(-0.2, 0)`.
 """
 function step_problem(
     concrete_system,
@@ -899,11 +904,45 @@ function step_problem(
     initial_velocity = nothing,
     target_velocity = nothing,
     foothold_tolerance::Real = 0.0,
+    start_footholds = nothing,
 )
     h = MP.get_h(state_grid)
     X_box = UT._outer_box(concrete_system.X)
     v_init = _velocity_range(initial_velocity, X_box, "initial_velocity")
     v_target = _velocity_range(target_velocity, X_box, "target_velocity")
+    _T_ = target_set(
+        state_grid,
+        foothold,
+        geometry,
+        X_box;
+        velocity = target_velocity === nothing ? nothing : v_target,
+        tolerance = foothold_tolerance,
+    )
+    if start_footholds !== nothing
+        inner = MP.get_pos_lims_inner(state_grid, X_box)
+        cells = Set{NTuple{5, Int}}()
+        for fh in start_footholds
+            for p in target_cells(
+                state_grid,
+                SVector{2}(fh),
+                geometry,
+                X_box;
+                velocity = initial_velocity === nothing ? nothing : v_init,
+            )
+                all(i -> Tuple(p)[i] in inner[i], 1:5) && push!(cells, Tuple(p))
+            end
+        end
+        isempty(cells) &&
+            error("no cell of the state box has the swing foot at $start_footholds")
+        return PR.OptimalControlProblem(
+            concrete_system,
+            MP.CellUnion(state_grid, collect(cells)),
+            _T_,
+            nothing,
+            nothing,
+            PR.Infinity(),
+        )
+    end
 
     # Snap the configuration to the center of its cell so that the initial box is inside it.
     snapped = MP.get_coord_by_pos(
@@ -937,15 +976,6 @@ function step_problem(
         "its bounds, or carved out: the swing foot can touch the obstacle or is below the " *
         "ground); " *
         "choose another configuration or refine the grid",
-    )
-
-    _T_ = target_set(
-        state_grid,
-        foothold,
-        geometry,
-        X_box;
-        velocity = target_velocity === nothing ? nothing : v_target,
-        tolerance = foothold_tolerance,
     )
     return PR.OptimalControlProblem(
         concrete_system,
@@ -1352,43 +1382,71 @@ function start_cells(optimizer)
 end
 
 """
-    start_runs(optimizer, problem, x0; horizon = 400, ankle_name = "ankle") -> NamedTuple
+    start_runs(optimizer, problem, x0; horizon = 400, ankle_name = "ankle", prefer = x -> 0,
+               verbose = nothing) -> NamedTuple
 
-A footstep from a configuration with **any** momentum: the closed loops ([`closed_loop`](@ref)) from
-every cell of the initial set of `problem` that is in the controller's domain ([`start_cells`](@ref)).
-The solver asks for a controller from all the momenta of the initial set; the step needs only one.
+A footstep from a set of start cells (a configuration with **any** momentum, or every configuration
+with the swing foot at given points): the closed loops ([`closed_loop`](@ref)) from every cell of the
+initial set of `problem` that is in the controller's domain ([`start_cells`](@ref)). The solver asks
+for a controller from all the cells of the initial set; the step needs only one.
 
 Returns `(; cells, runs, best)`: `cells` from [`start_cells`](@ref); `runs`, one `(; state, steps,
-traj)` per start cell in the domain; `best`, the run with the fewest worst-case steps (the momentum
-closest to that of `x0` on a tie), or `nothing` if no start cell is in the domain. Prints the start
-cells in the domain, then each closed loop.
+traj)` per start cell in the domain; `best`, the run with the smallest `prefer(state)`, then the
+fewest worst-case steps, then the momentum closest to that of `x0`, or `nothing` if no start cell is
+in the domain. Prints the start cells in the domain and each closed loop, or, with more than 20 of
+them (unless `verbose` says otherwise), a summary.
 """
-function start_runs(optimizer, problem, x0; horizon::Int = 400, ankle_name = "ankle")
+function start_runs(
+    optimizer,
+    problem,
+    x0;
+    horizon::Int = 400,
+    ankle_name = "ankle",
+    prefer = x -> 0,
+    verbose = nothing,
+)
     cells = start_cells(optimizer)
     in_domain = filter(c -> c.steps >= 0, cells)
+    verbose = verbose === nothing ? length(in_domain) <= 20 : verbose
     fmt(x) = string(round(x; digits = 4))
+    listed = join(
+        ["$ankle_name = $(fmt(c.state[IDX_ANKLE])) ($(c.steps) steps)" for c in in_domain],
+        ", ",
+    )
     println(
         "start cells in the controller's domain: ",
         length(in_domain),
         " of ",
         length(cells),
-        isempty(in_domain) ? "" : ": ",
-        join(
-            [
-                "$ankle_name = $(fmt(c.state[IDX_ANKLE])) ($(c.steps) steps)" for
-                c in in_domain
-            ],
-            ", ",
-        ),
+        verbose && !isempty(in_domain) ? ": " * listed : "",
     )
     runs = map(in_domain) do c
-        println("closed loop from ", ankle_name, " = ", fmt(c.state[IDX_ANKLE]), ":")
-        traj = closed_loop(optimizer, problem, c.state; horizon, ankle_name)
+        verbose && println("closed loop from ", ankle_name, " = ", fmt(c.state[IDX_ANKLE]), ":")
+        run() = closed_loop(optimizer, problem, c.state; horizon, ankle_name)
+        traj = verbose ? run() : redirect_stdout(run, devnull)
         return (; c.state, c.steps, traj)
+    end
+    if !verbose && !isempty(runs)
+        lengths = [length(ST.states(r.traj)) - 1 for r in runs]
+        reached = count(r -> last(ST.states(r.traj)) ∈ problem.target_set, runs)
+        println(
+            "closed loops from them: ",
+            reached,
+            " of ",
+            length(runs),
+            " reach the target, in ",
+            minimum(lengths),
+            " to ",
+            maximum(lengths),
+            " steps",
+        )
     end
     best =
         isempty(runs) ? nothing :
-        argmin(r -> (r.steps, abs(r.state[IDX_ANKLE] - x0[IDX_ANKLE])), runs)
+        argmin(
+            r -> (prefer(r.state), r.steps, abs(r.state[IDX_ANKLE] - x0[IDX_ANKLE])),
+            runs,
+        )
     return (; cells, runs, best)
 end
 

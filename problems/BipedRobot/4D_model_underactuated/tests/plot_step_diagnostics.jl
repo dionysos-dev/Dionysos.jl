@@ -329,6 +329,12 @@ end
 # Closed loops from the start cells in the domain, side by side
 # ------------------------------------------------------------
 start_runs = filter(r -> !isempty(r.inputs), get(d, "start_runs", []))
+if length(start_runs) > 12
+    # A spread of them, from the fewest to the most worst-case steps.
+    println("start runs: ", length(start_runs), ", 12 of them drawn")
+    sort!(start_runs; by = r -> r.steps)
+    start_runs = start_runs[unique(round.(Int, range(1, length(start_runs); length = 12)))]
+end
 if !isempty(start_runs)
     n = length(start_runs)
     colours = n == 1 ? [:steelblue] : Plots.palette(:viridis, n + 1)[1:n]   # no pale yellow end
@@ -362,7 +368,7 @@ if !isempty(start_runs)
             color = c,
             marker = :circle,
             ms = 2,
-            label = @sprintf("p₁ = %.3f", r.start[1]),
+            label = @sprintf("p₁ = %.3f, foot x = %.2f", r.start[1], foot(r.start)[1]),
         )
         Plots.plot!(fq, ts, [s[2] for s in r.states]; color = c, marker = :circle, ms = 2)
         Plots.plot!(fp, ts, [s[1] for s in r.states]; color = c, marker = :circle, ms = 2)
